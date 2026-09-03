@@ -12,7 +12,7 @@
   let selectedSchool = null;
   let curriculum = null;
   let user = null;
-  let memberSchool = null;
+  let accessRole = "";
   let connection = configured ? "connecting" : "local";
   let message = configured ? "Supabase 연결을 확인하고 있습니다." : "Supabase 설정값을 입력하면 온라인 연동이 시작됩니다.";
 
@@ -59,7 +59,7 @@
       selectedSchool: selectedSchool ? { ...selectedSchool } : null,
       curriculum: curriculum ? JSON.parse(JSON.stringify(curriculum)) : null,
       user: user ? { id: user.id, email: user.email || "" } : null,
-      memberSchool: memberSchool ? { ...memberSchool } : null
+      accessRole
     };
   }
 
@@ -123,20 +123,17 @@
     }
   }
 
-  async function loadMembership() {
-    memberSchool = null;
+  async function loadAccessRole() {
+    accessRole = "";
     if (!client || !user) return null;
-    const { data: membership, error } = await client
-      .from("school_members")
-      .select("school_id, role")
+    const { data: access, error } = await client
+      .from("platform_users")
+      .select("role")
       .eq("user_id", user.id)
-      .limit(1)
       .maybeSingle();
     if (error) throw error;
-    if (!membership) return null;
-    const school = schools.find((item) => item.id === membership.school_id);
-    memberSchool = school ? { ...school, role: membership.role } : { id: membership.school_id, name: "담당 학교", role: membership.role };
-    return memberSchool;
+    accessRole = access?.role === "admin" || access?.role === "teacher" ? access.role : "";
+    return accessRole;
   }
 
   async function init() {
@@ -153,17 +150,17 @@
           user = data.session?.user || null;
           await loadSchools();
           await restoreSelection();
-          await loadMembership();
+          await loadAccessRole();
           connection = "online";
           message = "Supabase와 연결되었습니다.";
           client.auth.onAuthStateChange((_event, session) => {
             user = session?.user || null;
             setTimeout(async () => {
               try {
-                await loadMembership();
+                await loadAccessRole();
                 emitChange("auth");
               } catch (error) {
-                console.error("학교 담당자 권한 확인 실패:", error);
+                console.error("플랫폼 권한 확인 실패:", error);
               }
             }, 0);
           });
@@ -204,15 +201,31 @@
     return snapshot();
   }
 
-  async function signIn(email, password) {
+  async function authenticate(email, password, requiredRole) {
     await init();
     if (!client) throw new Error("먼저 supabase-config.js에 연결 정보를 입력해 주세요.");
     const { data, error } = await client.auth.signInWithPassword({ email, password });
     if (error) throw error;
     user = data.user;
-    await loadMembership();
+    await loadAccessRole();
+    if (!accessRole || accessRole !== requiredRole) {
+      await client.auth.signOut();
+      user = null;
+      accessRole = "";
+      throw new Error(requiredRole === "admin" ? "관리자 권한이 없는 계정입니다." : "담당 교사 등록 권한이 없습니다.");
+    }
     emitChange("auth");
     return snapshot();
+  }
+
+  async function signInTeacher(password) {
+    const email = String(config.teacherEmail || "").trim();
+    if (!email) throw new Error("supabase-config.js에 담당 교사 계정 이메일을 먼저 설정해 주세요.");
+    return authenticate(email, password, "teacher");
+  }
+
+  async function signInAdmin(email, password) {
+    return authenticate(String(email || "").trim(), password, "admin");
   }
 
   async function signOut() {
@@ -220,32 +233,97 @@
     const { error } = await client.auth.signOut();
     if (error) throw error;
     user = null;
-    memberSchool = null;
+    accessRole = "";
     emitChange("auth");
     return snapshot();
+  }
+
+  function comparable(value) {
+    return String(value || "").replace(/\s+/g, "").toLocaleLowerCase("ko");
+  }
+
+  function newSchoolSlug() {
+    const randomPart = globalThis.crypto?.randomUUID?.().slice(0, 8) || Math.random().toString(36).slice(2, 10);
+    return `school-${Date.now().toString(36)}-${randomPart}`;
+  }
+
+  async function findOrCreateSchool(input) {
+    const name = String(input?.schoolName || "").trim();
+    const region = String(input?.region || "").trim();
+    if (!name || !region) throw new Error("편제표의 지역과 학교명을 확인해 주세요.");
+    await loadSchools();
+    const findExisting = () => schools.find((school) => comparable(school.name) === comparable(name) && comparable(school.region) === comparable(region));
+    const existing = findExisting();
+    if (existing) return existing;
+    const { data, error } = await client
+      .from("schools")
+      .insert({ slug: newSchoolSlug(), name, region, is_active: true })
+      .select("id, slug, name, region, updated_at")
+      .single();
+    if (error) {
+      if (error.code === "23505") {
+        await loadSchools();
+        const concurrent = findExisting();
+        if (concurrent) return concurrent;
+      }
+      throw error;
+    }
+    const school = cleanSchool(data);
+    if (school) schools = [...schools, school].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    return school;
   }
 
   async function publishCurriculum(input) {
     await init();
     if (!client) throw new Error("Supabase가 연결되지 않았습니다.");
-    if (!user) throw new Error("학교 담당자 로그인이 필요합니다.");
-    await loadMembership();
-    if (!memberSchool?.id) throw new Error("이 계정에 연결된 학교가 없습니다. 최고 관리자에게 학교 연결을 요청하세요.");
+    if (!user || !accessRole) throw new Error("담당 교사 또는 관리자 로그인이 필요합니다.");
     const admissionYear = Number(input?.admissionYear);
     if (!Number.isInteger(admissionYear) || admissionYear < 2022 || admissionYear > 2100) throw new Error("적용 입학년도를 확인해 주세요.");
+    const school = await findOrCreateSchool(input);
     const payload = {
-      school_id: memberSchool.id,
+      school_id: school.id,
       admission_year: admissionYear,
-      data: { ...input, schoolId: memberSchool.id, schoolName: memberSchool.name },
+      data: { ...input, schoolId: school.id, schoolName: school.name, region: school.region },
       is_published: true,
       updated_by: user.id,
       updated_at: new Date().toISOString()
     };
-    const { error } = await client.from("curricula").upsert(payload, { onConflict: "school_id,admission_year" });
-    if (error) throw error;
+    const { data: existing, error: lookupError } = await client
+      .from("curricula")
+      .select("id")
+      .eq("school_id", school.id)
+      .eq("admission_year", admissionYear)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    let action = "inserted";
+    if (existing?.id) {
+      if (accessRole !== "admin") throw new Error(`${school.name} ${admissionYear}학년도 편제표는 이미 등록되어 있습니다. 수정은 관리자만 할 수 있습니다.`);
+      const { error } = await client.from("curricula").update(payload).eq("id", existing.id);
+      if (error) throw error;
+      action = "updated";
+    } else {
+      const { error } = await client.from("curricula").insert(payload);
+      if (error?.code === "23505") throw new Error(`${school.name} ${admissionYear}학년도 편제표는 이미 등록되어 있습니다.`);
+      if (error) throw error;
+    }
     await loadSchools();
-    await selectSchool(memberSchool.id);
+    selectedSchool = schools.find((item) => item.id === school.id) || school;
+    localStorage.setItem(SELECTED_SCHOOL_KEY, school.id);
+    await loadCurriculum(school.id);
     emitChange("publish");
+    return { ...snapshot(), action };
+  }
+
+  async function deleteCurriculum(curriculumId) {
+    await init();
+    if (!client || !user || accessRole !== "admin") throw new Error("관리자만 편제표를 삭제할 수 있습니다.");
+    const id = String(curriculumId || curriculum?.id || "").trim();
+    if (!id) throw new Error("삭제할 편제표를 찾을 수 없습니다.");
+    const schoolId = selectedSchool?.id || curriculum?.schoolId || "";
+    const { error } = await client.from("curricula").delete().eq("id", id);
+    if (error) throw error;
+    await loadCurriculum(schoolId);
+    emitChange("delete");
     return snapshot();
   }
 
@@ -253,9 +331,11 @@
     init,
     getSnapshot: snapshot,
     selectSchool,
-    signIn,
+    signInTeacher,
+    signInAdmin,
     signOut,
     publishCurriculum,
+    deleteCurriculum,
     isConfigured: () => configured
   };
 })();

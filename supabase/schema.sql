@@ -19,6 +19,14 @@ create table if not exists public.school_members (
   primary key (user_id, school_id)
 );
 
+-- 관리자와 담당 교사의 역할을 저장합니다.
+-- school_members는 이전 설치와의 호환을 위해 남겨 두지만 새 업로드 권한에는 사용하지 않습니다.
+create table if not exists public.platform_users (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null check (role in ('admin', 'teacher')),
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.curricula (
   id uuid primary key default gen_random_uuid(),
   school_id uuid not null references public.schools(id) on delete cascade,
@@ -34,15 +42,20 @@ create table if not exists public.curricula (
 create index if not exists curricula_school_published_idx
   on public.curricula (school_id, is_published, admission_year desc);
 
+create unique index if not exists schools_name_region_unique_idx
+  on public.schools (lower(name), lower(region));
+
 alter table public.schools enable row level security;
 alter table public.school_members enable row level security;
+alter table public.platform_users enable row level security;
 alter table public.curricula enable row level security;
 
-revoke all on table public.schools, public.school_members, public.curricula from anon, authenticated;
+revoke all on table public.schools, public.school_members, public.platform_users, public.curricula from anon, authenticated;
 grant select on table public.schools to anon, authenticated;
 grant select on table public.curricula to anon, authenticated;
-grant select on table public.school_members to authenticated;
-grant insert, update, delete on table public.curricula to authenticated;
+grant select on table public.platform_users to authenticated;
+grant insert on table public.schools, public.curricula to authenticated;
+grant update, delete on table public.schools, public.curricula to authenticated;
 
 drop policy if exists "active schools are public" on public.schools;
 create policy "active schools are public"
@@ -50,11 +63,54 @@ on public.schools for select
 to anon, authenticated
 using (is_active = true);
 
-drop policy if exists "members read own membership" on public.school_members;
-create policy "members read own membership"
-on public.school_members for select
+drop policy if exists "platform users read own access" on public.platform_users;
+create policy "platform users read own access"
+on public.platform_users for select
 to authenticated
 using ((select auth.uid()) = user_id);
+
+drop policy if exists "platform users add schools" on public.schools;
+create policy "platform users add schools"
+on public.schools for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.platform_users
+    where platform_users.user_id = (select auth.uid())
+      and platform_users.role in ('admin', 'teacher')
+  )
+);
+
+drop policy if exists "admins update schools" on public.schools;
+create policy "admins update schools"
+on public.schools for update
+to authenticated
+using (
+  exists (
+    select 1 from public.platform_users
+    where platform_users.user_id = (select auth.uid())
+      and platform_users.role = 'admin'
+  )
+)
+with check (
+  exists (
+    select 1 from public.platform_users
+    where platform_users.user_id = (select auth.uid())
+      and platform_users.role = 'admin'
+  )
+);
+
+drop policy if exists "admins delete schools" on public.schools;
+create policy "admins delete schools"
+on public.schools for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.platform_users
+    where platform_users.user_id = (select auth.uid())
+      and platform_users.role = 'admin'
+  )
+);
 
 drop policy if exists "published curricula are public" on public.curricula;
 create policy "published curricula are public"
@@ -68,59 +124,63 @@ using (
   )
 );
 
-drop policy if exists "members insert own school curriculum" on public.curricula;
-create policy "members insert own school curriculum"
+drop policy if exists "platform users add curriculum" on public.curricula;
+create policy "platform users add curriculum"
 on public.curricula for insert
 to authenticated
 with check (
   updated_by = (select auth.uid())
   and exists (
-    select 1 from public.school_members
-    where school_members.school_id = curricula.school_id
-      and school_members.user_id = (select auth.uid())
+    select 1 from public.platform_users
+    where platform_users.user_id = (select auth.uid())
+      and platform_users.role in ('admin', 'teacher')
   )
 );
 
-drop policy if exists "members update own school curriculum" on public.curricula;
-create policy "members update own school curriculum"
+drop policy if exists "admins update curriculum" on public.curricula;
+create policy "admins update curriculum"
 on public.curricula for update
 to authenticated
 using (
   exists (
-    select 1 from public.school_members
-    where school_members.school_id = curricula.school_id
-      and school_members.user_id = (select auth.uid())
+    select 1 from public.platform_users
+    where platform_users.user_id = (select auth.uid())
+      and platform_users.role = 'admin'
   )
 )
 with check (
   updated_by = (select auth.uid())
   and exists (
-    select 1 from public.school_members
-    where school_members.school_id = curricula.school_id
-      and school_members.user_id = (select auth.uid())
+    select 1 from public.platform_users
+    where platform_users.user_id = (select auth.uid())
+      and platform_users.role = 'admin'
   )
 );
 
-drop policy if exists "owners delete own school curriculum" on public.curricula;
-create policy "owners delete own school curriculum"
+drop policy if exists "admins delete curriculum" on public.curricula;
+create policy "admins delete curriculum"
 on public.curricula for delete
 to authenticated
 using (
   exists (
-    select 1 from public.school_members
-    where school_members.school_id = curricula.school_id
-      and school_members.user_id = (select auth.uid())
-      and school_members.role = 'owner'
+    select 1 from public.platform_users
+    where platform_users.user_id = (select auth.uid())
+      and platform_users.role = 'admin'
   )
 );
 
--- 학교와 담당자 계정은 Supabase 최고 관리자가 만든 뒤 아래처럼 연결합니다.
--- 1) Authentication > Users에서 담당자 생성 후 UUID 복사
--- 2) SQL Editor에서 아래 예시의 값을 바꿔 실행
+-- 이전 버전의 학교별 담당자 정책을 제거합니다.
+drop policy if exists "members read own membership" on public.school_members;
+drop policy if exists "members insert own school curriculum" on public.curricula;
+drop policy if exists "members update own school curriculum" on public.curricula;
+drop policy if exists "owners delete own school curriculum" on public.curricula;
+drop policy if exists "platform admins add schools" on public.schools;
+drop policy if exists "platform admins add curriculum" on public.curricula;
+
+-- Authentication > Users에서 관리자와 담당 교사 계정을 만든 뒤 역할을 연결합니다.
+-- 담당 교사 계정의 이메일은 supabase-config.js의 teacherEmail에 입력하며,
+-- 웹 화면에서는 이메일을 숨기고 관리 비밀번호만 받습니다.
 --
--- insert into public.schools (slug, name, region)
--- values ('wonju-girls', '원주여자고등학교', '강원특별자치도')
--- returning id;
---
--- insert into public.school_members (user_id, school_id, role)
--- values ('담당자-USER-UUID', '위에서-반환된-SCHOOL-UUID', 'owner');
+-- insert into public.platform_users (user_id, role) values
+--   ('관리자-USER-UUID', 'admin'),
+--   ('담당교사-USER-UUID', 'teacher');

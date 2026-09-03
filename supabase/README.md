@@ -1,13 +1,22 @@
 # Supabase 학교 편제표 연동
 
-이 폴더의 `schema.sql`은 학교 목록, 학교 담당자 권한, 학교별 편제표를 만듭니다. 공통 과목 설명 DB(`data/database.json`)는 기존처럼 GitHub Pages에서 읽고, 학교별 편제표만 Supabase에서 읽고 씁니다.
+이 폴더의 `schema.sql`은 학교 목록, 관리자·담당 교사 권한, 학교별 편제표를 만듭니다. 공통 과목 설명 DB(`data/database.json`)는 기존처럼 GitHub Pages에서 읽고, 학교별 편제표만 Supabase에서 읽고 씁니다.
 
 ## 1. Supabase 프로젝트 준비
 
 1. Supabase에서 새 프로젝트를 만듭니다.
 2. **SQL Editor**에서 `schema.sql` 전체를 실행합니다.
-3. **Authentication > Users**에서 학교 담당자 이메일 계정을 생성합니다.
-4. SQL Editor에서 `schools`에 학교를 추가하고, 반환된 학교 UUID와 담당자 User UUID를 `school_members`에 연결합니다.
+3. **Authentication > Users**에서 관리자 계정과 담당 교사 공용 계정을 각각 하나씩 생성합니다.
+4. 두 계정의 User UUID를 복사하고 SQL Editor에서 역할을 연결합니다.
+
+```sql
+insert into public.platform_users (user_id, role) values
+  ('관리자-USER-UUID', 'admin'),
+  ('담당교사-USER-UUID', 'teacher');
+```
+
+- `admin`: 이메일·비밀번호로 로그인하며 새 등록, 기존 편제표 수정·삭제 가능
+- `teacher`: 화면에서는 공용 관리 비밀번호만 입력하며 새 편제표 등록만 가능
 
 ## 2. 웹 프로젝트 연결
 
@@ -16,21 +25,22 @@ Supabase의 **Project URL**과 **Publishable key**를 확인한 뒤 루트의 `s
 ```js
 window.SUPABASE_CONFIG = {
   url: "https://YOUR_PROJECT.supabase.co",
-  publishableKey: "sb_publishable_..."
+  publishableKey: "sb_publishable_...",
+  teacherEmail: "teacher-access@example.com"
 };
 ```
 
-`service_role` 또는 secret key는 브라우저 파일이나 GitHub에 절대로 넣지 않습니다. Publishable key만 사용하며 실제 읽기·쓰기 권한은 `schema.sql`의 RLS 정책이 제한합니다.
+`teacherEmail`에는 담당 교사 공용 계정의 이메일을 입력합니다. 화면에는 이 이메일이 표시되지 않고 담당 교사는 비밀번호만 입력합니다. `service_role` 또는 secret key는 브라우저 파일이나 GitHub에 절대로 넣지 않습니다. Publishable key만 사용하며 실제 읽기·쓰기 권한은 `schema.sql`의 RLS 정책이 제한합니다.
 
 ## 3. 학교 편제표 등록
 
 1. 웹사이트의 **데이터 연동** 탭을 엽니다.
 2. **양식 다운로드**로 엑셀 파일을 받습니다.
 3. `편제표` 시트 상단에 지역·학교명·입학년도를 입력하고, 아래에 학년별 과목을 작성합니다. `작성안내` 시트는 참고용입니다.
-4. 학교 담당자 계정으로 로그인하고 파일을 업로드합니다.
-5. 검증 결과를 확인한 뒤 **Supabase에 공개**를 누릅니다.
+4. 담당 교사는 관리 비밀번호만 입력하고, 관리자는 이메일·비밀번호로 로그인합니다.
+5. 파일을 업로드하고 검증 결과를 확인한 뒤 등록 버튼을 누릅니다.
 
-한 학교·한 입학년도에는 하나의 편제표가 저장되며, 같은 입학년도를 다시 올리면 최신 내용으로 갱신됩니다. 학생 화면은 공개된 편제표 중 가장 최근 입학년도를 기본으로 불러옵니다.
+한 학교·한 입학년도에는 하나의 편제표가 저장됩니다. 담당 교사는 이미 등록된 학교·입학년도의 내용을 수정하거나 삭제할 수 없습니다. 관리자는 같은 학교·입학년도 양식을 다시 올려 수정할 수 있고, 선택한 편제표를 삭제할 수 있습니다. 학생 화면은 공개된 편제표 중 가장 최근 입학년도를 기본으로 불러옵니다.
 
 ## 편제표 열 규칙
 

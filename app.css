@@ -2579,6 +2579,26 @@
   gap: 9px;
 }
 
+.school-access-login {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.school-access-login .school-login-form {
+  margin-top: 0;
+}
+
+.teacher-login-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-color: rgba(8, 116, 91, 0.24);
+  background: #f5fbf8;
+}
+
+.admin-login-form {
+  background: #f7f8fa;
+}
+
 .school-login-form > div {
   grid-column: 1 / -1;
 }
@@ -2586,6 +2606,12 @@
 .school-login-form h3 {
   margin: 2px 0 0;
   font-size: 12px;
+}
+
+.school-login-form > div p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 8px;
 }
 
 .school-login-form small,
@@ -2615,6 +2641,16 @@
 .school-login-form input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(8, 116, 91, 0.08);
+}
+
+.signed-school-user.is-admin {
+  border-color: rgba(126, 91, 36, 0.2);
+  background: #fcf8f1;
+}
+
+.signed-school-user.is-admin > span {
+  color: #8a6328;
+  background: #f2e6d3;
 }
 
 .curriculum-upload-zone {
@@ -2798,6 +2834,15 @@
   margin-top: 3px;
   color: rgba(255, 255, 255, 0.58);
   font-size: 8px;
+}
+
+.active-school-summary .danger-action {
+  width: 100%;
+  min-height: 34px;
+  margin-top: 11px;
+  border-color: rgba(255, 183, 168, 0.22);
+  color: #ffd4cb;
+  background: rgba(70, 9, 5, 0.3);
 }
 
 .school-required-state {

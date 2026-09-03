@@ -74,7 +74,7 @@
     schoolConnection: "local",
     schoolConnectionMessage: "학교 데이터를 준비하고 있습니다.",
     schoolUser: null,
-    memberSchool: null,
+    accessRole: "",
     pendingCurriculum: null,
     curriculumImportMessage: "",
     curriculumBusy: false,
@@ -99,7 +99,7 @@
     state.schoolConnection = snapshot.connection || "local";
     state.schoolConnectionMessage = snapshot.message || "";
     state.schoolUser = snapshot.user || null;
-    state.memberSchool = snapshot.memberSchool || null;
+    state.accessRole = snapshot.accessRole || "";
     if (!state.selectedSchool || !state.curriculum) state.schoolOnlyCourses = false;
   }
 
@@ -867,8 +867,8 @@
       showToast("엑셀 도구를 불러오지 못했습니다. 인터넷 연결 후 다시 시도해 주세요.", 4500);
       return;
     }
-    const schoolName = state.memberSchool?.name || state.selectedSchool?.name || "";
-    const region = state.memberSchool?.region || state.selectedSchool?.region || "";
+    const schoolName = state.selectedSchool?.name || "";
+    const region = state.selectedSchool?.region || "";
     const admissionYear = new Date().getFullYear() + 1;
     const curriculumRows = [
       ["학교 편제표 표준 양식", "", "", "", "", ""],
@@ -1035,19 +1035,25 @@
   function curriculumPreviewMarkup() {
     const pending = state.pendingCurriculum;
     if (!pending) return "";
+    const canPublish = Boolean(state.schoolUser && state.accessRole);
+    const publishLabel = state.curriculumBusy ? "Supabase에 저장 중" : state.accessRole === "admin" ? "새로 등록 · 기존 내용 수정" : "새 편제표 등록";
     return `<section class="curriculum-upload-preview">
       <header><div><small>UPLOAD PREVIEW</small><h3>${escapeHtml(pending.schoolName)} 편제표</h3></div><span>${pending.admissionYear}학년도 입학생</span></header>
       <div class="curriculum-preview-grades">${pending.grades.map((grade) => `<div><strong>${grade.grade}학년</strong><span>공통 ${grade.common.length} · 선택 ${grade.electives.length} · 옵션 ${grade.options.length}</span></div>`).join("")}</div>
       <p>${escapeHtml(pending.fileName)} · 중복 제외 총 ${pending.courseCount.toLocaleString("ko-KR")}개 교과</p>
-      <div class="admin-button-row"><button class="primary-action" type="button" data-publish-curriculum ${state.curriculumBusy || !state.schoolUser || !state.memberSchool ? "disabled" : ""}>${state.curriculumBusy ? "Supabase에 저장 중" : "Supabase에 공개"}</button><button class="text-action" type="button" data-clear-curriculum-preview>미리보기 닫기</button></div>
-      ${!state.schoolUser ? '<small class="preview-help">학교 담당자로 로그인하면 공개할 수 있습니다.</small>' : !state.memberSchool ? '<small class="preview-help">이 계정에 연결된 학교가 없어 공개할 수 없습니다.</small>' : `<small class="preview-help">${escapeHtml(state.memberSchool.name)} 편제표로 저장됩니다.</small>`}
+      <div class="admin-button-row"><button class="primary-action" type="button" data-publish-curriculum ${state.curriculumBusy || !canPublish ? "disabled" : ""}>${publishLabel}</button><button class="text-action" type="button" data-clear-curriculum-preview>미리보기 닫기</button></div>
+      ${!canPublish ? '<small class="preview-help">담당 교사 또는 관리자로 권한을 확인하면 등록할 수 있습니다.</small>' : state.accessRole === "admin" ? '<small class="preview-help">관리자는 새 편제표를 등록하고 같은 학교·입학년도의 기존 내용을 수정할 수 있습니다.</small>' : '<small class="preview-help">담당 교사는 새 편제표만 등록할 수 있으며 기존 내용은 수정할 수 없습니다.</small>'}
     </section>`;
   }
 
   function schoolAuthMarkup() {
-    if (!schoolStore?.isConfigured?.()) return `<div class="connection-empty">${icon("database")}<div><strong>Supabase 설정이 필요합니다.</strong><p><code>supabase-config.js</code>에 Project URL과 Publishable key를 입력하면 담당자 로그인이 활성화됩니다.</p></div></div>`;
-    if (!state.schoolUser) return `<form class="school-login-form" data-school-login-form><div><small>SCHOOL ADMIN</small><h3>학교 담당자 로그인</h3></div><label><span>이메일</span><input type="email" name="email" autocomplete="username" required placeholder="teacher@school.kr"></label><label><span>비밀번호</span><input type="password" name="password" autocomplete="current-password" required placeholder="비밀번호"></label><button class="secondary-action" type="submit">로그인</button></form>`;
-    return `<div class="signed-school-user"><span>${icon("user")}</span><div><small>${escapeHtml(state.schoolUser.email)}</small><strong>${escapeHtml(state.memberSchool?.name || "연결된 학교 확인 필요")}</strong><p>${state.memberSchool ? "이 학교의 편제표를 업로드할 수 있습니다." : "Supabase에서 이 계정을 school_members에 연결해 주세요."}</p></div><button class="text-action" type="button" data-school-signout>로그아웃</button></div>`;
+    if (!schoolStore?.isConfigured?.()) return `<div class="connection-empty">${icon("database")}<div><strong>Supabase 설정이 필요합니다.</strong><p><code>supabase-config.js</code>에 Project URL과 Publishable key를 입력하면 등록 권한 확인이 활성화됩니다.</p></div></div>`;
+    if (!state.schoolUser || !state.accessRole) return `<div class="school-access-login">
+      <form class="school-login-form teacher-login-form" data-teacher-login-form><div><small>TEACHER ACCESS</small><h3>담당 교사 · 새 데이터 등록</h3><p>설정된 관리 비밀번호만 입력하세요.</p></div><label><span>관리 비밀번호</span><input type="password" name="password" autocomplete="current-password" required placeholder="관리 비밀번호"></label><button class="primary-action" type="submit">등록 권한 확인</button></form>
+      <form class="school-login-form admin-login-form" data-admin-login-form><div><small>ADMIN ACCESS</small><h3>관리자 · 수정 및 삭제</h3><p>관리자 계정으로 로그인하세요.</p></div><label><span>관리자 이메일</span><input type="email" name="email" autocomplete="username" required placeholder="admin@example.com"></label><label><span>비밀번호</span><input type="password" name="password" autocomplete="current-password" required placeholder="비밀번호"></label><button class="secondary-action" type="submit">관리자 로그인</button></form>
+    </div>`;
+    const isAdmin = state.accessRole === "admin";
+    return `<div class="signed-school-user ${isAdmin ? "is-admin" : "is-teacher"}"><span>${icon("user")}</span><div><small>${isAdmin ? "ADMIN" : "TEACHER"}</small><strong>${isAdmin ? "관리자 권한으로 로그인됨" : "담당 교사 등록 권한 확인됨"}</strong><p>${isAdmin ? "기존 편제표를 수정·삭제하고 새 데이터를 등록할 수 있습니다." : "새 학교·새 입학년도 편제표만 등록할 수 있습니다."}</p></div><button class="text-action" type="button" data-school-signout>로그아웃</button></div>`;
   }
 
   function renderAdmin() {
@@ -1072,7 +1078,7 @@
         <aside class="admin-card connected-schools-card">
           <div class="admin-section-head"><div><p class="section-kicker">CONNECTED SCHOOLS</p><h2>현재 연동 학교</h2></div><span>${state.schools.length.toLocaleString("ko-KR")}곳</span></div>
           <div class="connected-school-list">${state.schools.length ? state.schools.map((school, index) => `<button type="button" class="${state.selectedSchool?.id === school.id ? "is-selected" : ""}" data-school-id="${escapeHtml(school.id)}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.region || "지역 정보 없음")}</small></div>${icon("arrow")}</button>`).join("") : `<div class="connected-schools-empty">${icon("school")}<strong>연동된 학교가 없습니다.</strong><p>Supabase에서 학교를 등록하면 이 목록과 메인 학교 선택에 자동으로 표시됩니다.</p></div>`}</div>
-          ${state.selectedSchool ? `<div class="active-school-summary"><small>현재 선택 학교</small><strong>${escapeHtml(state.selectedSchool.name)}</strong><span>${state.curriculum ? `${escapeHtml(state.curriculum.admissionYear || "-")}학년도 편제표 연동됨` : "공개된 편제표 없음"}</span></div>` : ""}
+          ${state.selectedSchool ? `<div class="active-school-summary"><small>현재 선택 학교</small><strong>${escapeHtml(state.selectedSchool.name)}</strong><span>${state.curriculum ? `${escapeHtml(state.curriculum.admissionYear || "-")}학년도 편제표 연동됨` : "공개된 편제표 없음"}</span>${state.accessRole === "admin" && state.curriculum?.id ? `<button class="danger-action" type="button" data-delete-curriculum data-curriculum-id="${escapeHtml(state.curriculum.id)}">현재 편제표 삭제</button>` : ""}</div>` : ""}
         </aside>
       </div>
       <section class="admin-card schema-card">
@@ -1572,11 +1578,12 @@
       state.curriculumImportMessage = "Supabase에 학교 편제표를 저장하고 있습니다.";
       renderAdmin();
       try {
-        await schoolStore.publishCurriculum(state.pendingCurriculum);
-        syncSchoolState();
+        const result = await schoolStore.publishCurriculum(state.pendingCurriculum);
+        syncSchoolState(result);
         state.pendingCurriculum = null;
-        state.curriculumImportMessage = `${state.selectedSchool?.name || "학교"} 편제표를 공개했습니다.`;
-        showToast("학교 편제표가 Supabase에 연동되었습니다.", 4000);
+        const actionLabel = result.action === "updated" ? "수정" : "등록";
+        state.curriculumImportMessage = `${state.selectedSchool?.name || "학교"} 편제표를 ${actionLabel}했습니다.`;
+        showToast(`학교 편제표가 ${actionLabel}되었습니다.`, 4000);
       } catch (error) {
         console.error("학교 편제표 공개 실패:", error);
         state.curriculumImportMessage = `저장하지 못했습니다. ${error.message || "권한과 연결 상태를 확인해 주세요."}`;
@@ -1589,12 +1596,31 @@
       return;
     }
 
+    const deleteCurriculumButton = event.target.closest("[data-delete-curriculum]");
+    if (deleteCurriculumButton) {
+      const schoolName = state.selectedSchool?.name || "선택한 학교";
+      const admissionYear = state.curriculum?.admissionYear || "현재";
+      if (!confirm(`${schoolName} ${admissionYear}학년도 편제표를 삭제할까요? 삭제한 데이터는 복구할 수 없습니다.`)) return;
+      deleteCurriculumButton.disabled = true;
+      try {
+        const result = await schoolStore?.deleteCurriculum(deleteCurriculumButton.dataset.curriculumId);
+        syncSchoolState(result);
+        renderAdmin();
+        showToast("편제표를 삭제했습니다.", 4000);
+      } catch (error) {
+        console.error("학교 편제표 삭제 실패:", error);
+        showToast(`삭제하지 못했습니다. ${error.message || "관리자 권한을 확인해 주세요."}`, 4500);
+        renderAdmin();
+      }
+      return;
+    }
+
     if (event.target.closest("[data-school-signout]")) {
       try {
         await schoolStore?.signOut();
         syncSchoolState();
         renderAdmin();
-        showToast("학교 담당자 계정에서 로그아웃했습니다.");
+        showToast("데이터 연동 권한에서 로그아웃했습니다.");
       } catch (error) {
         showToast(`로그아웃하지 못했습니다. ${error.message || "다시 시도해 주세요."}`, 4000);
       }
@@ -1758,7 +1784,9 @@
   });
 
   root.addEventListener("submit", async (event) => {
-    const form = event.target.closest("[data-school-login-form]");
+    const teacherForm = event.target.closest("[data-teacher-login-form]");
+    const adminForm = event.target.closest("[data-admin-login-form]");
+    const form = teacherForm || adminForm;
     if (!form) return;
     event.preventDefault();
     const formData = new FormData(form);
@@ -1768,12 +1796,14 @@
       button.textContent = "로그인 중";
     }
     try {
-      await schoolStore.signIn(String(formData.get("email") || "").trim(), String(formData.get("password") || ""));
-      syncSchoolState();
+      const result = teacherForm
+        ? await schoolStore.signInTeacher(String(formData.get("password") || ""))
+        : await schoolStore.signInAdmin(String(formData.get("email") || "").trim(), String(formData.get("password") || ""));
+      syncSchoolState(result);
       renderAdmin();
-      showToast(`${state.memberSchool?.name || "학교 담당자"} 계정으로 로그인했습니다.`);
+      showToast(teacherForm ? "담당 교사 등록 권한을 확인했습니다." : "관리자 권한으로 로그인했습니다.");
     } catch (error) {
-      console.error("학교 담당자 로그인 실패:", error);
+      console.error("데이터 연동 권한 확인 실패:", error);
       showToast(`로그인하지 못했습니다. ${error.message || "계정 정보를 확인해 주세요."}`, 4500);
       if (button) {
         button.disabled = false;
