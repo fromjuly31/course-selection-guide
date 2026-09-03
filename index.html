@@ -4,18 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#071720">
-  <title>우리학교 선택과목 안내</title>
+  <title>과목 선택 안내 플랫폼</title>
   <meta name="description" content="학교 교육과정에 맞춰 선택과목을 이해하고 진로에 맞는 과목을 설계하는 안내 플랫폼">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="landing.css">
+  <link rel="stylesheet" href="chatbot.css">
 </head>
 <body class="landing-page landing-one-screen">
   <header class="landing-header">
-    <a class="landing-brand" href="index.html" aria-label="우리학교 선택과목 안내 메인">
+    <a class="landing-brand" href="index.html" aria-label="과목 선택 안내 플랫폼 메인">
       <span class="landing-brand-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#school"></use></svg></span>
-      <span><strong>우리학교</strong><small>선택과목 안내</small></span>
+      <span><strong>과목 선택 안내 플랫폼</strong></span>
     </a>
-    <span class="edition-chip"><i></i> 2027 입학생</span>
+    <span class="edition-chip"><svg class="icon" aria-hidden="true"><use href="icons.svg#user"></use></svg><span>Made by 비범쌤(원주여고 김범준)</span></span>
   </header>
 
   <main>
@@ -29,9 +30,19 @@
       <div class="hero-inner">
         <div class="landing-hero-copy">
           <p class="landing-kicker"><span>2022 개정 교육과정</span><span>COURSE GUIDE</span></p>
-          <h1 id="main-title">배움의 선택이<br><em>진로의 방향</em>이 됩니다.</h1>
+          <h1 id="main-title">배움의 선택이<span class="title-line"><em>진로의 방향</em>이 됩니다.</span></h1>
           <p class="landing-lead">과목을 고르는 일은 앞으로의 배움을 설계하는 일입니다.<br class="desktop-break"> 우리학교 교육과정 안에서 나에게 맞는 선택을 시작해 보세요.</p>
-          <p class="nav-hint"><span></span>아래 메뉴에서 탐색을 시작하세요</p>
+          <div class="landing-school-picker" data-school-picker>
+            <button class="landing-school-trigger" type="button" data-school-trigger aria-expanded="false">
+              <span class="school-trigger-icon"><svg class="icon" aria-hidden="true"><use href="icons.svg#school"></use></svg></span>
+              <span><small>학교 선택</small><strong data-school-picker-label>학교를 선택하세요</strong></span>
+              <svg class="icon school-trigger-arrow" aria-hidden="true"><use href="icons.svg#arrow"></use></svg>
+            </button>
+            <div class="landing-school-menu" data-school-menu hidden>
+              <p>연동된 학교</p>
+              <div data-school-options><span class="school-menu-empty">학교 목록을 불러오는 중입니다.</span></div>
+            </div>
+          </div>
         </div>
 
         <div class="curriculum-constellation" data-parallax role="img" aria-label="과목들이 진로를 중심으로 연결되는 모습을 표현한 그래픽">
@@ -67,9 +78,13 @@
     <a class="nav-item" href="section.html?tab=departments"><svg class="icon" aria-hidden="true"><use href="icons.svg#compass"></use></svg><span>학과 안내</span></a>
     <a class="nav-item" href="section.html?tab=recommend"><svg class="icon" aria-hidden="true"><use href="icons.svg#sparkles"></use></svg><span>과목 추천</span></a>
     <a class="nav-item" href="section.html?tab=simulation"><svg class="icon" aria-hidden="true"><use href="icons.svg#route"></use></svg><span>시뮬레이션</span></a>
-    <a class="nav-item" href="section.html?tab=admin"><svg class="icon" aria-hidden="true"><use href="icons.svg#settings"></use></svg><span>데이터 관리</span></a>
+    <a class="nav-item" href="section.html?tab=admin"><svg class="icon" aria-hidden="true"><use href="icons.svg#settings"></use></svg><span>데이터 연동</span></a>
   </nav>
 
+  <script src="supabase-config.js"></script>
+  <script src="school-data.js"></script>
   <script src="landing.js"></script>
+  <script src="app-data.js"></script>
+  <script src="chatbot.js"></script>
 </body>
 </html>

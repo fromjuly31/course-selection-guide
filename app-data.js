@@ -18,6 +18,8 @@
       updatedAt: "2026-09-02T00:00:00+09:00"
     },
     columns: ["학과", "계열", "반영과목", "과학 권장과목", "대학명", "안내"],
+    chatbot: { keywordWeights: [], searchSettings: [] },
+    sources: [],
     rows: [
       {
         "학과": "컴퓨터공학과",
@@ -124,6 +126,11 @@
     // flatMap으로 모든 키의 거대한 임시 배열을 만들지 않아 수만 행에서도 메모리를 절약한다.
     rows.forEach((row) => Object.keys(row).forEach(addColumn));
 
+    const copyRecords = (records) => Array.isArray(records)
+      ? records.filter((record) => record && typeof record === "object" && !Array.isArray(record)).map((record) => ({ ...record }))
+      : [];
+    const chatbot = source.chatbot && typeof source.chatbot === "object" ? source.chatbot : {};
+
     return {
       meta: source.meta && typeof source.meta === "object" ? { ...source.meta } : {},
       columns: discoveredColumns,
@@ -131,7 +138,12 @@
         const normalized = {};
         discoveredColumns.forEach((column) => { normalized[column] = row[column] ?? ""; });
         return normalized;
-      })
+      }),
+      chatbot: {
+        keywordWeights: copyRecords(chatbot.keywordWeights),
+        searchSettings: copyRecords(chatbot.searchSettings)
+      },
+      sources: copyRecords(source.sources)
     };
   }
 
