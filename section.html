@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071720">
+  <title>학과·선택과목 조회 · 우리학교 선택과목 안내</title>
+  <meta name="description" content="학과별 선택과목 데이터 조회와 관리자 엑셀 DB 관리">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body class="app-page">
+  <header class="app-header">
+    <div class="app-header-inner">
+      <a class="app-brand" href="index.html" aria-label="메인으로 이동">
+        <span class="app-brand-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#school"></use></svg></span>
+        <span><strong>우리학교</strong><small>선택과목 안내</small></span>
+      </a>
+      <div class="header-db-status" aria-label="현재 데이터베이스 상태">
+        <i></i><span data-source-state>데이터 준비 중</span><strong data-db-count>0</strong>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main" id="app-root" tabindex="-1">
+    <div class="initial-loading" role="status"><span></span><p>데이터베이스를 불러오고 있습니다.</p></div>
+  </main>
+
+  <dialog class="sheet-dialog" id="record-dialog" aria-labelledby="record-dialog-title">
+    <span class="dialog-handle" aria-hidden="true"></span>
+    <button class="dialog-close" type="button" data-dialog-close aria-label="닫기">×</button>
+    <div data-record-dialog-content></div>
+  </dialog>
+
+  <div class="app-toast" role="status" aria-live="polite" data-app-toast></div>
+
+  <nav class="bottom-nav app-bottom-nav" aria-label="주요 메뉴">
+    <a class="nav-item" href="index.html"><svg class="icon" aria-hidden="true"><use href="icons.svg#home"></use></svg><span>메인</span></a>
+    <a class="nav-item" href="section.html?tab=subjects" data-tab="subjects"><svg class="icon" aria-hidden="true"><use href="icons.svg#book"></use></svg><span>과목 안내</span></a>
+    <a class="nav-item" href="section.html?tab=departments" data-tab="departments"><svg class="icon" aria-hidden="true"><use href="icons.svg#compass"></use></svg><span>학과 안내</span></a>
+    <a class="nav-item" href="section.html?tab=recommend" data-tab="recommend"><svg class="icon" aria-hidden="true"><use href="icons.svg#sparkles"></use></svg><span>과목 추천</span></a>
+    <a class="nav-item" href="section.html?tab=simulation" data-tab="simulation"><svg class="icon" aria-hidden="true"><use href="icons.svg#route"></use></svg><span>시뮬레이션</span></a>
+    <a class="nav-item" href="section.html?tab=admin" data-tab="admin"><svg class="icon" aria-hidden="true"><use href="icons.svg#settings"></use></svg><span>데이터 관리</span></a>
+  </nav>
+
+  <!-- GitHub Pages 오프라인 안정성을 위해 SheetJS를 저장소에 포함했습니다. CDN으로 바꿔도 됩니다. -->
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="app-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
