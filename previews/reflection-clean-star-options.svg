@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="11" flood-color="#173b33" flood-opacity="0.08"/>
+    </filter>
+    <symbol id="star-solid" viewBox="0 0 24 24">
+      <path d="m12 2.9 2.73 5.54 6.12.89-4.43 4.32 1.05 6.1L12 16.87l-5.47 2.88 1.05-6.1-4.43-4.32 6.12-.89L12 2.9Z"/>
+    </symbol>
+    <symbol id="star-line" viewBox="0 0 24 24">
+      <path d="m12 3.1 2.66 5.38 5.94.87-4.3 4.19 1.02 5.92L12 16.67l-5.32 2.79 1.02-5.92-4.3-4.19 5.94-.87L12 3.1Z"/>
+    </symbol>
+    <symbol id="star-center" viewBox="0 0 24 24">
+      <path d="m12 3.1 2.66 5.38 5.94.87-4.3 4.19 1.02 5.92L12 16.67l-5.32 2.79 1.02-5.92-4.3-4.19 5.94-.87L12 3.1Z"/>
+      <circle cx="12" cy="12.1" r="2.6"/>
+    </symbol>
+    <symbol id="star-spark" viewBox="0 0 28 24">
+      <path d="m10.7 3 2.36 4.78 5.27.77-3.82 3.72.9 5.26-4.71-2.48-4.72 2.48.9-5.26-3.82-3.72 5.28-.77L10.7 3Z"/>
+      <path d="M22.3 3.4c-.12 2.38-.9 3.2-3.2 3.45 2.26.3 3.05 1.1 3.32 3.38.28-2.25 1.07-3.06 3.34-3.34-2.28-.28-3.08-1.08-3.46-3.49Z"/>
+    </symbol>
+    <style>
+      text { font-family: Pretendard, "Noto Sans KR", "Malgun Gothic", sans-serif; }
+      .eyebrow { fill:#08745b; font-size:14px; font-weight:900; letter-spacing:1.7px; }
+      .title { fill:#122d31; font-size:34px; font-weight:850; letter-spacing:-1.7px; }
+      .subtitle { fill:#687b77; font-size:16px; font-weight:600; }
+      .card { fill:#fff; stroke:#dce7e3; stroke-width:1.1; }
+      .number { fill:#08745b; font-size:13px; font-weight:900; letter-spacing:1.3px; }
+      .name { fill:#1d3832; font-size:20px; font-weight:850; letter-spacing:-.7px; }
+      .desc { fill:#75837f; font-size:13px; font-weight:600; }
+      .showcase { fill:#fafbf9; stroke:#e5ebe8; stroke-width:1; }
+      .chip { fill:#f2f7f5; stroke:#dbe6e2; stroke-width:1; }
+      .chip-text { fill:#304943; font-size:14px; font-weight:800; }
+      .gold { color:#c98a20; fill:currentColor; stroke:none; }
+      .gold-line { color:#bd7e17; fill:none; stroke:currentColor; stroke-width:1.65; stroke-linecap:round; stroke-linejoin:round; }
+      .gold-center { color:#bd7e17; fill:none; stroke:currentColor; stroke-width:1.55; stroke-linecap:round; stroke-linejoin:round; }
+      .gold-center circle { fill:#d69b32; stroke:none; }
+      .dark { color:#173f37; fill:currentColor; stroke:none; }
+      .label { fill:#a36b12; font-size:11px; font-weight:850; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="720" fill="#edf3f0"/>
+  <text x="50" y="64" class="eyebrow">CLEAN IMPORTANCE MARK</text>
+  <text x="50" y="108" class="title">깔끔한 반영 과목 별표 5종</text>
+  <text x="50" y="137" class="subtitle">장식은 줄이고, 중요도만 또렷하게 보이는 골드 포인트입니다.</text>
+
+  <g transform="translate(35 170)" filter="url(#shadow)">
+    <rect class="card" width="210" height="480" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 01</text>
+    <rect x="35" y="68" width="140" height="140" rx="34" class="showcase"/>
+    <use href="#star-solid" x="70" y="103" width="70" height="70" class="gold"/>
+    <text x="105" y="250" text-anchor="middle" class="name">솔리드 골드</text>
+    <text x="105" y="278" text-anchor="middle" class="desc">가장 단정하고 선명한 별</text>
+    <text x="20" y="326" class="label">실제 카드 크기</text>
+    <rect x="20" y="344" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="381" class="chip-text">확률과 통계</text>
+    <use href="#star-solid" x="159" y="369" width="20" height="20" class="gold"/>
+    <text x="105" y="444" text-anchor="middle" class="desc">추천 · 가장 깔끔함</text>
+  </g>
+
+  <g transform="translate(265 170)" filter="url(#shadow)">
+    <rect class="card" width="210" height="480" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 02</text>
+    <rect x="35" y="68" width="140" height="140" rx="34" class="showcase"/>
+    <use href="#star-line" x="70" y="103" width="70" height="70" class="gold-line"/>
+    <text x="105" y="250" text-anchor="middle" class="name">라인 골드</text>
+    <text x="105" y="278" text-anchor="middle" class="desc">가볍고 정교한 외곽선</text>
+    <text x="20" y="326" class="label">실제 카드 크기</text>
+    <rect x="20" y="344" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="381" class="chip-text">확률과 통계</text>
+    <use href="#star-line" x="158" y="368" width="22" height="22" class="gold-line"/>
+    <text x="105" y="444" text-anchor="middle" class="desc">절제됨 · 얇은 강조</text>
+  </g>
+
+  <g transform="translate(495 170)" filter="url(#shadow)">
+    <rect class="card" width="210" height="480" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 03</text>
+    <rect x="35" y="68" width="140" height="140" rx="34" class="showcase"/>
+    <use href="#star-center" x="70" y="103" width="70" height="70" class="gold-center"/>
+    <text x="105" y="250" text-anchor="middle" class="name">센터 포인트 별</text>
+    <text x="105" y="278" text-anchor="middle" class="desc">중앙 점으로 중요도 강조</text>
+    <text x="20" y="326" class="label">실제 카드 크기</text>
+    <rect x="20" y="344" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="381" class="chip-text">확률과 통계</text>
+    <use href="#star-center" x="158" y="368" width="22" height="22" class="gold-center"/>
+    <text x="105" y="444" text-anchor="middle" class="desc">정교함 · 시선 집중</text>
+  </g>
+
+  <g transform="translate(725 170)" filter="url(#shadow)">
+    <rect class="card" width="210" height="480" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 04</text>
+    <rect x="35" y="68" width="140" height="140" rx="34" class="showcase"/>
+    <rect x="67" y="100" width="76" height="76" rx="22" fill="#fff3d6"/>
+    <use href="#star-solid" x="85" y="118" width="40" height="40" class="gold"/>
+    <text x="105" y="250" text-anchor="middle" class="name">소프트 골드 배지</text>
+    <text x="105" y="278" text-anchor="middle" class="desc">연한 사각 배경의 별</text>
+    <text x="20" y="326" class="label">실제 카드 크기</text>
+    <rect x="20" y="344" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="381" class="chip-text">확률과 통계</text>
+    <rect x="153" y="362" width="32" height="32" rx="10" fill="#fff0ca"/>
+    <use href="#star-solid" x="160" y="369" width="18" height="18" class="gold"/>
+    <text x="105" y="444" text-anchor="middle" class="desc">안정감 · 카드와 조화</text>
+  </g>
+
+  <g transform="translate(955 170)" filter="url(#shadow)">
+    <rect class="card" width="210" height="480" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 05</text>
+    <rect x="35" y="68" width="140" height="140" rx="34" class="showcase"/>
+    <use href="#star-spark" x="65" y="103" width="80" height="70" class="dark"/>
+    <text x="105" y="250" text-anchor="middle" class="name">딥그린 별빛</text>
+    <text x="105" y="278" text-anchor="middle" class="desc">브랜드 컬러의 별과 빛</text>
+    <text x="20" y="326" class="label">실제 카드 크기</text>
+    <rect x="20" y="344" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="381" class="chip-text">확률과 통계</text>
+    <use href="#star-spark" x="155" y="369" width="25" height="20" class="dark"/>
+    <text x="105" y="444" text-anchor="middle" class="desc">차분함 · 브랜드 통일</text>
+  </g>
+</svg>

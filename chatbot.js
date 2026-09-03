@@ -26,11 +26,12 @@
     settings: new Map(),
     readyPromise: null,
     open: false,
-    faqOpen: false
+    faqOpen: false,
+    collapsed: true
   };
 
   const shell = document.createElement("div");
-  shell.className = "course-chatbot";
+  shell.className = "course-chatbot is-collapsed";
   shell.innerHTML = `
     <div class="course-support-launchers">
       <button class="course-chatbot-launcher" type="button" aria-label="챗봇 문의 열기" aria-expanded="false">
@@ -40,23 +41,32 @@
         ${icon("help")}<span>FAQ</span>
       </button>
     </div>
+    <button class="course-support-collapse" type="button" data-support-collapse aria-label="학과 비교와 도움 버튼 펼치기" aria-expanded="false" title="버튼 펼치기">
+      <span class="course-support-collapse-glyph" aria-hidden="true"></span>
+    </button>
     <section class="course-chatbot-panel" role="dialog" aria-modal="false" aria-labelledby="course-chatbot-title" hidden>
       <header class="course-chatbot-header">
-        <div><span class="course-chatbot-mark">${icon("sparkles")}</span><div><strong id="course-chatbot-title">과목 추천 도우미</strong><small>엑셀 가중치 DB 기반</small></div></div>
+        <div><span class="course-chatbot-mark">${icon("sparkles")}</span><div><strong id="course-chatbot-title">과목 추천 도우미</strong></div></div>
         <button type="button" data-chat-close aria-label="챗봇 닫기">${icon("close")}</button>
       </header>
       <div class="course-chatbot-messages" data-chat-messages aria-live="polite">
         <div class="course-chatbot-message is-bot">
-          <p>관심 분야나 진로를 말해 주세요. 2022 개정 교육과정 290개 과목 중 엑셀 가중치에 따라 관련 과목을 찾아드릴게요.</p>
+          <p>관심 분야 혹은 희망 진로를 입력하세요. 2022 개정 교육과정에 근거하여 과목 추천 혹은 학과를 소개해 드릴게요.</p>
         </div>
       </div>
-      <div class="course-chatbot-suggestions" aria-label="질문 예시">
-        <button type="button" data-chat-prompt="코딩과 인공지능에 관심 있어요">코딩·인공지능</button>
-        <button type="button" data-chat-prompt="영상 제작과 유튜브에 도움이 되는 과목">영상·콘텐츠</button>
-        <button type="button" data-chat-prompt="의학과 생명과학 진로 과목 추천">의학·생명</button>
+      <div class="course-chatbot-suggestions" aria-label="대학교 관심 분야 빠른 선택">
+        <span class="course-chatbot-suggestion-label">대학교 관심 분야</span>
+        <button type="button" data-chat-prompt="인문 분야 학과와 과목을 추천해 주세요">인문</button>
+        <button type="button" data-chat-prompt="사회 분야 학과와 과목을 추천해 주세요">사회</button>
+        <button type="button" data-chat-prompt="자연 분야 학과와 과목을 추천해 주세요">자연</button>
+        <button type="button" data-chat-prompt="공학 분야 학과와 과목을 추천해 주세요">공학</button>
+        <button type="button" data-chat-prompt="의학 분야 학과와 과목을 추천해 주세요">의학</button>
+        <button type="button" data-chat-prompt="교육 분야 학과와 과목을 추천해 주세요">교육</button>
+        <button type="button" data-chat-prompt="예체능 분야 학과와 과목을 추천해 주세요">예체능</button>
+        <button type="button" data-chat-prompt="기타 분야 학과와 과목을 추천해 주세요">기타</button>
       </div>
       <form class="course-chatbot-form" data-chat-form>
-        <label><span class="sr-only">과목 추천 질문</span><input type="text" data-chat-input maxlength="200" autocomplete="off" placeholder="예: 게임 개발에 관심 있어요"></label>
+        <label><span class="sr-only">과목 또는 학과 추천 질문</span><input type="text" data-chat-input maxlength="200" autocomplete="off" placeholder="관심 분야 혹은 희망 진로를 입력하세요"></label>
         <button type="submit" aria-label="질문 보내기">${icon("send")}</button>
       </form>
       <p class="course-chatbot-disclaimer">과목 DB의 키워드·가중치로 계산한 참고용 안내입니다.</p>
@@ -67,33 +77,38 @@
         <button type="button" data-faq-close aria-label="FAQ 닫기">${icon("close")}</button>
       </header>
       <div class="course-faq-body">
-        <p class="course-faq-intro">프로그램의 데이터와 학교 편제표 연동에 관한 안내입니다.</p>
         <div class="course-chatbot-faq-list">
           <details class="course-chatbot-faq-item">
-            <summary><span>01</span><strong>이 프로그램에 있는 모든 데이터를 100% 신뢰해도 되나요?</strong></summary>
+            <summary><span>01</span><strong>${icon("solid-star")}반영 과목은 무슨 의미인가요?</strong></summary>
+            <p>대학별로 발표한 '권장 과목', '핵심 과목'을 합쳐서 '반영 과목'으로 분류했습니다.</p>
+          </details>
+          <details class="course-chatbot-faq-item">
+            <summary><span>02</span><strong>이 프로그램의 모든 정보를 100% 신뢰해도 되나요?</strong></summary>
             <p>아니요. 선택 교과 및 추천 과목 정보가 업데이트되지 않을 수 있으므로 꼭 검토해 보세요.</p>
           </details>
           <details class="course-chatbot-faq-item">
-            <summary><span>02</span><strong>이 프로그램에 쓰인 데이터들의 출처는 무엇인가요?</strong></summary>
+            <summary><span>03</span><strong>이 프로그램에 쓰인 데이터들의 출처는 무엇인가요?</strong></summary>
             <p>강원특별자치도교육청 「고교학점제를 위한 진로·학업 설계 안내서」, 커리어넷 「학과 정보」, 대학 어디가 「2028학년도 권역별 대학별 권장과목」 및 「2028학년도 계열별 대표 모집단위별 반영과목」의 자료를 기반으로 만들었습니다.</p>
           </details>
           <details class="course-chatbot-faq-item">
-            <summary><span>03</span><strong>제가 희망하는 학과가 없어요.</strong></summary>
+            <summary><span>04</span><strong>제가 희망하는 학과가 없어요.</strong></summary>
             <p>해당 학과가 커리어넷 또는 출처상 자료에 없는 학과일 수 있습니다. 자세한 내용은 해당 학과의 홈페이지를 참고해 주세요.</p>
           </details>
           <details class="course-chatbot-faq-item">
-            <summary><span>04</span><strong>학교 데이터는 어떻게 연동하나요?</strong></summary>
+            <summary><span>05</span><strong>학교 데이터는 어떻게 연동하나요?</strong></summary>
             <p>데이터 연동 탭에서 학교 편제표 표준 양식을 업로드할 수 있습니다.</p>
           </details>
         </div>
       </div>
     </section>`;
+  document.documentElement.classList.add("support-launchers-collapsed");
   document.body.append(shell);
 
   const launcher = shell.querySelector(".course-chatbot-launcher");
   const panel = shell.querySelector(".course-chatbot-panel");
   const faqLauncher = shell.querySelector(".course-faq-launcher");
   const faqPanel = shell.querySelector(".course-faq-panel");
+  const collapseControl = shell.querySelector("[data-support-collapse]");
   const messages = shell.querySelector("[data-chat-messages]");
   const input = shell.querySelector("[data-chat-input]");
 
@@ -221,18 +236,31 @@
     return { results: (exactResults.length ? exactResults : sorted).slice(0, limit), exact: exactResults.length > 0, tokens: queryTokens };
   }
 
-  function appendTextMessage(text, role = "bot") {
+  function scrollMessageToTop(message) {
+    if (!message) return;
+    requestAnimationFrame(() => {
+      const messageTop = message.getBoundingClientRect().top;
+      const messagesTop = messages.getBoundingClientRect().top;
+      const paddingTop = Number.parseFloat(getComputedStyle(messages).paddingTop) || 0;
+      messages.scrollTo({
+        top: Math.max(0, messages.scrollTop + messageTop - messagesTop - paddingTop),
+        behavior: "smooth"
+      });
+    });
+  }
+
+  function appendTextMessage(text, role = "bot", options = {}) {
     const wrapper = document.createElement("div");
     wrapper.className = `course-chatbot-message is-${role}`;
     const paragraph = document.createElement("p");
     paragraph.textContent = text;
     wrapper.append(paragraph);
     messages.append(wrapper);
-    messages.scrollTop = messages.scrollHeight;
+    if (options.scrollToEnd !== false) messages.scrollTop = messages.scrollHeight;
     return wrapper;
   }
 
-  function appendResults(scored) {
+  function appendResults(scored, options = {}) {
     const wrapper = document.createElement("div");
     wrapper.className = "course-chatbot-message is-bot has-results";
     const introduction = document.createElement("p");
@@ -275,12 +303,14 @@
     });
 
     messages.append(wrapper);
-    messages.scrollTop = messages.scrollHeight;
+    if (options.scrollToEnd !== false) messages.scrollTop = messages.scrollHeight;
+    return wrapper;
   }
 
-  async function answer(query) {
+  async function answer(query, options = {}) {
     const cleanQuery = String(query || "").trim();
     if (!cleanQuery) return;
+    const alignAnswerTop = options.alignAnswerTop === true;
     appendTextMessage(cleanQuery, "user");
     input.value = "";
     input.disabled = true;
@@ -291,15 +321,18 @@
       await prepareDatabase();
       loading.remove();
       const scored = scoreCourses(cleanQuery);
+      let response;
       if (!scored.results.length) {
-        appendTextMessage("질문에서 과목과 연결되는 키워드를 찾지 못했습니다. 관심 직업, 좋아하는 활동, 배우고 싶은 내용을 조금 더 구체적으로 적어 주세요.");
+        response = appendTextMessage("질문에서 과목과 연결되는 키워드를 찾지 못했습니다. 관심 직업, 좋아하는 활동, 배우고 싶은 내용을 조금 더 구체적으로 적어 주세요.", "bot", { scrollToEnd: !alignAnswerTop });
       } else {
-        appendResults(scored);
+        response = appendResults(scored, { scrollToEnd: !alignAnswerTop });
       }
+      if (alignAnswerTop) scrollMessageToTop(response);
     } catch (error) {
       console.error("챗봇 데이터 로딩 실패:", error);
       loading.remove();
-      appendTextMessage("과목 DB를 불러오지 못했습니다. Live Server 또는 배포 주소로 접속했는지 확인한 뒤 다시 시도해 주세요.");
+      const response = appendTextMessage("과목 DB를 불러오지 못했습니다. Live Server 또는 배포 주소로 접속했는지 확인한 뒤 다시 시도해 주세요.", "bot", { scrollToEnd: !alignAnswerTop });
+      if (alignAnswerTop) scrollMessageToTop(response);
     } finally {
       input.disabled = false;
       input.focus();
@@ -343,8 +376,23 @@
     if (!open) faqLauncher.focus();
   }
 
+  function setSupportCollapsed(collapsed) {
+    if (collapsed) {
+      if (state.open) setOpen(false);
+      if (state.faqOpen) setFaqOpen(false);
+    }
+    state.collapsed = collapsed;
+    shell.classList.toggle("is-collapsed", collapsed);
+    document.documentElement.classList.toggle("support-launchers-collapsed", collapsed);
+    collapseControl.setAttribute("aria-expanded", String(!collapsed));
+    collapseControl.setAttribute("aria-label", collapsed ? "학과 비교와 도움 버튼 펼치기" : "학과 비교와 도움 버튼 접기");
+    collapseControl.setAttribute("title", collapsed ? "버튼 펼치기" : "버튼 접기");
+    collapseControl.focus();
+  }
+
   launcher.addEventListener("click", () => setOpen(!state.open));
   faqLauncher.addEventListener("click", () => setFaqOpen(!state.faqOpen));
+  collapseControl.addEventListener("click", () => setSupportCollapsed(!state.collapsed));
   shell.querySelector("[data-chat-close]").addEventListener("click", () => setOpen(false));
   shell.querySelector("[data-faq-close]").addEventListener("click", () => setFaqOpen(false));
   shell.querySelector("[data-chat-form]").addEventListener("submit", (event) => {
@@ -352,7 +400,7 @@
     answer(input.value);
   });
   shell.querySelectorAll("[data-chat-prompt]").forEach((button) => {
-    button.addEventListener("click", () => answer(button.dataset.chatPrompt));
+    button.addEventListener("click", () => answer(button.dataset.chatPrompt, { alignAnswerTop: true }));
   });
   shell.querySelectorAll(".course-chatbot-faq-item").forEach((item) => {
     item.addEventListener("toggle", () => {

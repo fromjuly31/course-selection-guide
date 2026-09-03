@@ -9,6 +9,7 @@
   const ACTIVE_KEY = "active";
   const SETTINGS_KEY = "course-guide:settings:v2";
   const DEFAULT_DATABASE_URL = "./data/database.json";
+  const DEPARTMENT_DATABASE_URL = "./data/departments.json";
 
   const embeddedFallback = {
     meta: {
@@ -147,6 +148,51 @@
     };
   }
 
+  function normalizeDepartmentDatabase(input) {
+    const source = input && typeof input === "object" ? input : {};
+    const departments = Array.isArray(source.departments)
+      ? source.departments.filter((department) => department && typeof department === "object" && department.name && department.field).map((department) => ({
+        id: String(department.id || ""),
+        field: String(department.field || "").trim(),
+        name: String(department.name || "").trim(),
+        guide: {
+          overview: String(department.guide?.overview || "").trim(),
+          aptitude: String(department.guide?.aptitude || "").trim(),
+          careers: String(department.guide?.careers || "").trim()
+        },
+        relatedSubjects: Array.isArray(department.relatedSubjects) ? department.relatedSubjects.map(String).map((value) => value.trim()).filter(Boolean) : [],
+        reflectedSubjects: normalizeSubjectUniversities(department.reflectedSubjects),
+        scienceRecommendedSubjects: normalizeSubjectUniversities(department.scienceRecommendedSubjects)
+      }))
+      : [];
+    const fields = Array.isArray(source.fields)
+      ? source.fields.filter((field) => field && typeof field === "object" && field.name).map((field) => ({
+        name: String(field.name).trim(),
+        departmentCount: Number(field.departmentCount) || departments.filter((department) => department.field === field.name).length,
+        commonSubjectThreshold: Number(field.commonSubjectThreshold) || 0,
+        commonSubjects: Array.isArray(field.commonSubjects) ? field.commonSubjects.filter((subject) => subject?.name).map((subject) => ({
+          name: String(subject.name).trim(),
+          coverageCount: Number(subject.coverageCount) || 0,
+          totalCount: Number(subject.totalCount) || 0,
+          coverageRate: Number(subject.coverageRate) || 0
+        })) : []
+      }))
+      : [];
+    return {
+      meta: source.meta && typeof source.meta === "object" ? { ...source.meta } : {},
+      fields,
+      departments
+    };
+  }
+
+  function normalizeSubjectUniversities(subjects) {
+    if (!Array.isArray(subjects)) return [];
+    return subjects.filter((subject) => subject && typeof subject === "object" && subject.name).map((subject) => ({
+      name: String(subject.name).trim(),
+      universities: Array.isArray(subject.universities) ? subject.universities.map(String).map((value) => value.trim()).filter(Boolean) : []
+    }));
+  }
+
   async function fetchDefaultDatabase({ cacheBust = false } = {}) {
     const suffix = cacheBust ? `?v=${Date.now()}` : "";
     const response = await fetch(`${DEFAULT_DATABASE_URL}${suffix}`, { cache: cacheBust ? "no-store" : "default" });
@@ -159,6 +205,15 @@
       sourceType: "default",
       sourceName: database.meta.sourceName || "data/database.json"
     };
+    return database;
+  }
+
+  async function loadDepartmentDatabase({ cacheBust = false } = {}) {
+    const suffix = cacheBust ? `?v=${Date.now()}` : "";
+    const response = await fetch(`${DEPARTMENT_DATABASE_URL}${suffix}`, { cache: cacheBust ? "no-store" : "default" });
+    if (!response.ok) throw new Error(`학과 DB 요청 실패 (HTTP ${response.status})`);
+    const database = normalizeDepartmentDatabase(await response.json());
+    if (!database.fields.length || !database.departments.length) throw new Error("departments.json에 사용할 학과 데이터가 없습니다.");
     return database;
   }
 
@@ -204,11 +259,14 @@
 
   window.DatabaseStore = {
     DEFAULT_DATABASE_URL,
+    DEPARTMENT_DATABASE_URL,
     SETTINGS_KEY,
     clone,
     normalizeDatabase,
+    normalizeDepartmentDatabase,
     loadDatabase,
     fetchDefaultDatabase,
+    loadDepartmentDatabase,
     saveDatabase,
     deleteUploadedDatabase,
     getSettings,

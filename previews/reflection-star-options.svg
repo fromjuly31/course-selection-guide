@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#183c35" flood-opacity="0.09"/>
+    </filter>
+    <symbol id="star-1" viewBox="0 0 24 24">
+      <path d="M12.3 3.1c.5-.1.9 1.1 1.3 2.2l1.2 3.5 3.8.1c1.3 0 2.1.2 2.2.7.1.5-.8 1.2-1.7 1.9l-3 2.3 1 3.7c.3 1.1.4 2.1 0 2.4-.4.3-1.3-.2-2.3-.8l-3.1-2.1-3.2 2.2c-1 .7-1.8 1.1-2.2.8-.4-.3-.2-1.3.1-2.4l1.1-3.7-3.1-2.2c-1-.7-1.8-1.4-1.7-1.9.2-.5 1.2-.7 2.4-.7l3.8-.1 1.1-3.6c.4-1.2.8-2.2 1.3-2.3Z"/>
+      <path d="M8.7 17.1c1.9-1.4 4.2-2.9 6.8-4.4" opacity=".5"/>
+    </symbol>
+    <symbol id="star-2" viewBox="0 0 24 24">
+      <path d="M12 2.8 14.5 9l6.7.4-5.1 4.3 1.7 6.5-5.8-3.6-5.8 3.6 1.7-6.5-5.1-4.3L9.5 9 12 2.8Z"/>
+      <path d="m12.5 4.5 1.6 5.6 5.5.2-4.4 3.5 1.3 5.1" opacity=".42" transform="rotate(2 12 12)"/>
+    </symbol>
+    <symbol id="star-3" viewBox="0 0 24 24">
+      <path d="M12.1 3.2c1.2 0 1.4 4.2 2.4 5.2 1.1 1 5.3.1 5.7 1.4.4 1.2-3.5 3-4 4.3-.6 1.3 1.5 5 .4 5.8-1 .8-3.8-2.4-5.2-2.4s-4 3.2-5.1 2.4c-1.1-.8 1-4.5.5-5.8-.5-1.2-4.5-3-4.1-4.3.4-1.3 4.7-.4 5.7-1.4 1.1-1 2.4-5.2 3.7-5.2Z"/>
+    </symbol>
+    <symbol id="star-4" viewBox="0 0 24 24">
+      <path d="M12.2 2.5c-.4 4.7-1.6 7.3-4.1 8.5-1.5.7-3.1.9-5.5 1.1 4.6.6 7.2 1.9 8.3 4.7.6 1.4.8 3 1 5.1.5-4.4 1.8-7 4.5-8.2 1.4-.6 3-.9 5.1-1.1-4.3-.4-7-1.6-8.2-4.3-.7-1.5-.9-3.1-1.1-5.8Z"/>
+      <path d="M19 3.8c-.1 1.8-.8 2.7-2.5 3.1 1.8.2 2.7.9 3 2.5.2-1.7.9-2.6 2.4-3-1.6-.2-2.5-.9-2.9-2.6Z"/>
+    </symbol>
+    <symbol id="star-5" viewBox="0 0 24 24">
+      <path d="m12.3 2.8 2.4 6 6.4.2-5 4 1.8 6.3-5.6-3.6-5.5 3.8 1.6-6.4-5.2-3.8 6.4-.4 2.7-6.1Z" fill="currentColor" stroke="none"/>
+      <path d="m9 11.1 2.2 1.7 4.1-4.3" stroke="#fffaf5" stroke-width="1.35" fill="none" opacity=".9"/>
+    </symbol>
+    <style>
+      text { font-family: Pretendard, "Noto Sans KR", "Malgun Gothic", sans-serif; }
+      .title { fill:#112b30; font-size:34px; font-weight:850; letter-spacing:-1.6px; }
+      .subtitle { fill:#637873; font-size:16px; font-weight:600; }
+      .card { fill:#fff; stroke:#dce7e3; stroke-width:1.2; }
+      .number { fill:#08745b; font-size:14px; font-weight:900; letter-spacing:1.5px; }
+      .name { fill:#19342f; font-size:21px; font-weight:850; letter-spacing:-.8px; }
+      .desc { fill:#71817e; font-size:13px; font-weight:600; }
+      .star-bg { fill:#fff8f2; stroke:#f0d4c2; stroke-width:1.2; }
+      .large-star { color:#d86622; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+      .chip { fill:#f2f7f5; stroke:#dce7e3; stroke-width:1; }
+      .chip-text { fill:#304943; font-size:14px; font-weight:800; }
+      .badge { fill:#fff8f2; stroke:#edc9b1; stroke-width:1; }
+      .mini-star { color:#d86622; fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }
+      .hint { fill:#9b5b32; font-size:12px; font-weight:800; }
+      .current-pill { fill:#e5f5ef; }
+      .current-text { fill:#08745b; font-size:11px; font-weight:900; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" fill="#edf3f0"/>
+  <text x="50" y="66" class="number">REFLECTION MARK OPTIONS</text>
+  <text x="50" y="111" class="title">반영 과목 별표 아이콘 5종</text>
+  <text x="50" y="140" class="subtitle">큰 모양과 실제 과목 카드 크기를 함께 비교해 보세요.</text>
+
+  <g transform="translate(35 175)" filter="url(#shadow)">
+    <rect class="card" width="210" height="525" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 01</text>
+    <rect x="145" y="20" width="45" height="24" rx="12" class="current-pill"/>
+    <text x="167.5" y="36" text-anchor="middle" class="current-text">현재형</text>
+    <circle cx="105" cy="139" r="66" class="star-bg"/>
+    <use href="#star-1" x="60" y="94" width="90" height="90" class="large-star" transform="rotate(-6 105 139)"/>
+    <text x="105" y="242" text-anchor="middle" class="name">삐뚤한 오각별</text>
+    <text x="105" y="271" text-anchor="middle" class="desc">자유로운 손그림 윤곽</text>
+    <text x="20" y="329" class="hint">실제 카드 적용</text>
+    <rect x="20" y="348" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="385" class="chip-text">확률과 통계</text>
+    <circle cx="165" cy="379" r="17" class="badge"/>
+    <use href="#star-1" x="154" y="368" width="22" height="22" class="mini-star" transform="rotate(-6 165 379)"/>
+    <text x="105" y="464" text-anchor="middle" class="desc">불규칙 · 따뜻함</text>
+  </g>
+
+  <g transform="translate(265 175)" filter="url(#shadow)">
+    <rect class="card" width="210" height="525" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 02</text>
+    <circle cx="105" cy="139" r="66" class="star-bg"/>
+    <use href="#star-2" x="60" y="94" width="90" height="90" class="large-star" transform="rotate(4 105 139)"/>
+    <text x="105" y="242" text-anchor="middle" class="name">겹선 낙서별</text>
+    <text x="105" y="271" text-anchor="middle" class="desc">연필로 두 번 그린 느낌</text>
+    <text x="20" y="329" class="hint">실제 카드 적용</text>
+    <rect x="20" y="348" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="385" class="chip-text">확률과 통계</text>
+    <circle cx="165" cy="379" r="17" class="badge"/>
+    <use href="#star-2" x="154" y="368" width="22" height="22" class="mini-star" transform="rotate(4 165 379)"/>
+    <text x="105" y="464" text-anchor="middle" class="desc">경쾌함 · 선명함</text>
+  </g>
+
+  <g transform="translate(495 175)" filter="url(#shadow)">
+    <rect class="card" width="210" height="525" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 03</text>
+    <circle cx="105" cy="139" r="66" class="star-bg"/>
+    <use href="#star-3" x="60" y="94" width="90" height="90" class="large-star" transform="rotate(-3 105 139)"/>
+    <text x="105" y="242" text-anchor="middle" class="name">통통한 별</text>
+    <text x="105" y="271" text-anchor="middle" class="desc">둥글고 부드러운 윤곽</text>
+    <text x="20" y="329" class="hint">실제 카드 적용</text>
+    <rect x="20" y="348" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="385" class="chip-text">확률과 통계</text>
+    <circle cx="165" cy="379" r="17" class="badge"/>
+    <use href="#star-3" x="154" y="368" width="22" height="22" class="mini-star" transform="rotate(-3 165 379)"/>
+    <text x="105" y="464" text-anchor="middle" class="desc">친근함 · 부드러움</text>
+  </g>
+
+  <g transform="translate(725 175)" filter="url(#shadow)">
+    <rect class="card" width="210" height="525" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 04</text>
+    <circle cx="105" cy="139" r="66" class="star-bg"/>
+    <use href="#star-4" x="60" y="94" width="90" height="90" class="large-star" transform="rotate(-4 105 139)"/>
+    <text x="105" y="242" text-anchor="middle" class="name">반짝임 별</text>
+    <text x="105" y="271" text-anchor="middle" class="desc">가볍고 세련된 포인트</text>
+    <text x="20" y="329" class="hint">실제 카드 적용</text>
+    <rect x="20" y="348" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="385" class="chip-text">확률과 통계</text>
+    <circle cx="165" cy="379" r="17" class="badge"/>
+    <use href="#star-4" x="154" y="368" width="22" height="22" class="mini-star" transform="rotate(-4 165 379)"/>
+    <text x="105" y="464" text-anchor="middle" class="desc">세련됨 · 강조</text>
+  </g>
+
+  <g transform="translate(955 175)" filter="url(#shadow)">
+    <rect class="card" width="210" height="525" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 05</text>
+    <circle cx="105" cy="139" r="66" class="star-bg"/>
+    <use href="#star-5" x="60" y="94" width="90" height="90" class="large-star" transform="rotate(-5 105 139)"/>
+    <text x="105" y="242" text-anchor="middle" class="name">채운 손그림 별</text>
+    <text x="105" y="271" text-anchor="middle" class="desc">한눈에 보이는 강한 표시</text>
+    <text x="20" y="329" class="hint">실제 카드 적용</text>
+    <rect x="20" y="348" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="385" class="chip-text">확률과 통계</text>
+    <circle cx="165" cy="379" r="17" class="badge"/>
+    <use href="#star-5" x="154" y="368" width="22" height="22" class="mini-star" transform="rotate(-5 165 379)"/>
+    <text x="105" y="464" text-anchor="middle" class="desc">강조 · 높은 가독성</text>
+  </g>
+</svg>

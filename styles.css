@@ -148,7 +148,7 @@ svg {
 @media (min-width: 561px) {
   .bottom-nav {
     right: auto;
-    left: 50%;
+    left: 50vw;
     border-right: 1px solid var(--line);
     border-left: 1px solid var(--line);
     border-radius: 22px 22px 0 0;

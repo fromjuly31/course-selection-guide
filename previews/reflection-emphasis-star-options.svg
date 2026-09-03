@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#183c35" flood-opacity="0.09"/>
+    </filter>
+    <symbol id="mark-1" viewBox="0 0 32 32">
+      <path d="m16.2 7 2.5 6 6.5.4-5 4.2 1.7 6.3-5.7-3.5-5.6 3.7 1.6-6.4-5.2-4 6.5-.5L16.2 7Z"/>
+      <path d="M7.3 8.7 4.6 6.4M16 4.2V1.8M24.8 8.6l2.7-2.5M27.8 17h2.5"/>
+    </symbol>
+    <symbol id="mark-2" viewBox="0 0 32 32">
+      <path d="M16 4.1c7.8-.3 12.6 4.5 12 12.1-.5 7.1-5 11.7-12.3 11.6C8.4 27.7 3.8 23.2 4 16 4.2 8.7 8.8 4.4 16 4.1Z"/>
+      <path d="m16.1 8.1 2.2 5.2 5.5.3-4.2 3.6 1.4 5.4-4.9-3-4.7 3.1 1.3-5.4-4.4-3.4 5.6-.5 2.2-5.3Z"/>
+      <path d="M6.6 23.5c2.1 3.3 6.3 5.3 10.9 5" opacity=".48"/>
+    </symbol>
+    <symbol id="mark-3" viewBox="0 0 32 32">
+      <path d="m16 2.3 3 4 4.8-1.5.3 5 4.8 1.4-2.5 4.3 3 4-4.6 2 .8 4.9-5-.3-2.8 4.1-3.3-3.8-4.7 1.7-.5-5-4.9-1.1 2.3-4.4-3.2-3.8 4.5-2.2-1-4.9 5 .1L16 2.3Z" fill="currentColor" stroke="none"/>
+      <path d="m16.1 8.5 2 4.8 5.1.3-3.9 3.3 1.3 5-4.5-2.8-4.4 3 1.2-5-4-3.1 5.1-.4 2.1-5.1Z" fill="#fffaf5" stroke="none"/>
+    </symbol>
+    <symbol id="mark-4" viewBox="0 0 32 32">
+      <path d="M15.8 3.1c-.5 6.8-2.4 10.6-7.7 12.1 5.8.8 8.7 3.6 9.2 10.8.9-6.4 3.1-9.8 8.4-11-5.6-.7-8.6-3.7-9.9-11.9Z" fill="currentColor" stroke="none"/>
+      <path d="M26.2 3.4c-.2 2.8-1.2 4.2-3.8 4.9 2.7.4 4.1 1.5 4.7 4.1.4-2.6 1.5-3.9 4-4.5-2.5-.3-3.9-1.4-4.9-4.5ZM6.1 21.5c-.1 2.1-.9 3.3-2.9 3.8 2.1.3 3.2 1.2 3.6 3.2.3-2 1.2-3 3.1-3.5-1.9-.2-3-1.1-3.8-3.5Z"/>
+    </symbol>
+    <symbol id="mark-5" viewBox="0 0 32 32">
+      <path d="M16 3.4c1.8 0 2.3 5.9 3.6 7.1 1.3 1.3 7.2.8 7.8 2.6.6 1.7-4.6 4.1-5.4 5.8-.8 1.7 1.5 7.1 0 8.1-1.5 1-5.5-3.4-7.3-3.1-1.9.2-5 5.1-6.5 4-1.5-1.1 1-6.4.3-8.1-.7-1.7-6.2-3.6-5.7-5.4.6-1.8 6.5-1.1 7.7-2.5C11.7 10.6 14.1 3.4 16 3.4Z" fill="currentColor" stroke="none"/>
+      <path d="m10.8 16.1 3.3 2.7 6.3-7" stroke="#fffaf5" stroke-width="2.2" fill="none"/>
+      <path d="M8.5 29.4c5.3-1.1 10.3-1.2 15.4-.4"/>
+    </symbol>
+    <style>
+      text { font-family: Pretendard, "Noto Sans KR", "Malgun Gothic", sans-serif; }
+      .title { fill:#112b30; font-size:34px; font-weight:850; letter-spacing:-1.6px; }
+      .subtitle { fill:#637873; font-size:16px; font-weight:600; }
+      .card { fill:#fff; stroke:#dce7e3; stroke-width:1.2; }
+      .number { fill:#08745b; font-size:14px; font-weight:900; letter-spacing:1.5px; }
+      .name { fill:#19342f; font-size:21px; font-weight:850; letter-spacing:-.8px; }
+      .desc { fill:#71817e; font-size:13px; font-weight:600; }
+      .mark-bg { fill:#fff5ef; stroke:#efc6b2; stroke-width:1.2; }
+      .large-mark { color:#db552a; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+      .chip { fill:#f2f7f5; stroke:#dce7e3; stroke-width:1; }
+      .chip-text { fill:#304943; font-size:14px; font-weight:800; }
+      .badge { fill:#fff5ef; stroke:#eebd9f; stroke-width:1; }
+      .mini-mark { color:#db552a; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .hint { fill:#a34c28; font-size:12px; font-weight:850; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="760" fill="#edf3f0"/>
+  <text x="50" y="66" class="number">EMPHASIS MARK OPTIONS</text>
+  <text x="50" y="111" class="title">반영 과목 강조 별표 5종</text>
+  <text x="50" y="140" class="subtitle">작은 과목 카드에서도 반영 과목임을 바로 알아볼 수 있는 강한 표시입니다.</text>
+
+  <g transform="translate(35 175)" filter="url(#shadow)">
+    <rect class="card" width="210" height="525" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 01</text>
+    <circle cx="105" cy="139" r="66" class="mark-bg"/>
+    <use href="#mark-1" x="55" y="89" width="100" height="100" class="large-mark" transform="rotate(-4 105 139)"/>
+    <text x="105" y="242" text-anchor="middle" class="name">주목선 별</text>
+    <text x="105" y="271" text-anchor="middle" class="desc">별 주변에 시선 집중선</text>
+    <text x="20" y="329" class="hint">실제 카드 적용</text>
+    <rect x="20" y="348" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="385" class="chip-text">확률과 통계</text>
+    <circle cx="165" cy="379" r="17" class="badge"/>
+    <use href="#mark-1" x="151" y="365" width="28" height="28" class="mini-mark"/>
+    <text x="105" y="464" text-anchor="middle" class="desc">직관적 · 손그림</text>
+  </g>
+
+  <g transform="translate(265 175)" filter="url(#shadow)">
+    <rect class="card" width="210" height="525" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 02</text>
+    <circle cx="105" cy="139" r="66" class="mark-bg"/>
+    <use href="#mark-2" x="55" y="89" width="100" height="100" class="large-mark" transform="rotate(3 105 139)"/>
+    <text x="105" y="242" text-anchor="middle" class="name">동그라미 별</text>
+    <text x="105" y="271" text-anchor="middle" class="desc">교사가 둘러친 강조 표시</text>
+    <text x="20" y="329" class="hint">실제 카드 적용</text>
+    <rect x="20" y="348" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="385" class="chip-text">확률과 통계</text>
+    <circle cx="165" cy="379" r="17" class="badge"/>
+    <use href="#mark-2" x="151" y="365" width="28" height="28" class="mini-mark"/>
+    <text x="105" y="464" text-anchor="middle" class="desc">확실함 · 익숙함</text>
+  </g>
+
+  <g transform="translate(495 175)" filter="url(#shadow)">
+    <rect class="card" width="210" height="525" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 03</text>
+    <circle cx="105" cy="139" r="66" class="mark-bg"/>
+    <use href="#mark-3" x="55" y="89" width="100" height="100" class="large-mark" transform="rotate(-4 105 139)"/>
+    <text x="105" y="242" text-anchor="middle" class="name">폭발형 별 배지</text>
+    <text x="105" y="271" text-anchor="middle" class="desc">팝업 스티커처럼 강한 형태</text>
+    <text x="20" y="329" class="hint">실제 카드 적용</text>
+    <rect x="20" y="348" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="385" class="chip-text">확률과 통계</text>
+    <circle cx="165" cy="379" r="17" class="badge"/>
+    <use href="#mark-3" x="151" y="365" width="28" height="28" class="mini-mark"/>
+    <text x="105" y="464" text-anchor="middle" class="desc">강렬함 · 배지 느낌</text>
+  </g>
+
+  <g transform="translate(725 175)" filter="url(#shadow)">
+    <rect class="card" width="210" height="525" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 04</text>
+    <circle cx="105" cy="139" r="66" class="mark-bg"/>
+    <use href="#mark-4" x="55" y="89" width="100" height="100" class="large-mark" transform="rotate(-3 105 139)"/>
+    <text x="105" y="242" text-anchor="middle" class="name">반짝이 묶음</text>
+    <text x="105" y="271" text-anchor="middle" class="desc">크기가 다른 별 세 개</text>
+    <text x="20" y="329" class="hint">실제 카드 적용</text>
+    <rect x="20" y="348" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="385" class="chip-text">확률과 통계</text>
+    <circle cx="165" cy="379" r="17" class="badge"/>
+    <use href="#mark-4" x="151" y="365" width="28" height="28" class="mini-mark"/>
+    <text x="105" y="464" text-anchor="middle" class="desc">세련됨 · 높은 주목도</text>
+  </g>
+
+  <g transform="translate(955 175)" filter="url(#shadow)">
+    <rect class="card" width="210" height="525" rx="24"/>
+    <text x="20" y="38" class="number">OPTION 05</text>
+    <circle cx="105" cy="139" r="66" class="mark-bg"/>
+    <use href="#mark-5" x="55" y="89" width="100" height="100" class="large-mark" transform="rotate(-5 105 139)"/>
+    <text x="105" y="242" text-anchor="middle" class="name">체크 도장별</text>
+    <text x="105" y="271" text-anchor="middle" class="desc">채운 별과 확인 체크 조합</text>
+    <text x="20" y="329" class="hint">실제 카드 적용</text>
+    <rect x="20" y="348" width="170" height="62" rx="15" class="chip"/>
+    <text x="35" y="385" class="chip-text">확률과 통계</text>
+    <circle cx="165" cy="379" r="17" class="badge"/>
+    <use href="#mark-5" x="151" y="365" width="28" height="28" class="mini-mark"/>
+    <text x="105" y="464" text-anchor="middle" class="desc">확정감 · 가장 강한 강조</text>
+  </g>
+</svg>

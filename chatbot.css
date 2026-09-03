@@ -25,6 +25,72 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
+  transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+}
+
+.course-support-collapse {
+  position: absolute;
+  right: calc(100% + 5px);
+  bottom: 16px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid rgb(105 225 193 / 26%);
+  border-radius: 8px;
+  color: var(--chat-mint);
+  background: rgb(7 28 38 / 88%);
+  box-shadow: none;
+  transition: right 160ms ease, bottom 160ms ease, width 160ms ease, height 160ms ease, transform 160ms ease;
+}
+
+.course-support-collapse:hover,
+.course-support-collapse:focus-visible {
+  background: var(--chat-navy-soft);
+  outline: 2px solid rgb(105 225 193 / 16%);
+}
+
+.course-support-collapse-glyph {
+  position: relative;
+  display: block;
+  width: 10px;
+  height: 10px;
+}
+
+.course-support-collapse-glyph::before,
+.course-support-collapse-glyph::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+  transform: translate(-50%, -50%);
+  transition: transform 150ms ease;
+}
+
+.course-support-collapse-glyph::after {
+  transform: translate(-50%, -50%) rotate(90deg) scaleX(0);
+}
+
+.course-chatbot.is-collapsed .course-support-launchers {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(14px);
+}
+
+.course-chatbot.is-collapsed .course-support-collapse {
+  right: 0;
+  bottom: 14px;
+  width: 30px;
+  height: 30px;
+}
+
+.course-chatbot.is-collapsed .course-support-collapse-glyph::after {
+  transform: translate(-50%, -50%) rotate(90deg) scaleX(1);
 }
 
 .course-chatbot-launcher {
@@ -307,6 +373,28 @@
   outline: none;
 }
 
+.course-chatbot-suggestions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  overflow: visible;
+}
+
+.course-chatbot-suggestion-label {
+  grid-column: 1 / -1;
+  color: #718381;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.course-chatbot-suggestions button {
+  min-width: 0;
+  padding: 7px 5px;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+
 .course-faq-launcher {
   display: inline-flex;
   width: 132px;
@@ -371,21 +459,11 @@
 }
 
 .course-faq-header strong {
-  font-size: 16px;
+  font-size: 17px;
 }
 
 .course-faq-header small {
-  font-size: 10px;
-}
-
-.course-faq-intro {
-  margin: 0 0 12px;
-  padding: 11px 12px;
-  border-radius: 12px;
-  color: #53696c;
-  background: var(--chat-mint-soft);
-  font-size: var(--chat-body-size);
-  line-height: 1.65;
+  font-size: 11px;
 }
 
 .course-chatbot-faq-list {
@@ -417,7 +495,7 @@
   display: none;
 }
 
-.course-chatbot-faq-item > summary span {
+.course-chatbot-faq-item > summary > span {
   display: grid;
   width: 24px;
   height: 24px;
@@ -431,10 +509,16 @@
 }
 
 .course-chatbot-faq-item > summary strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: #334b50;
-  font-size: var(--chat-body-size);
-  font-weight: 750;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.06em;
   line-height: 1.5;
+  white-space: nowrap;
 }
 
 .course-chatbot-faq-item > p {
@@ -443,9 +527,16 @@
   border-radius: 10px;
   color: #53696c;
   background: #f1f6f4;
-  font-size: var(--chat-body-size);
+  font-size: 13px;
   font-weight: 400;
   line-height: 1.7;
+}
+
+.course-chatbot-faq-item > summary strong .icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: #c98b21;
 }
 
 .course-chatbot-form {
@@ -524,6 +615,19 @@
     bottom: calc(80px + env(safe-area-inset-bottom));
   }
 
+  .course-support-collapse {
+    right: calc(100% + 4px);
+    bottom: 15px;
+    width: 24px;
+    height: 24px;
+  }
+
+  .course-chatbot.is-collapsed .course-support-collapse {
+    bottom: 12px;
+    width: 28px;
+    height: 28px;
+  }
+
   .course-chatbot-launcher {
     width: 118px;
     min-width: 118px;
@@ -549,6 +653,10 @@
     border-radius: 20px;
   }
 
+  .course-faq-panel {
+    width: calc(100vw - 8px);
+  }
+
   .course-faq-body {
     padding: 12px;
   }
@@ -564,5 +672,110 @@
   .course-chatbot-launcher,
   .course-faq-launcher {
     transition: none;
+  }
+}
+
+/* Roomier desktop support dock; mobile keeps its compact footprint. */
+@media (min-width: 621px) {
+  .course-chatbot {
+    bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .course-support-launchers {
+    gap: 10px;
+  }
+
+  .course-chatbot-launcher,
+  .course-faq-launcher {
+    width: 156px;
+    min-width: 156px;
+    height: 66px;
+    font-size: 14px;
+  }
+
+  .course-chatbot-launcher .icon,
+  .course-faq-launcher .icon {
+    width: 25px;
+    height: 25px;
+  }
+
+  .course-support-collapse {
+    right: calc(100% + 8px);
+    bottom: 16px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .course-chatbot.is-collapsed .course-support-collapse {
+    right: 0;
+    bottom: 12px;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+
+  .course-support-collapse-glyph,
+  .course-support-collapse-glyph::before,
+  .course-support-collapse-glyph::after {
+    width: 14px;
+  }
+
+  .course-support-collapse-glyph {
+    height: 14px;
+  }
+
+  .course-chatbot-panel {
+    width: min(430px, calc(100vw - 40px));
+    max-height: min(720px, calc(100dvh - 190px));
+  }
+
+  .course-faq-panel {
+    width: min(450px, calc(100vw - 40px));
+    max-height: min(680px, calc(100dvh - 220px));
+  }
+}
+
+@media (min-width: 821px) {
+  .course-support-launchers {
+    gap: 12px;
+  }
+
+  .course-chatbot-launcher,
+  .course-faq-launcher {
+    width: 164px;
+    min-width: 164px;
+    height: 72px;
+    font-size: 15px;
+  }
+
+  .course-chatbot-launcher .icon,
+  .course-faq-launcher .icon {
+    width: 29px;
+    height: 29px;
+  }
+
+  .course-support-collapse {
+    right: calc(100% + 10px);
+    bottom: 15px;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+
+  .course-chatbot.is-collapsed .course-support-collapse {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+  }
+
+  .course-support-collapse-glyph,
+  .course-support-collapse-glyph::before,
+  .course-support-collapse-glyph::after {
+    width: 17px;
+  }
+
+  .course-support-collapse-glyph {
+    height: 17px;
   }
 }

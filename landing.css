@@ -86,22 +86,22 @@
 
 .edition-chip {
   display: inline-flex;
-  min-height: 38px;
+  min-height: 41px;
   align-items: center;
-  gap: 8px;
-  padding: 0 13px;
+  gap: 9px;
+  padding: 0 14px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.055);
   color: rgba(255, 255, 255, 0.72);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 750;
   backdrop-filter: blur(10px);
 }
 
 .edition-chip .icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex: 0 0 auto;
   color: #72e0bd;
 }
@@ -669,7 +669,22 @@
   border: 1px solid rgba(114, 224, 189, 0.2);
   background: rgba(7, 29, 37, 0.94);
   box-shadow: 0 -12px 42px rgba(0, 0, 0, 0.26);
+  width: min(100%, 590px);
+  min-height: 72px;
   grid-template-columns: repeat(6, minmax(0, 1fr));
+  padding: 8px 3px calc(8px + env(safe-area-inset-bottom));
+}
+
+.landing-page .landing-bottom-nav .nav-item {
+  min-height: 55px;
+  gap: 4px;
+  padding: 4px 2px;
+  font-size: 10px;
+}
+
+.landing-page .landing-bottom-nav .nav-item .icon {
+  width: 23px;
+  height: 23px;
 }
 
 .landing-page .nav-item[aria-current="page"]::before {
@@ -826,7 +841,7 @@
 @media (max-width: 600px) {
   .landing-header { width: calc(100% - 32px); padding-top: 18px; }
   .landing-brand-mark { width: 38px; height: 38px; border-radius: 12px; }
-  .edition-chip { min-height: 34px; padding: 0 10px; font-size: 9px; }
+  .edition-chip { min-height: 36px; padding: 0 11px; font-size: 10px; }
   .hero-stage { min-height: 880px; padding: 130px 0 95px; }
   .hero-inner { width: calc(100% - 40px); gap: 42px; }
   .landing-kicker { gap: 9px; margin-bottom: 18px; font-size: 8px; }
@@ -994,7 +1009,7 @@
   }
 
   .landing-one-screen .edition-chip {
-    min-height: 31px;
+    min-height: 34px;
   }
 
   .landing-one-screen .hero-stage {
@@ -1072,15 +1087,15 @@
   }
 
   .landing-one-screen .edition-chip {
-    min-height: 30px;
-    gap: 5px;
-    padding: 0 7px;
-    font-size: 7px;
+    min-height: 33px;
+    gap: 6px;
+    padding: 0 8px;
+    font-size: 8px;
   }
 
   .landing-one-screen .edition-chip .icon {
-    width: 13px;
-    height: 13px;
+    width: 15px;
+    height: 15px;
   }
 }
 
@@ -1094,18 +1109,18 @@
 .landing-school-picker {
   position: relative;
   z-index: 8;
-  width: min(360px, 100%);
+  width: min(380px, 100%);
   margin-top: 27px;
 }
 
 .landing-school-trigger {
   display: grid;
   width: 100%;
-  min-height: 62px;
+  min-height: 68px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 11px;
-  padding: 8px 14px 8px 9px;
+  gap: 12px;
+  padding: 9px 15px 9px 10px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 18px;
   color: white;
@@ -1125,8 +1140,8 @@
 
 .school-trigger-icon {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   place-items: center;
   border-radius: 14px;
   color: #72e0bd;
@@ -1134,8 +1149,8 @@
 }
 
 .school-trigger-icon .icon {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .landing-school-trigger small,
@@ -1145,7 +1160,7 @@
 
 .landing-school-trigger small {
   color: #72e0bd;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
 }
@@ -1153,14 +1168,14 @@
 .landing-school-trigger strong {
   margin-top: 3px;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .school-trigger-arrow {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   color: rgba(255, 255, 255, 0.48);
   transform: rotate(90deg);
   transition: transform 160ms ease;
@@ -1176,7 +1191,7 @@
   top: calc(100% + 9px);
   right: 0;
   left: 0;
-  padding: 11px;
+  padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 18px;
   background: rgba(8, 32, 40, 0.98);
@@ -1189,16 +1204,16 @@
 }
 
 .landing-school-menu > p {
-  margin: 2px 5px 8px;
+  margin: 3px 7px 11px;
   color: rgba(255, 255, 255, 0.42);
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
 }
 
 .landing-school-menu [data-school-options] {
   display: grid;
-  gap: 5px;
+  gap: 7px;
   max-height: 250px;
   overflow-y: auto;
 }
@@ -1206,7 +1221,7 @@
 .landing-school-menu [data-school-id] {
   display: block;
   width: 100%;
-  padding: 11px 12px;
+  padding: 13px 14px;
   border: 1px solid transparent;
   border-radius: 12px;
   color: rgba(255, 255, 255, 0.8);
@@ -1226,36 +1241,54 @@
 }
 
 .landing-school-menu [data-school-id] strong {
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .landing-school-menu [data-school-id] small,
 .landing-school-menu .school-menu-empty {
-  margin-top: 3px;
+  margin-top: 4px;
   color: rgba(255, 255, 255, 0.44);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .landing-school-menu .school-menu-empty {
-  display: block;
-  padding: 14px 10px;
-  line-height: 1.5;
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  padding: 17px 12px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+@media (min-width: 1024px) {
+  .landing-school-menu > p {
+    font-size: 12px;
+  }
+
+  .landing-school-menu [data-school-id] strong {
+    font-size: 15px;
+  }
+
+  .landing-school-menu [data-school-id] small,
+  .landing-school-menu .school-menu-empty {
+    font-size: 12px;
+  }
 }
 
 @media (max-width: 600px) {
   .landing-one-screen .landing-school-picker {
-    width: min(330px, 100%);
+    width: min(350px, 100%);
     margin-top: 16px;
   }
 
   .landing-one-screen .landing-school-trigger {
-    min-height: 53px;
+    min-height: 59px;
     border-radius: 15px;
   }
 
   .landing-one-screen .school-trigger-icon {
-    width: 37px;
-    height: 37px;
+    width: 41px;
+    height: 41px;
     border-radius: 11px;
   }
 }
@@ -1266,11 +1299,16 @@
   }
 
   .landing-one-screen .landing-school-trigger {
-    min-height: 47px;
+    min-height: 53px;
   }
 
   .landing-one-screen .school-trigger-icon {
-    width: 33px;
-    height: 33px;
+    width: 37px;
+    height: 37px;
+  }
+
+  .landing-one-screen .school-trigger-icon .icon {
+    width: 22px;
+    height: 22px;
   }
 }
