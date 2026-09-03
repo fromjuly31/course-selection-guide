@@ -81,8 +81,8 @@
     recommendSection: initialTab === "recommend" && ["common", "departments"].includes(pageParams.get("section"))
       ? pageParams.get("section")
       : initialTab === "recommend" && pageParams.get("department") ? "departments" : "",
-    comparisonIds: initialTab === "recommend" ? (pageParams.get("compare") || "").split(",").filter(Boolean).slice(0, 2) : [],
-    comparisonOpen: initialTab === "recommend" && pageParams.get("comparison") === "1",
+    comparisonIds: (pageParams.get("compare") || "").split(",").filter(Boolean).slice(0, 2),
+    comparisonOpen: pageParams.get("comparison") === "1",
     dialogDepartmentId: "",
     dialogSubjectKind: "",
     dialogSubjectName: "",
@@ -530,8 +530,8 @@
           <span class="major-card-meta"><i>관련 ${department.relatedSubjects.length}</i>${reflectedCount ? `<i class="is-reflected">반영 ${reflectedCount}</i>` : ""}${scienceCount ? `<i class="is-science">과학 권장 ${scienceCount}</i>` : ""}</span>
         </button>
         <div class="major-card-actions">
-          <button type="button" ${openAttribute}="${escapeHtml(department.id)}"${scope === "recommend" ? ` aria-haspopup="dialog"` : ""}>${scope === "recommend" ? "과목 보기" : "자세히 보기"} ${icon("arrow")}</button>
-          ${scope === "recommend" ? `<button class="compare-card-button ${compared ? "is-added" : ""}" type="button" data-compare-toggle="${escapeHtml(department.id)}" aria-pressed="${compared}">${icon(compared ? "check" : "cart")} ${compared ? "비교에 담김" : "비교 담기"}</button>` : ""}
+          <button type="button" ${openAttribute}="${escapeHtml(department.id)}"${scope === "recommend" ? ` aria-haspopup="dialog"` : ""}>자세히 보기 ${icon("arrow")}</button>
+          <button class="compare-card-button ${compared ? "is-added" : ""}" type="button" data-compare-toggle="${escapeHtml(department.id)}" aria-pressed="${compared}">${icon(compared ? "check" : "cart")} ${compared ? "비교에 담김" : "비교 담기"}</button>
         </div>
       </article>`;
   }
@@ -570,7 +570,7 @@
     }
     state.dialogDepartmentId = id;
     detailDialog.classList.add("is-major-dialog");
-    detailDialog.classList.remove("is-recommend-field-dialog");
+    detailDialog.classList.remove("is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog");
     const visual = fieldVisual(department.field);
     const reflectedNames = new Set((department.reflectedSubjects || []).map((subject) => subject.name));
     const relatedMarkup = majorSubjectGroupsMarkup(department.relatedSubjects, (subject) => reflectedNames.has(subject)
@@ -791,6 +791,7 @@
     root.innerHTML = `
       ${renderNotices()}
       ${pageHead("학과 안내", "학과 정보와 관련 과목, 대학별 반영 과목을 차례로 살펴 보세요.", showingFields ? fields.length : matches.length, showingFields ? "전공 분야" : "학과")}
+      ${comparisonTrayMarkup()}
       <section class="major-search ${showingFields ? "is-overview" : ""}" aria-label="학과 검색">
         ${state.departmentField ? `<button class="major-back-button" type="button" data-department-back>${icon("arrow")} 전체 분야</button>` : ""}
         <label class="search-field"><span class="sr-only">학과 검색</span>${icon("search")}<input type="search" value="${escapeHtml(state.departmentSearch)}" placeholder="학과명, 과목 또는 대학명 검색" data-department-search autocomplete="off"></label>
@@ -867,11 +868,101 @@
     const secondOnly = sortMajorSubjects([...secondSet].filter((subject) => !firstSet.has(subject)));
     const includeScience = first.scienceRecommendedSubjects.length > 0 || second.scienceRecommendedSubjects.length > 0;
     return `<section class="major-comparison" data-comparison-report>
-      <header class="major-comparison-head"><div><small>MAJOR COURSE COMPARISON</small><h2>${escapeHtml(first.name)} <i>vs</i> ${escapeHtml(second.name)}</h2><p>관련·반영·과학 권장 과목을 모두 합쳐 공통점과 차이를 비교했습니다.</p></div><button type="button" data-close-comparison>비교 결과 닫기</button></header>
+      <header class="major-comparison-head"><div><small>MAJOR COURSE COMPARISON</small><h2>${escapeHtml(first.name)} <i>vs</i> ${escapeHtml(second.name)}</h2><div class="major-comparison-summary"><p>관련·반영·과학 권장 과목을 모두 합쳐 공통점과 차이를 비교했습니다.</p><button type="button" data-close-comparison>비교 결과 닫기</button></div></div></header>
       <div class="comparison-major-grid ${includeScience ? "has-science" : ""}">${comparisonDepartmentColumn(first, includeScience)}${comparisonDepartmentColumn(second, includeScience)}</div>
       <section class="comparison-common"><header><span>${icon("check")}</span><div><small>COMMON COURSES</small><h3>공통으로 겹치는 과목</h3></div><em>${common.length}</em></header>${comparisonSubjectChips(common, "공통 과목이 없습니다.")}</section>
       <section class="comparison-difference"><header><span>${icon("shapes")}</span><div><small>DIFFERENT COURSES</small><h3>차이가 나는 과목</h3></div><em>${firstOnly.length + secondOnly.length}</em></header><div><article><h4>${escapeHtml(first.name)}에만 있는 과목</h4>${comparisonSubjectChips(firstOnly)}</article><article><h4>${escapeHtml(second.name)}에만 있는 과목</h4>${comparisonSubjectChips(secondOnly)}</article></div></section>
     </section>`;
+  }
+
+  function comparisonChoicesMarkup() {
+    return state.departmentDataset.departments.map((department) => {
+      const selected = state.comparisonIds.includes(department.id);
+      const visual = fieldVisual(department.field);
+      const searchText = `${department.field} ${department.name}`.toLocaleLowerCase("ko");
+      return `<button class="comparison-choice ${selected ? "is-selected" : ""}" type="button" data-comparison-choice="${escapeHtml(department.id)}" data-comparison-field="${escapeHtml(department.field)}" data-comparison-search-text="${escapeHtml(searchText)}" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}" aria-pressed="${selected}"><span>${icon(visual.icon)}</span><div><small>${escapeHtml(department.field)} 분야</small><strong>${escapeHtml(department.name)}</strong></div>${icon(selected ? "check" : "cart")}</button>`;
+    }).join("");
+  }
+
+  function comparisonSelectedSlotMarkup(index) {
+    const department = departmentById(state.comparisonIds[index]);
+    if (!department) return `<article class="comparison-selected-slot is-empty"><span>${String(index + 1).padStart(2, "0")}</span><div><small>${index ? "SECOND MAJOR" : "FIRST MAJOR"}</small><strong>학과를 선택하세요</strong></div></article>`;
+    const visual = fieldVisual(department.field);
+    return `<article class="comparison-selected-slot is-selected" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}"><span>${icon(visual.icon)}</span><div><small>${escapeHtml(department.field)} 분야</small><strong>${escapeHtml(department.name)}</strong></div><button type="button" data-comparison-remove-slot="${index}" aria-label="${escapeHtml(department.name)} 선택 해제">×</button></article>`;
+  }
+
+  function comparisonFieldFiltersMarkup() {
+    return `<button class="is-active" type="button" data-comparison-field-filter="" aria-pressed="true">전체</button>${state.departmentDataset.fields.map((field) => `<button type="button" data-comparison-field-filter="${escapeHtml(field.name)}" aria-pressed="false">${escapeHtml(field.name)}</button>`).join("")}`;
+  }
+
+  function comparisonPickerMarkup() {
+    const selectedCount = state.comparisonIds.length;
+    return `<section class="comparison-picker">
+      <header class="comparison-picker-head">
+        <span>${icon("cart")}</span>
+        <div><p class="dialog-kicker">MAJOR COMPARISON</p><h2 id="record-dialog-title">비교할 학과를 선택하세요</h2><p>서로 다른 학과 두 개를 선택하면 바로 과목 비교가 시작됩니다.</p></div>
+        <em>${selectedCount}/2</em>
+      </header>
+      <div class="comparison-selected-grid">${comparisonSelectedSlotMarkup(0)}${comparisonSelectedSlotMarkup(1)}</div>
+      <section class="comparison-search-panel" data-comparison-active-field="">
+        <label class="comparison-search-field"><span class="sr-only">비교할 학과 검색</span>${icon("search")}<input type="search" data-comparison-search placeholder="학과명 또는 분야명 검색" autocomplete="off"></label>
+        <div class="comparison-field-filters" aria-label="분야별 학과 필터">${comparisonFieldFiltersMarkup()}</div>
+        <div class="comparison-choice-list" role="listbox" aria-label="비교 학과 검색 결과">${comparisonChoicesMarkup()}</div>
+        <p class="comparison-choice-empty" hidden>검색 결과가 없습니다.</p>
+      </section>
+      <footer class="comparison-picker-actions"><button type="button" data-clear-comparison${selectedCount ? "" : " disabled"}>선택 초기화</button><button class="primary-action" type="button" data-open-comparison-result${selectedCount === 2 ? "" : " disabled"}>선택한 학과 비교하기 ${icon("arrow")}</button></footer>
+    </section>`;
+  }
+
+  function setComparisonDialogMode(mode) {
+    detailDialog.classList.remove("is-major-dialog", "is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog");
+    detailDialog.classList.add(mode);
+    state.dialogReturnToRecommend = false;
+    state.dialogDepartmentId = "";
+    state.dialogSubjectKind = "";
+    state.dialogSubjectName = "";
+  }
+
+  function openComparisonPicker() {
+    state.comparisonOpen = false;
+    setComparisonDialogMode("is-comparison-picker-dialog");
+    detailContent.innerHTML = comparisonPickerMarkup();
+    if (!detailDialog.open) detailDialog.showModal();
+    detailDialog.scrollTop = 0;
+  }
+
+  function openComparisonResult() {
+    if (state.comparisonIds.length !== 2) {
+      openComparisonPicker();
+      return;
+    }
+    state.comparisonOpen = true;
+    setComparisonDialogMode("is-comparison-result-dialog");
+    detailContent.innerHTML = comparisonMarkup();
+    if (!detailDialog.open) detailDialog.showModal();
+    detailDialog.scrollTop = 0;
+  }
+
+  function applyComparisonChoiceFilter() {
+    const panel = detailContent.querySelector(".comparison-search-panel");
+    if (!panel) return;
+    const query = panel.querySelector("[data-comparison-search]")?.value.trim().toLocaleLowerCase("ko") || "";
+    const field = panel.dataset.comparisonActiveField || "";
+    let visibleCount = 0;
+    panel.querySelectorAll("[data-comparison-choice]").forEach((choice) => {
+      const matchesQuery = !query || choice.dataset.comparisonSearchText.includes(query);
+      const matchesField = !field || choice.dataset.comparisonField === field;
+      const visible = matchesQuery && matchesField;
+      choice.hidden = !visible;
+      if (visible) visibleCount += 1;
+    });
+    const empty = panel.querySelector(".comparison-choice-empty");
+    if (empty) empty.hidden = visibleCount > 0;
+  }
+
+  function renderComparisonHost() {
+    if (state.tab === "recommend") renderRecommend();
+    else if (state.tab === "departments") renderView();
   }
 
   function recommendSectionPickerMarkup(field, departments) {
@@ -912,6 +1003,7 @@
     state.dialogDepartmentId = "";
     state.dialogSubjectKind = "";
     state.dialogSubjectName = "";
+    detailDialog.classList.remove("is-comparison-picker-dialog", "is-comparison-result-dialog");
     detailDialog.classList.add("is-major-dialog", "is-recommend-field-dialog");
     detailContent.innerHTML = `
       <div class="major-dialog-head recommend-field-dialog-head" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}">
@@ -932,7 +1024,6 @@
       ${pageHead("전공별 과목 추천", "관심 분야의 공통 과목과 학과별 관련·반영·권장 과목을 확인하거나 두 학과를 비교해 보세요.", fields.length, "전공 분야")}
       ${comparisonTrayMarkup()}
       <section class="recommend-field-panel"><header><div><p class="section-kicker">STEP 01 · FIELD</p><h2>관심 분야를 선택하세요</h2></div></header><div class="recommend-field-grid" role="group" aria-label="관심 분야 선택">${fields.map((field) => fieldCardMarkup(field, "recommend")).join("")}</div></section>
-      ${comparisonMarkup()}
       `;
   }
 
@@ -1774,7 +1865,7 @@
   function openRecord(index) {
     const row = state.dataset.rows[index];
     if (!row) return;
-    detailDialog.classList.remove("is-major-dialog", "is-recommend-field-dialog");
+    detailDialog.classList.remove("is-major-dialog", "is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog");
     state.dialogReturnToRecommend = false;
     const courseName = valueAt(row, COLUMN_ALIASES.courseName);
     if (courseName) {
@@ -1852,25 +1943,21 @@
     const compareToggle = event.target.closest("[data-compare-toggle]");
     if (compareToggle) {
       const id = compareToggle.dataset.compareToggle;
+      const wasSelected = state.comparisonIds.includes(id);
       if (!toggleComparisonSelection(id)) return;
-      renderRecommend();
+      renderComparisonHost();
+      if (!wasSelected && state.comparisonIds.length === 2) openComparisonResult();
       return;
     }
 
     if (event.target.closest("[data-start-comparison]")) {
-      if (state.comparisonIds.length !== 2) {
-        showToast(`비교할 학과를 ${2 - state.comparisonIds.length}개 더 담아주세요.`);
-        return;
-      }
-      state.comparisonOpen = true;
-      renderRecommend();
-      requestAnimationFrame(() => root.querySelector("[data-comparison-report]")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+      openComparisonPicker();
       return;
     }
 
     if (event.target.closest("[data-close-comparison]")) {
       state.comparisonOpen = false;
-      renderRecommend();
+      openComparisonPicker();
       return;
     }
 
@@ -2271,9 +2358,68 @@
 
     const modalCompareToggle = event.target.closest("#record-dialog [data-compare-toggle]");
     if (modalCompareToggle) {
-      if (!toggleComparisonSelection(modalCompareToggle.dataset.compareToggle)) return;
-      renderRecommend();
-      openRecommendFieldDialog(state.recommendField);
+      const id = modalCompareToggle.dataset.compareToggle;
+      const wasSelected = state.comparisonIds.includes(id);
+      if (!toggleComparisonSelection(id)) return;
+      renderComparisonHost();
+      if (!wasSelected && state.comparisonIds.length === 2) openComparisonResult();
+      else if (state.tab === "recommend" && state.recommendField) openRecommendFieldDialog(state.recommendField);
+      return;
+    }
+
+    const comparisonChoice = event.target.closest("#record-dialog [data-comparison-choice]");
+    if (comparisonChoice) {
+      const id = comparisonChoice.dataset.comparisonChoice;
+      const wasSelected = state.comparisonIds.includes(id);
+      if (!toggleComparisonSelection(id)) return;
+      renderComparisonHost();
+      if (!wasSelected && state.comparisonIds.length === 2) openComparisonResult();
+      else openComparisonPicker();
+      return;
+    }
+
+    const comparisonFieldFilter = event.target.closest("#record-dialog [data-comparison-field-filter]");
+    if (comparisonFieldFilter) {
+      const panel = comparisonFieldFilter.closest(".comparison-search-panel");
+      if (!panel) return;
+      const field = comparisonFieldFilter.dataset.comparisonFieldFilter || "";
+      panel.dataset.comparisonActiveField = field;
+      panel.querySelectorAll("[data-comparison-field-filter]").forEach((button) => {
+        const active = button === comparisonFieldFilter;
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
+      applyComparisonChoiceFilter();
+      return;
+    }
+
+    const comparisonRemoveSlot = event.target.closest("#record-dialog [data-comparison-remove-slot]");
+    if (comparisonRemoveSlot) {
+      const slot = Number(comparisonRemoveSlot.dataset.comparisonRemoveSlot);
+      if (slot !== 0 && slot !== 1) return;
+      state.comparisonIds = state.comparisonIds.filter((_, index) => index !== slot);
+      state.comparisonOpen = false;
+      renderComparisonHost();
+      openComparisonPicker();
+      return;
+    }
+
+    if (event.target.closest("#record-dialog [data-clear-comparison]")) {
+      state.comparisonIds = [];
+      state.comparisonOpen = false;
+      renderComparisonHost();
+      openComparisonPicker();
+      return;
+    }
+
+    if (event.target.closest("#record-dialog [data-open-comparison-result]")) {
+      openComparisonResult();
+      return;
+    }
+
+    if (event.target.closest("#record-dialog [data-close-comparison]")) {
+      state.comparisonOpen = false;
+      openComparisonPicker();
       return;
     }
 
@@ -2314,6 +2460,12 @@
     }
   });
 
+  detailDialog.addEventListener("input", (event) => {
+    const comparisonSearch = event.target.closest("[data-comparison-search]");
+    if (!comparisonSearch) return;
+    applyComparisonChoiceFilter();
+  });
+
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     const picker = document.querySelector(".header-school-picker");
@@ -2323,14 +2475,18 @@
   });
 
   detailDialog.addEventListener("click", (event) => {
-    const bounds = detailDialog.getBoundingClientRect();
-    const inside = event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
-    if (!inside) detailDialog.close();
+    if (event.target === detailDialog) detailDialog.close();
   });
 
   detailDialog.addEventListener("close", () => {
     const closedRecommendFlow = detailDialog.classList.contains("is-recommend-field-dialog") || state.dialogReturnToRecommend;
-    detailDialog.classList.remove("is-recommend-field-dialog");
+    const closedComparison = detailDialog.classList.contains("is-comparison-picker-dialog") || detailDialog.classList.contains("is-comparison-result-dialog");
+    detailDialog.classList.remove("is-major-dialog", "is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog");
+    if (closedComparison) {
+      state.comparisonOpen = false;
+      state.comparisonIds = [];
+      renderComparisonHost();
+    }
     state.dialogDepartmentId = "";
     state.dialogSubjectKind = "";
     state.dialogSubjectName = "";
@@ -2380,5 +2536,6 @@
     openDepartment(initialDepartmentDetail, { keepSubject: Boolean(state.dialogSubjectName) });
     if (state.dialogSubjectName) requestAnimationFrame(() => detailContent.querySelector(".university-reveal")?.scrollIntoView({ block: "nearest" }));
   }
+  if (!initialDepartmentDetail && state.comparisonOpen && state.comparisonIds.length === 2) openComparisonResult();
   state.notices.forEach((message) => showToast(message, 4500));
 })();
