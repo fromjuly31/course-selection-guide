@@ -176,6 +176,7 @@ async function main() {
   const draftInstallSql = fs.readFileSync(path.join(__dirname, "..", "supabase", "install-curriculum-drafts.sql"), "utf8");
   const schoolStoreSource = fs.readFileSync(path.join(__dirname, "..", "school-data.js"), "utf8");
   const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+  const appDataSource = fs.readFileSync(path.join(__dirname, "..", "app-data.js"), "utf8");
   const appCss = fs.readFileSync(path.join(__dirname, "..", "app.css"), "utf8");
   const sectionHtml = fs.readFileSync(path.join(__dirname, "..", "section.html"), "utf8");
   assert.match(schemaSql, /create table if not exists public\.curriculum_drafts/);
@@ -192,8 +193,40 @@ async function main() {
   assert.match(appSource, /function refreshDepartmentSearchInPlace/);
   assert.match(appSource, /function refreshRecommendDepartmentSearchInPlace/);
   assert.match(appSource, /function refreshPreviewSearchInPlace/);
+  const recommendResultEntrySource = appSource.match(/function recommendResultEntryMarkup\(entry\) \{[\s\S]*?\n  \}/)?.[0] || "";
+  assert.match(recommendResultEntrySource, /data-recommend-course=/);
+  assert.match(recommendResultEntrySource, /aria-haspopup="dialog"/);
+  assert.doesNotMatch(recommendResultEntrySource, /section\.html\?tab=subjects/);
+  assert.match(appSource, /const recommendCourse = event\.target\.closest\("\[data-recommend-course\]"\)/);
+  assert.match(appSource, /await Promise\.all\(\[loadDatabase\(\), loadDepartmentDatabase\(\)\]\)/);
+  assert.match(appSource, /const allSelectionsComplete = historyComplete && progress\.complete/);
+  assert.match(appSource, /const accessible = allSelectionsComplete \|\| gradeProgress\.grade <= state\.simulationMaxGradeStep \|\| state\.simulationResultUnlocked/);
+  assert.match(appSource, /state\.simulationMaxGradeStep = Math\.max\(firstGrade, state\.simulationMaxGradeStep\)/);
+  assert.match(appSource, /state\.simulationResultUnlocked = true;\s*state\.simulationHistoryOpen = false;\s*state\.simulationResultOpen = true/);
+  assert.match(appSource, /const descendantBottom = isSimulation/);
+  assert.match(appSource, /measuredHeight \* 1\.04 \+ 12/);
+  assert.match(appDataSource, /INDEXED_DB_OPEN_TIMEOUT = 2500/);
+  assert.match(appDataSource, /fetchWithTimeout/);
+  assert.match(appSource, /"success",\s*closeCurriculumPreview\s*\)/);
+  assert.match(appSource, /if \(confirmAction\) await confirmAction\(\)/);
+  assert.doesNotMatch(appSource, /기이수 과목/);
+  assert.match(appSource, /data-semester-lock-info/);
+  assert.doesNotMatch(appSource, /semester-lock-notice/);
   assert.match(appCss, /\.course-group-grid\.is-live-search-results/);
   assert.match(appCss, /\.major-field-grid\.is-live-search-results/);
+  assert.match(appCss, /\.semester-lock-hit-area/);
+  assert.match(appCss, /\.semester-curriculum-section \.curriculum-option-card header > span[\s\S]*?font-size: 12px/);
+  assert.match(appCss, /\.simulation-selection-summary > \.simulation-grade-actions[\s\S]*?justify-content: flex-end/);
+  assert.match(appCss, /\.simulation-grade-actions \.simulation-final-open[\s\S]*?min-width: 180px/);
+  assert.match(appCss, /@page[\s\S]*?margin: 5mm/);
+  assert.match(appCss, /\.platform-print-root \.simulation-final-summary h1[\s\S]*?font-size: 16pt/);
+  assert.match(appCss, /\.platform-print-root \.simulation-final-summary > div[\s\S]*?justify-content: space-between/);
+  assert.match(appCss, /\.platform-print-root \.simulation-final-course-group li[\s\S]*?font-size: 8pt/);
+  assert.match(appCss, /@media \(max-width: 820px\)[\s\S]*?\.simulation-grade-progress[\s\S]*?display: flex/);
+  assert.match(appCss, /\.common-course-block\.semester-subject-block,[\s\S]*?\.semester-elective-block\.semester-subject-block[\s\S]*?flex-direction: column/);
+  assert.match(appCss, /\.recommend-result-course-items > button/);
+  assert.match(appSource, /documentData\.kind === "simulation" \? 14 : 42/);
+  assert.match(appSource, /isSimulation \? "xMidYMin meet" : "xMinYMin meet"/);
   assert.match(sectionHtml, /data-header-school-search/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 
@@ -201,6 +234,13 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
   assert.ok(window.DatabaseApp, "앱 테스트 API가 초기화되어야 합니다.");
+  const state = window.DatabaseApp.getState();
+
+  root.innerHTML = '<div class="initial-loading">데이터베이스를 불러오고 있습니다.</div>';
+  state.tab = "recommend";
+  window.DatabaseApp.renderRecommend();
+  assert.match(root.innerHTML, /class="recommend-wizard"/);
+  assert.doesNotMatch(root.innerHTML, /데이터베이스를 불러오고 있습니다/);
 
   const normalized = window.DatabaseApp.normalizeCurriculumCourseNames(["기술· 가정", "기술･가정"]);
   assert.deepEqual(normalized, ["기술·가정"]);
@@ -286,7 +326,19 @@ async function main() {
     /[A-Za-z]{3,}/
   );
 
-  const state = window.DatabaseApp.getState();
+  const simulationPrintMarkup = window.DatabaseApp.platformPrintDocumentMarkup({
+    kind: "simulation",
+    title: "원주여자고등학교 수강 과목표",
+    subtitle: "2026년 입학생 기준",
+    body: "<section><h1>원주여자고등학교 수강 과목표</h1></section>"
+  });
+  assert.match(simulationPrintMarkup, /is-simulation-print/);
+  assert.match(simulationPrintMarkup, /<h1>원주여자고등학교 수강 과목표<\/h1>/);
+  assert.doesNotMatch(simulationPrintMarkup, /platform-print-brand/);
+  assert.doesNotMatch(simulationPrintMarkup, /platform-print-footer/);
+  const standardPrintMarkup = window.DatabaseApp.platformPrintDocumentMarkup({ title: "과목 안내", subtitle: "테스트", body: "<section>본문</section>" });
+  assert.match(standardPrintMarkup, /platform-print-brand/);
+  assert.match(standardPrintMarkup, /platform-print-footer/);
   state.schools = [
     { id: "seoul-na", name: "나래고등학교", region: "서울특별시", admissionYears: [2026] },
     { id: "gyeonggi", name: "하늘고등학교", region: "경기도", admissionYears: [2026] },
@@ -315,6 +367,10 @@ async function main() {
   assert.match(root.innerHTML, /data-curriculum-region-toggle/);
   assert.match(root.innerHTML, /2026년 입학생/);
   assert.match(root.innerHTML, /공통·학교 지정과목/);
+  assert.match(root.innerHTML, /COMMON · SCHOOL DESIGNATED/);
+  assert.match(root.innerHTML, /공통·학교 지정 과목/);
+  assert.match(root.innerHTML, /선택 과목을 추가하세요\./);
+  assert.doesNotMatch(root.innerHTML, /과목을 이곳에 끌어 놓으세요\./);
   assert.match(root.innerHTML, /data-curriculum-preview-grade/);
   assert.doesNotMatch(root.innerHTML, /표준 양식 다운로드/);
   assert.match(root.innerHTML, /curriculum-entry-methods/);
@@ -459,8 +515,16 @@ async function main() {
   state.curriculumCoursePicker.lane = "standalone";
   state.curriculumCoursePicker.title = "개별 선택 과목";
   window.DatabaseApp.renderAdmin();
+  assert.match(root.innerHTML, /data-toggle-curriculum-custom-course/);
+  assert.match(root.innerHTML, /＋ 직접 추가/);
+  assert.doesNotMatch(root.innerHTML, /data-curriculum-custom-course-form/);
+  assert.ok(root.innerHTML.indexOf("data-toggle-curriculum-custom-course") < root.innerHTML.indexOf("data-confirm-curriculum-course-picker"));
+
+  state.curriculumCoursePicker.customEntryOpen = true;
+  window.DatabaseApp.renderAdmin();
   assert.match(root.innerHTML, /data-curriculum-custom-course-form/);
   assert.match(root.innerHTML, /고시 외 과목.*분류됩니다/);
+  assert.match(root.innerHTML, /<button type="submit">저장<\/button>/);
 
   const customCourseInput = { value: "학교자율탐구", focus() {}, select() {} };
   const customCourseForm = {
@@ -470,6 +534,7 @@ async function main() {
   await root.dispatchTestEvent("submit", { target: customCourseForm, preventDefault() {} });
   assert.deepEqual(state.curriculumCoursePicker.customCourses, ["학교자율탐구"]);
   assert.equal(state.curriculumCoursePickerCategory, "고시 외 과목");
+  assert.equal(state.curriculumCoursePicker.customEntryOpen, false);
 
   const confirmCustomCourse = {
     closest(selector) { return selector === "[data-confirm-curriculum-course-picker]" ? this : null; },
@@ -490,22 +555,52 @@ async function main() {
   assert.match(root.innerHTML, /편제표 열어 수정/);
   assert.match(root.innerHTML, /data-delete-curriculum/);
   assert.match(root.innerHTML, /data-delete-school/);
+  assert.match(root.innerHTML, /2026년 입학생 편제표 연동됨/);
+  assert.match(root.innerHTML, /2026년 입학생/);
 
   state.simulationHistoryOpen = true;
   window.DatabaseApp.renderSimulation();
-  assert.match(root.innerHTML, /지금까지의 공통·지정과목과 선택 내역/);
+  assert.match(root.innerHTML, /<h2>수강 완료 과목<\/h2>/);
+  assert.match(root.innerHTML, /실제로 수강한 과목이 맞는지 확인하세요\./);
+  assert.doesNotMatch(root.innerHTML, /STEP 01 · COMPLETED CURRICULUM/);
+  assert.doesNotMatch(root.innerHTML, /지금까지의 공통·지정과목과 선택 내역/);
   assert.match(root.innerHTML, /공통·학교 지정과목/);
+  assert.match(root.innerHTML, /STUDENT ELECTIVES/);
+  assert.match(root.innerHTML, /<h3>선택 과목<\/h3>/);
+  assert.match(root.innerHTML, /수강 완료 과목/);
+  assert.doesNotMatch(root.innerHTML, /기이수/);
   assert.match(root.innerHTML, /공통 과목/);
   assert.match(root.innerHTML, /다음 · 2학년 선택/);
   assert.doesNotMatch(root.innerHTML, /1학년 과목 확인/);
+
+  state.simulationHistoryOpen = false;
+  state.simulationResultOpen = true;
+  window.DatabaseApp.renderSimulation();
+  assert.match(root.innerHTML, /COMPLETED COURSES/);
+  assert.match(root.innerHTML, /<h2>수강 완료 과목<\/h2>/);
+  assert.doesNotMatch(root.innerHTML, /현재까지 들은 과목/);
 
   state.selectedAdmissionYear = 2025;
   state.curriculum = freshmanResult.curricula[0];
   state.simulationHistoryOpen = true;
   window.DatabaseApp.renderSimulation();
-  assert.match(root.innerHTML, /2학년까지의 공통·학교 지정과목은 자동 반영/);
+  assert.match(root.innerHTML, /실제로 수강한 과목이 맞는지 확인하세요\./);
   assert.match(root.innerHTML, /다음 · 3학년 선택/);
   assert.doesNotMatch(root.innerHTML, /다음 · 2학년 선택/);
+
+  curriculumAlertDialog.close();
+  const lockedSemesterTarget = {
+    closest(selector) { return selector === "[data-semester-lock-info]" ? this : null; },
+    matches() { return false; }
+  };
+  await root.dispatchTestEvent("click", { target: lockedSemesterTarget });
+  assert.equal(curriculumAlertDialog.open, true);
+  assert.equal(curriculumAlertTitle.textContent, "2학기는 아직 선택할 수 없습니다");
+  assert.match(curriculumAlertMessage.textContent, /1학기 선택을 완료하면 2학기 선택 옵션이 열립니다/);
+  await curriculumAlertDialog.dispatchTestEvent("click", {
+    target: { closest(selector) { return selector === "[data-curriculum-alert-close]" ? this : null; } }
+  });
+  assert.equal(curriculumAlertDialog.open, false);
 
   const commonDisclosure = window.DatabaseApp.departmentCommonDisclosureMarkup({
     name: "인문",
@@ -513,6 +608,19 @@ async function main() {
   });
   assert.match(commonDisclosure, /department-common-click/);
   assert.match(commonDisclosure, /C L I C K/);
+
+  detailDialog.close();
+  const recommendedCourseName = dataset.rows[0][dataset.columns[0]];
+  await root.dispatchTestEvent("click", {
+    target: {
+      dataset: { recommendCourse: recommendedCourseName },
+      closest(selector) { return selector === "[data-recommend-course]" ? this : null; },
+      matches() { return false; }
+    }
+  });
+  assert.equal(detailDialog.open, true);
+  assert.equal(detailDialog.classList.contains("is-course-dialog"), true);
+  assert.match(detailContent.innerHTML, /course-dialog-sections/);
 
   window.DatabaseApp.openRecord(0);
   assert.match(detailContent.innerHTML, /course-dialog-head/);

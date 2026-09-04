@@ -10,6 +10,8 @@
   const SETTINGS_KEY = "course-guide:settings:v2";
   const DEFAULT_DATABASE_URL = "./data/database.json";
   const DEPARTMENT_DATABASE_URL = "./data/departments.json";
+  const INDEXED_DB_OPEN_TIMEOUT = 2500;
+  const DATA_FETCH_TIMEOUT = 8000;
 
   const embeddedFallback = {
     meta: {
@@ -52,16 +54,41 @@
       }
 
       const request = indexedDB.open(DB_NAME, DB_VERSION);
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        reject(new Error("브라우저 저장소 응답 시간이 초과되었습니다."));
+      }, INDEXED_DB_OPEN_TIMEOUT);
+      const finish = (callback) => {
+        if (settled) return false;
+        settled = true;
+        clearTimeout(timeout);
+        callback();
+        return true;
+      };
       request.onupgradeneeded = () => {
         const database = request.result;
         if (!database.objectStoreNames.contains(STORE_NAME)) {
           database.createObjectStore(STORE_NAME, { keyPath: "key" });
         }
       };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error || new Error("IndexedDB를 열 수 없습니다."));
-      request.onblocked = () => reject(new Error("다른 탭에서 데이터베이스를 사용 중입니다. 다른 탭을 닫고 다시 시도해 주세요."));
+      request.onsuccess = () => {
+        if (!finish(() => resolve(request.result))) request.result.close();
+      };
+      request.onerror = () => finish(() => reject(request.error || new Error("IndexedDB를 열 수 없습니다.")));
+      request.onblocked = () => finish(() => reject(new Error("다른 탭에서 데이터베이스를 사용 중입니다. 다른 탭을 닫고 다시 시도해 주세요.")));
     });
+  }
+
+  async function fetchWithTimeout(url, options = {}) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DATA_FETCH_TIMEOUT);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async function runTransaction(mode, action) {
@@ -212,7 +239,7 @@
 
   async function fetchDefaultDatabase({ cacheBust = false } = {}) {
     const suffix = cacheBust ? `?v=${Date.now()}` : "";
-    const response = await fetch(`${DEFAULT_DATABASE_URL}${suffix}`, { cache: cacheBust ? "no-store" : "default" });
+    const response = await fetchWithTimeout(`${DEFAULT_DATABASE_URL}${suffix}`, { cache: cacheBust ? "no-store" : "default" });
     if (!response.ok) throw new Error(`기본 DB 요청 실패 (HTTP ${response.status})`);
     const parsed = await response.json();
     const database = normalizeDatabase(parsed);
@@ -227,7 +254,7 @@
 
   async function loadDepartmentDatabase({ cacheBust = false } = {}) {
     const suffix = cacheBust ? `?v=${Date.now()}` : "";
-    const response = await fetch(`${DEPARTMENT_DATABASE_URL}${suffix}`, { cache: cacheBust ? "no-store" : "default" });
+    const response = await fetchWithTimeout(`${DEPARTMENT_DATABASE_URL}${suffix}`, { cache: cacheBust ? "no-store" : "default" });
     if (!response.ok) throw new Error(`학과 DB 요청 실패 (HTTP ${response.status})`);
     const database = normalizeDepartmentDatabase(await response.json());
     if (!database.fields.length || !database.departments.length) throw new Error("departments.json에 사용할 학과 데이터가 없습니다.");
