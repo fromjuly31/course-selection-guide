@@ -2,7 +2,13 @@
   "use strict";
 
   const SELECTED_SCHOOL_KEY = "course-guide:selected-school:v1";
+  const SELECTED_ADMISSION_YEAR_KEY = "course-guide:selected-admission-year:v1";
   const FALLBACK_URL = "./data/schools.json";
+  const EDUCATION_OFFICE_REGIONS = Object.freeze([
+    "서울특별시", "부산광역시", "대구광역시", "인천광역시", "광주광역시", "대전광역시", "울산광역시",
+    "세종특별자치시", "경기도", "강원특별자치도", "충청북도", "충청남도", "전북특별자치도", "전라남도",
+    "경상북도", "경상남도", "제주특별자치도"
+  ]);
   const config = window.SUPABASE_CONFIG || {};
   const configured = Boolean(config.url && config.publishableKey);
   let client = null;
@@ -10,6 +16,7 @@
   let initPromise = null;
   let schools = [];
   let selectedSchool = null;
+  let selectedAdmissionYear = null;
   let curriculum = null;
   let user = null;
   let accessRole = "";
@@ -34,16 +41,45 @@
     });
   }
 
+  function cleanAdmissionYears(values) {
+    return [...new Set((Array.isArray(values) ? values : []).map(Number)
+      .filter((year) => Number.isInteger(year) && year >= 2022 && year <= 2100))].sort((a, b) => b - a);
+  }
+
+  function cleanCurricula(row) {
+    const source = Array.isArray(row?.curricula) ? row.curricula : row?.curriculum ? [row.curriculum] : [];
+    return source.filter((item) => item && typeof item === "object").map((item) => ({
+      ...item,
+      admissionYear: Number(item.admissionYear ?? item.admission_year) || null
+    })).filter((item) => Number.isInteger(item.admissionYear));
+  }
+
   function cleanSchool(row) {
     if (!row || typeof row !== "object") return null;
+    const curricula = cleanCurricula(row);
+    const admissionYears = cleanAdmissionYears([
+      ...(Array.isArray(row.admissionYears) ? row.admissionYears : []),
+      ...(Array.isArray(row.admission_years) ? row.admission_years : []),
+      ...curricula.map((item) => item.admissionYear)
+    ]);
     return {
       id: String(row.id || row.slug || "").trim(),
       slug: String(row.slug || row.id || "").trim(),
       name: String(row.name || row.schoolName || "이름 없는 학교").trim(),
       region: String(row.region || "").trim(),
+      admissionYears,
       updatedAt: row.updated_at || row.updatedAt || "",
-      curriculum: row.curriculum && typeof row.curriculum === "object" ? row.curriculum : undefined
+      curriculum: row.curriculum && typeof row.curriculum === "object" ? row.curriculum : undefined,
+      curricula
     };
+  }
+
+  function schoolSnapshot(school) {
+    return school ? {
+      ...school,
+      admissionYears: [...(school.admissionYears || [])],
+      curricula: (school.curricula || []).map((item) => ({ ...item }))
+    } : null;
   }
 
   function emitChange(reason = "update") {
@@ -55,8 +91,9 @@
       configured,
       connection,
       message,
-      schools: schools.map((school) => ({ ...school })),
-      selectedSchool: selectedSchool ? { ...selectedSchool } : null,
+      schools: schools.map(schoolSnapshot),
+      selectedSchool: schoolSnapshot(selectedSchool),
+      selectedAdmissionYear,
       curriculum: curriculum ? JSON.parse(JSON.stringify(curriculum)) : null,
       user: user ? { id: user.id, email: user.email || "" } : null,
       accessRole
@@ -86,25 +123,37 @@
       .eq("is_active", true)
       .order("name", { ascending: true });
     if (error) throw error;
-    schools = (data || []).map(cleanSchool).filter(Boolean);
+    const { data: curriculumRows, error: curriculumError } = await client
+      .from("curricula")
+      .select("school_id, admission_year, updated_at")
+      .eq("is_published", true)
+      .order("admission_year", { ascending: false });
+    if (curriculumError) throw curriculumError;
+    const yearsBySchool = new Map();
+    (curriculumRows || []).forEach((row) => {
+      if (!yearsBySchool.has(row.school_id)) yearsBySchool.set(row.school_id, []);
+      yearsBySchool.get(row.school_id).push(row.admission_year);
+    });
+    schools = (data || []).map((row) => cleanSchool({ ...row, admissionYears: yearsBySchool.get(row.id) || [] })).filter(Boolean);
     return schools;
   }
 
-  async function loadCurriculum(schoolId) {
+  async function loadCurriculum(schoolId, admissionYear) {
     curriculum = null;
-    if (!schoolId) return null;
+    const year = Number(admissionYear);
+    if (!schoolId || !Number.isInteger(year)) return null;
     if (!client) {
       const localSchool = schools.find((school) => school.id === schoolId);
-      curriculum = localSchool?.curriculum || null;
+      curriculum = (localSchool?.curricula || []).find((item) => Number(item.admissionYear) === year)
+        || (Number(localSchool?.curriculum?.admissionYear ?? localSchool?.curriculum?.admission_year) === year ? localSchool.curriculum : null);
       return curriculum;
     }
     const { data, error } = await client
       .from("curricula")
       .select("id, school_id, admission_year, data, updated_at")
       .eq("school_id", schoolId)
+      .eq("admission_year", year)
       .eq("is_published", true)
-      .order("admission_year", { ascending: false })
-      .limit(1)
       .maybeSingle();
     if (error) throw error;
     curriculum = data?.data && typeof data.data === "object"
@@ -114,12 +163,18 @@
   }
 
   async function restoreSelection() {
-    const selectedId = new URLSearchParams(location.search).get("school") || localStorage.getItem(SELECTED_SCHOOL_KEY) || "";
+    const params = new URLSearchParams(location.search);
+    const selectedId = params.get("school") || localStorage.getItem(SELECTED_SCHOOL_KEY) || "";
+    const savedYear = Number(params.get("admissionYear") || params.get("year") || localStorage.getItem(SELECTED_ADMISSION_YEAR_KEY));
     selectedSchool = schools.find((school) => school.id === selectedId || school.slug === selectedId) || null;
     if (!selectedSchool && selectedId) localStorage.removeItem(SELECTED_SCHOOL_KEY);
     if (selectedSchool) {
       localStorage.setItem(SELECTED_SCHOOL_KEY, selectedSchool.id);
-      await loadCurriculum(selectedSchool.id);
+      if (selectedSchool.admissionYears.includes(savedYear)) {
+        curriculum = await loadCurriculum(selectedSchool.id, savedYear);
+        selectedAdmissionYear = curriculum ? savedYear : null;
+      }
+      if (!selectedAdmissionYear) localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
     }
   }
 
@@ -185,20 +240,38 @@
   async function selectSchool(schoolId) {
     await init();
     selectedSchool = schools.find((school) => school.id === schoolId || school.slug === schoolId) || null;
+    selectedAdmissionYear = null;
     curriculum = null;
     if (selectedSchool) {
       localStorage.setItem(SELECTED_SCHOOL_KEY, selectedSchool.id);
-      try {
-        await loadCurriculum(selectedSchool.id);
-      } catch (error) {
-        console.error("학교 편제표 불러오기 실패:", error);
-        message = `${selectedSchool.name} 편제표를 불러오지 못했습니다.`;
-      }
     } else {
       localStorage.removeItem(SELECTED_SCHOOL_KEY);
     }
+    localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
     emitChange("selection");
     return snapshot();
+  }
+
+  async function selectAdmissionYear(admissionYear) {
+    await init();
+    if (!selectedSchool) throw new Error("학교를 먼저 선택해 주세요.");
+    const year = Number(admissionYear);
+    if (!Number.isInteger(year) || !selectedSchool.admissionYears.includes(year)) {
+      throw new Error("선택한 학교에 등록된 입학년도가 아닙니다.");
+    }
+    try {
+      curriculum = await loadCurriculum(selectedSchool.id, year);
+      if (!curriculum) throw new Error(`${year}학년도 편제표를 찾을 수 없습니다.`);
+      selectedAdmissionYear = year;
+      localStorage.setItem(SELECTED_ADMISSION_YEAR_KEY, String(year));
+      emitChange("admission-year");
+      return snapshot();
+    } catch (error) {
+      curriculum = null;
+      selectedAdmissionYear = null;
+      localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+      throw error;
+    }
   }
 
   async function authenticate(email, password, requiredRole) {
@@ -242,15 +315,21 @@
     return String(value || "").replace(/\s+/g, "").toLocaleLowerCase("ko");
   }
 
+  function validateSchoolIdentity(input) {
+    const name = String(input?.schoolName || "").trim();
+    const region = String(input?.region || "").trim();
+    if (!EDUCATION_OFFICE_REGIONS.includes(region)) throw new Error("지역은 전국 17개 시·도 목록에서 선택해 주세요.");
+    if (!/^.+고등학교$/u.test(name)) throw new Error("학교명은 '고등학교'로 끝나는 정식 명칭을 입력해 주세요. 예: 우리고등학교");
+    return { name, region };
+  }
+
   function newSchoolSlug() {
     const randomPart = globalThis.crypto?.randomUUID?.().slice(0, 8) || Math.random().toString(36).slice(2, 10);
     return `school-${Date.now().toString(36)}-${randomPart}`;
   }
 
   async function findOrCreateSchool(input) {
-    const name = String(input?.schoolName || "").trim();
-    const region = String(input?.region || "").trim();
-    if (!name || !region) throw new Error("편제표의 지역과 학교명을 확인해 주세요.");
+    const { name, region } = validateSchoolIdentity(input);
     await loadSchools();
     const findExisting = () => schools.find((school) => comparable(school.name) === comparable(name) && comparable(school.region) === comparable(region));
     const existing = findExisting();
@@ -297,7 +376,6 @@
     if (lookupError) throw lookupError;
     let action = "inserted";
     if (existing?.id) {
-      if (accessRole !== "admin") throw new Error(`${school.name} ${admissionYear}학년도 편제표는 이미 등록되어 있습니다. 수정은 관리자만 할 수 있습니다.`);
       const { error } = await client.from("curricula").update(payload).eq("id", existing.id);
       if (error) throw error;
       action = "updated";
@@ -308,8 +386,10 @@
     }
     await loadSchools();
     selectedSchool = schools.find((item) => item.id === school.id) || school;
+    selectedAdmissionYear = admissionYear;
     localStorage.setItem(SELECTED_SCHOOL_KEY, school.id);
-    await loadCurriculum(school.id);
+    localStorage.setItem(SELECTED_ADMISSION_YEAR_KEY, String(admissionYear));
+    await loadCurriculum(school.id, admissionYear);
     emitChange("publish");
     return { ...snapshot(), action };
   }
@@ -322,7 +402,11 @@
     const schoolId = selectedSchool?.id || curriculum?.schoolId || "";
     const { error } = await client.from("curricula").delete().eq("id", id);
     if (error) throw error;
-    await loadCurriculum(schoolId);
+    await loadSchools();
+    selectedSchool = schools.find((school) => school.id === schoolId) || null;
+    selectedAdmissionYear = null;
+    curriculum = null;
+    localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
     emitChange("delete");
     return snapshot();
   }
@@ -331,11 +415,13 @@
     init,
     getSnapshot: snapshot,
     selectSchool,
+    selectAdmissionYear,
     signInTeacher,
     signInAdmin,
     signOut,
     publishCurriculum,
     deleteCurriculum,
-    isConfigured: () => configured
+    isConfigured: () => configured,
+    regions: [...EDUCATION_OFFICE_REGIONS]
   };
 })();

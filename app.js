@@ -6,6 +6,10 @@
   const root = document.querySelector("#app-root");
   const detailDialog = document.querySelector("#record-dialog");
   const detailContent = document.querySelector("[data-record-dialog-content]");
+  const recommendNoticeDialog = document.querySelector("#recommend-notice-dialog");
+  const curriculumAlertDialog = document.querySelector("#curriculum-alert-dialog");
+  const curriculumAlertTitle = document.querySelector("#curriculum-alert-title");
+  const curriculumAlertMessage = document.querySelector("#curriculum-alert-message");
   const toast = document.querySelector("[data-app-toast]");
 
   // 학교의 엑셀 정책이 달라지면 이 별칭 목록만 수정하면 된다.
@@ -39,6 +43,11 @@
   const LARGE_FILE_NOTICE = 20 * 1024 * 1024;
   const PREVIEW_PAGE_SIZE = 25;
   const VIEW_PAGE_SIZE = 18;
+  const SCHOOL_REGIONS = Object.freeze(Array.isArray(schoolStore?.regions) ? [...schoolStore.regions] : []);
+  const FIRST_GRADE_COMMON_BY_SEMESTER = Object.freeze({
+    1: Object.freeze(["공통국어1", "공통수학1", "공통영어1", "한국사1", "통합사회1", "통합과학1", "과학탐구실험1", "체육1"]),
+    2: Object.freeze(["공통국어2", "공통수학2", "공통영어2", "한국사2", "통합사회2", "통합과학2", "과학탐구실험2", "체육2"])
+  });
   const COURSE_GROUP_ORDER = ["국어", "수학", "영어", "사회(역사/도덕 포함)", "과학", "체육", "예술", "기술･가정", "정보", "제2외국어/한문", "교양"];
   const COURSE_GROUP_PALETTES = [
     ["#00796b", "#e4f5f1"], ["#1565c0", "#e8f1fb"], ["#6a1b9a", "#f2eafb"],
@@ -76,8 +85,14 @@
     subjectCategory: "전체",
     departmentField: initialTab === "departments" ? pageParams.get("field") || "" : "",
     departmentSearch: initialTab === "departments" ? pageParams.get("q") || "" : "",
-    recommendField: initialTab === "recommend" ? pageParams.get("field") || "" : "",
-    recommendDepartmentId: initialTab === "recommend" ? pageParams.get("department") || "" : "",
+    departmentCommonOpen: false,
+    recommendStep: 1,
+    recommendMaxStep: 1,
+    recommendField: "",
+    recommendDepartmentId: "",
+    recommendDepartmentIds: [],
+    recommendDepartmentSearch: "",
+    recommendKeywords: [],
     recommendSection: initialTab === "recommend" && ["common", "departments"].includes(pageParams.get("section"))
       ? pageParams.get("section")
       : initialTab === "recommend" && pageParams.get("department") ? "departments" : "",
@@ -86,12 +101,18 @@
     dialogDepartmentId: "",
     dialogSubjectKind: "",
     dialogSubjectName: "",
+    dialogRecordIndex: -1,
     dialogReturnToRecommend: false,
+    simulationResultOpen: false,
+    simulationGradeStep: 1,
+    simulationMaxGradeStep: 1,
+    simulationResultUnlocked: false,
     simulationSubjects: Array.isArray(savedSettings.simulationSubjects) ? savedSettings.simulationSubjects : [],
     schoolSelections: savedSettings.schoolSelections && typeof savedSettings.schoolSelections === "object" ? savedSettings.schoolSelections : {},
     schoolOnlyCourses: pageParams.get("schoolOnly") === "1" || Boolean(savedSettings.schoolOnlyCourses),
     schools: [],
     selectedSchool: null,
+    selectedAdmissionYear: null,
     curriculum: null,
     schoolConnection: "local",
     schoolConnectionMessage: "학교 데이터를 준비하고 있습니다.",
@@ -112,17 +133,41 @@
 
   let toastTimer;
   let searchTimer;
+  let platformExportBusy = false;
   let majorCourseOrderCache;
+  let curriculumDragPayload = null;
   let majorCourseOrderDataset;
+  let recommendationCourseIndexCache;
+  let recommendationCourseIndexDataset;
+
+  const RECOMMENDATION_COURSE_ALIASES = new Map([
+    ["매체와의사소통", "매체 의사소통"],
+    ["사화와문화", "사회와 문화"],
+    ["소프트웨어생활", "소프트웨어와 생활"],
+    ["심화영어독해와직문", "심화 영어 독해와 작문"],
+    ["영행지리", "여행지리"],
+    ["인공지능기호", "인공지능 기초"],
+    ["주제탐구도서", "주제 탐구 독서"]
+  ]);
 
   function syncSchoolState(snapshot = schoolStore?.getSnapshot?.() || {}) {
+    const nextSchoolId = snapshot.selectedSchool?.id || "";
+    const nextAdmissionYear = Number(snapshot.selectedAdmissionYear) || null;
+    const selectionChanged = (state.selectedSchool?.id || "") !== nextSchoolId || state.selectedAdmissionYear !== nextAdmissionYear;
     state.schools = Array.isArray(snapshot.schools) ? snapshot.schools : [];
     state.selectedSchool = snapshot.selectedSchool || null;
+    state.selectedAdmissionYear = nextAdmissionYear;
     state.curriculum = snapshot.curriculum || null;
     state.schoolConnection = snapshot.connection || "local";
     state.schoolConnectionMessage = snapshot.message || "";
     state.schoolUser = snapshot.user || null;
     state.accessRole = snapshot.accessRole || "";
+    if (selectionChanged) {
+      state.simulationResultOpen = false;
+      state.simulationGradeStep = 1;
+      state.simulationMaxGradeStep = 1;
+      state.simulationResultUnlocked = false;
+    }
     if (!state.selectedSchool || !state.curriculum) state.schoolOnlyCourses = false;
   }
 
@@ -130,20 +175,124 @@
     return compactText(value).replace(/[･・]/g, "·").toLocaleLowerCase("ko");
   }
 
+  function looseCourseName(value) {
+    return compactText(value).normalize("NFKC").toLocaleLowerCase("ko").replace(/[^0-9a-z가-힣]/g, "");
+  }
+
+  function curriculumCourseAliasKey(value) {
+    const key = looseCourseName(value);
+    return key.replace(/([가-힣])(iii|ii|i)$/i, (_match, prefix, numeral) => {
+      const number = { i: "1", ii: "2", iii: "3" }[numeral.toLowerCase()];
+      return `${prefix}${number}`;
+    });
+  }
+
+  function recommendationCourseIndex() {
+    if (recommendationCourseIndexCache && recommendationCourseIndexDataset === state.dataset) return recommendationCourseIndexCache;
+    const courseNameColumn = findColumn(state.dataset.columns, COLUMN_ALIASES.courseName);
+    const subjects = courseNameColumn ? state.dataset.rows.map((row, index) => ({
+      row,
+      index,
+      name: compactText(row[courseNameColumn]),
+      key: normalizedCourseName(row[courseNameColumn]),
+      looseKey: looseCourseName(row[courseNameColumn]),
+      category: normalizeCourseGroup(valueAt(row, COLUMN_ALIASES.category))
+    })).filter((subject) => subject.name) : [];
+    recommendationCourseIndexDataset = state.dataset;
+    const byCurriculumAlias = new Map();
+    subjects.forEach((subject) => {
+      const aliasKey = curriculumCourseAliasKey(subject.name);
+      if (!aliasKey) return;
+      const existing = byCurriculumAlias.get(aliasKey);
+      if (!byCurriculumAlias.has(aliasKey)) byCurriculumAlias.set(aliasKey, subject);
+      else if (existing?.key !== subject.key) byCurriculumAlias.set(aliasKey, null);
+    });
+    recommendationCourseIndexCache = {
+      subjects,
+      byName: new Map(subjects.map((subject) => [subject.key, subject])),
+      byLooseName: new Map(subjects.map((subject) => [subject.looseKey, subject])),
+      byCurriculumAlias
+    };
+    return recommendationCourseIndexCache;
+  }
+
+  function curriculumCourseReference(value, index = recommendationCourseIndex()) {
+    const name = compactText(value);
+    if (!name) return null;
+    return index.byName.get(normalizedCourseName(name))
+      || index.byLooseName.get(looseCourseName(name))
+      || index.byCurriculumAlias.get(curriculumCourseAliasKey(name))
+      || null;
+  }
+
+  function recommendationCourseReferences(value, index = recommendationCourseIndex()) {
+    const name = compactText(value);
+    if (!name) return [];
+    const direct = curriculumCourseReference(name, index);
+    if (direct) return [direct];
+
+    if (/^영어\s*[ⅠI1]\s*[·･・/,]\s*[ⅡI2]+$/i.test(name.normalize("NFKC"))) {
+      return ["영어Ⅰ", "영어Ⅱ"].map((courseName) => index.byName.get(normalizedCourseName(courseName))).filter(Boolean);
+    }
+
+    const cleanedName = name.replace(/\([^)]*\)/g, " ").replace(/\s+등\s*$/, "").replace(/\s+/g, " ").trim();
+    const cleaned = index.byName.get(normalizedCourseName(cleanedName)) || index.byLooseName.get(looseCourseName(cleanedName));
+    if (cleaned) return [cleaned];
+
+    const aliasName = RECOMMENDATION_COURSE_ALIASES.get(looseCourseName(name));
+    const alias = aliasName && (index.byName.get(normalizedCourseName(aliasName)) || index.byLooseName.get(looseCourseName(aliasName)));
+    if (alias) return [alias];
+
+    const selectionMatch = name.match(/(일반|진로|융합)\s*선택\s*전\s*과목/);
+    if (selectionMatch) {
+      const categories = name.slice(0, selectionMatch.index).split(/[·･・/,]/).map(compactText).filter(Boolean);
+      const selectionType = `${selectionMatch[1]}선택`;
+      return index.subjects.filter((subject) => categories.includes(subject.category)
+        && normalizedKey(valueAt(subject.row, COLUMN_ALIASES.selectionType)) === normalizedKey(selectionType));
+    }
+    return [];
+  }
+
   function curriculumGrades() {
     const grades = Array.isArray(state.curriculum?.grades) ? state.curriculum.grades : [];
+    const admissionYear = Number(state.selectedAdmissionYear || state.curriculum?.admissionYear);
+    const usesRevisedFirstGradeCommon = !admissionYear || admissionYear >= 2025;
     return [1, 2, 3].map((grade) => {
       const source = grades.find((item) => Number(item.grade) === grade) || {};
+      const hasSemesterData = Array.isArray(source.semesters) && source.semesters.length > 0;
+      const semesterSources = [1, 2].map((semester) => {
+        if (!hasSemesterData) return semester === 1 ? source : {};
+        return source.semesters.find((item) => Number(item?.semester) === semester) || {};
+      });
+      const semesters = semesterSources.map((semesterSource, semesterIndex) => {
+        const semester = semesterIndex + 1;
+        const options = Array.isArray(semesterSource.options) ? semesterSource.options.map((option, index) => {
+          const baseId = compactText(option?.id) || `option-${index + 1}`;
+          const id = hasSemesterData && !baseId.startsWith("semester-") ? `semester-${semester}-${baseId}` : baseId;
+          return {
+            id,
+            label: compactText(option?.label) || `옵션 ${index + 1}`,
+            choose: Math.max(1, Number(option?.choose) || 1),
+            courses: uniqueCourseNames(Array.isArray(option?.courses) ? option.courses : []),
+            semester
+          };
+        }).filter((option) => option.courses.length) : [];
+        return {
+          semester,
+          common: uniqueCourseNames([
+            ...(grade === 1 && usesRevisedFirstGradeCommon ? FIRST_GRADE_COMMON_BY_SEMESTER[semester] : []),
+            ...(Array.isArray(semesterSource.common) ? semesterSource.common : [])
+          ]),
+          electives: uniqueCourseNames(Array.isArray(semesterSource.electives) ? semesterSource.electives : []),
+          options
+        };
+      });
       return {
         grade,
-        common: Array.isArray(source.common) ? source.common : [],
-        electives: Array.isArray(source.electives) ? source.electives : [],
-        options: Array.isArray(source.options) ? source.options.map((option, index) => ({
-          id: compactText(option?.id) || `option-${index + 1}`,
-          label: compactText(option?.label) || `옵션 ${index + 1}`,
-          choose: Math.max(1, Number(option?.choose) || 1),
-          courses: Array.isArray(option?.courses) ? option.courses.map(compactText).filter(Boolean) : []
-        })).filter((option) => option.courses.length) : []
+        semesters,
+        common: uniqueCourseNames(semesters.flatMap((semester) => semester.common)),
+        electives: uniqueCourseNames(semesters.flatMap((semester) => semester.electives)),
+        options: semesters.flatMap((semester) => semester.options)
       };
     });
   }
@@ -171,6 +320,23 @@
     return `<svg class="icon ${extraClass}" aria-hidden="true"><use href="icons.svg#${name}"></use></svg>`;
   }
 
+  function printActionMarkup(kind, id = "", options = {}) {
+    const classes = `${options.compact ? "is-compact" : ""} ${options.iconOnly ? "is-icon-only" : ""}`;
+    const idAttribute = id !== "" ? ` data-print-id="${escapeHtml(id)}"` : "";
+    if (window.matchMedia?.("(max-width: 820px)").matches) {
+      const label = "이미지 저장";
+      return `<button class="print-pdf-action ${classes}" type="button" data-image-view="${escapeHtml(kind)}"${idAttribute} aria-label="${label}">${icon("download")}${options.iconOnly ? "" : `<span>${label}</span>`}</button>`;
+    }
+    const contextLabel = compactText(options.label)
+      .replace(/\s*인쇄\s*[·ㆍ]\s*PDF(?:\s*저장)?\s*$/i, "")
+      .trim();
+    const printLabel = "인쇄";
+    const pdfLabel = options.compact ? "PDF" : "PDF 다운로드";
+    const printAriaLabel = contextLabel ? `${contextLabel} 인쇄` : printLabel;
+    const pdfAriaLabel = contextLabel ? `${contextLabel} PDF 다운로드` : "PDF 다운로드";
+    return `<span class="print-action-group ${options.compact ? "is-compact" : ""} ${options.iconOnly ? "is-icon-only" : ""}"><button class="print-pdf-action ${classes}" type="button" data-print-view="${escapeHtml(kind)}"${idAttribute} aria-label="${escapeHtml(printAriaLabel)}">${icon("print")}${options.iconOnly ? "" : `<span>${printLabel}</span>`}</button><button class="print-pdf-action is-pdf-download ${classes}" type="button" data-pdf-view="${escapeHtml(kind)}"${idAttribute} aria-label="${escapeHtml(pdfAriaLabel)}">${icon("download")}${options.iconOnly ? "" : `<span>${pdfLabel}</span>`}</button></span>`;
+  }
+
   function showToast(message, duration = 2800) {
     clearTimeout(toastTimer);
     toast.textContent = message;
@@ -196,6 +362,14 @@
     if (value === true) return "예";
     if (value === false) return "아니요";
     return String(value ?? "");
+  }
+
+  function showCurriculumAlert(title, message) {
+    if (!curriculumAlertDialog || !curriculumAlertTitle || !curriculumAlertMessage) return;
+    curriculumAlertTitle.textContent = compactText(title) || "편제표를 확인해 주세요";
+    curriculumAlertMessage.textContent = compactText(message) || "편제표 내용을 확인한 뒤 다시 시도해 주세요.";
+    if (!curriculumAlertDialog.open) curriculumAlertDialog.showModal();
+    requestAnimationFrame(() => curriculumAlertDialog.querySelector(".curriculum-alert-confirm")?.focus({ preventScroll: true }));
   }
 
   function compactText(value) {
@@ -370,7 +544,7 @@
       else link.removeAttribute("aria-current");
     });
     const titles = { subjects: "과목 안내", departments: "학과 안내", recommend: "과목 추천", simulation: "시뮬레이션", admin: "데이터 연동" };
-    document.title = `${titles[state.tab]} · 과목 선택 안내 플랫폼`;
+    document.title = `${titles[state.tab]} · 선택 과목 안내 플랫폼`;
   }
 
   function renderHeaderSchoolPicker() {
@@ -378,11 +552,29 @@
     const label = picker?.querySelector("[data-school-picker-label]");
     const options = picker?.querySelector("[data-school-options]");
     if (!picker || !label || !options) return;
-    label.textContent = state.selectedSchool?.name || "학교 선택";
+    label.textContent = state.selectedSchool
+      ? `${state.selectedSchool.name}${state.selectedAdmissionYear ? ` · ${state.selectedAdmissionYear}` : " · 입학년도 선택"}`
+      : "학교 선택";
     picker.classList.toggle("has-selection", Boolean(state.selectedSchool));
     options.innerHTML = state.schools.length
-      ? state.schools.map((school) => `<button type="button" class="${state.selectedSchool?.id === school.id ? "is-selected" : ""}" data-school-id="${escapeHtml(school.id)}"><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.region || "학교 편제표 연동")}</small></button>`).join("")
+      ? state.schools.map((school) => {
+        const selected = state.selectedSchool?.id === school.id;
+        const years = schoolAdmissionYears(school);
+        return `<button type="button" class="${selected ? "is-selected" : ""}" data-school-id="${escapeHtml(school.id)}"><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.region || "지역 정보 없음")} · ${years.length ? `${years.length}개 입학년도` : "등록 편제표 없음"}</small></button>${selected ? schoolAdmissionYearOptionsMarkup(school) : ""}`;
+      }).join("")
       : `<span class="school-menu-empty">${schoolStore?.isConfigured?.() ? "아직 연동된 학교가 없습니다." : "Supabase 설정 후 학교가 표시됩니다."}</span>`;
+  }
+
+  function schoolAdmissionYears(school) {
+    return [...new Set((Array.isArray(school?.admissionYears) ? school.admissionYears : []).map(Number)
+      .filter((year) => Number.isInteger(year)))].sort((a, b) => b - a);
+  }
+
+  function schoolAdmissionYearOptionsMarkup(school) {
+    const years = schoolAdmissionYears(school);
+    return `<div class="school-admission-year-options"><span>입학년도 선택</span><div>${years.length
+      ? years.map((year) => `<button type="button" class="${state.selectedAdmissionYear === year ? "is-selected" : ""}" data-school-admission-year="${year}" aria-pressed="${state.selectedAdmissionYear === year}">${year}학년도</button>`).join("")
+      : "<em>등록된 편제표가 없습니다.</em>"}</div></div>`;
   }
 
   function valueAt(row, aliases) {
@@ -491,6 +683,7 @@
       department.name,
       department.guide?.overview,
       department.guide?.aptitude,
+      ...(department.recommendedBooks || []).flatMap((book) => [book.title, book.author, ...(book.universities || [])]),
       ...(department.relatedSubjects || []),
       ...(department.reflectedSubjects || []).flatMap((subject) => [subject.name, ...(subject.universities || [])]),
       ...(department.scienceRecommendedSubjects || []).flatMap((subject) => [subject.name, ...(subject.universities || [])])
@@ -532,6 +725,7 @@
         <div class="major-card-actions">
           <button type="button" ${openAttribute}="${escapeHtml(department.id)}"${scope === "recommend" ? ` aria-haspopup="dialog"` : ""}>자세히 보기 ${icon("arrow")}</button>
           <button class="compare-card-button ${compared ? "is-added" : ""}" type="button" data-compare-toggle="${escapeHtml(department.id)}" aria-pressed="${compared}">${icon(compared ? "check" : "cart")} ${compared ? "비교에 담김" : "비교 담기"}</button>
+          ${printActionMarkup("department", department.id, { compact: true, label: "인쇄·PDF" })}
         </div>
       </article>`;
   }
@@ -560,6 +754,23 @@
     return `<aside class="university-reveal" aria-live="polite"><div><small>${escapeHtml(label)}</small><strong>${escapeHtml(subject.name)}</strong><span>DB에 포함된 ${subject.universities.length.toLocaleString("ko-KR")}개 대학</span></div><div class="university-list">${subject.universities.map((university) => `<span>${escapeHtml(university)}</span>`).join("") || "<span>대학 정보 없음</span>"}</div></aside>`;
   }
 
+  function recommendedBookUniversityBadgesMarkup(universities, className = "major-book-universities") {
+    const values = [...new Set((universities || []).map((university) => compactText(university)).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, "ko"));
+    return values.length
+      ? `<span class="${className}">${values.map((university) => `<i>${escapeHtml(university)}</i>`).join("")}</span>`
+      : "";
+  }
+
+  function departmentRecommendedBooksMarkup(books) {
+    const entries = [...(books || [])].sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "ko") || String(a.author || "").localeCompare(String(b.author || ""), "ko"));
+    return `
+      <section class="major-book-section">
+        <div class="major-course-title"><span>${icon("book-open")}</span><div><small>RECOMMENDED BOOKS</small><h3>권장 도서</h3><p>도서명 순으로 정렬했습니다.</p></div><em>${entries.length}</em></div>
+        ${entries.length ? `<div class="major-book-table" role="list" aria-label="학과 권장 도서 목록">${entries.map((book) => `<article class="major-book-row ${(book.universities || []).length ? "has-university" : ""}" role="listitem"><strong class="major-book-title">${escapeHtml(book.title)}</strong><span class="major-book-author">${escapeHtml(book.author || "저자 정보 없음")}</span>${(book.universities || []).length ? `<div class="major-book-university-cell">${recommendedBookUniversityBadgesMarkup(book.universities)}</div>` : ""}</article>`).join("")}</div>` : '<p class="major-book-empty">등록된 권장 도서가 없습니다.</p>'}
+      </section>`;
+  }
+
   function openDepartment(id, options = {}) {
     const department = departmentById(id);
     if (!department) return;
@@ -569,6 +780,7 @@
       state.dialogReturnToRecommend = Boolean(options.fromRecommend);
     }
     state.dialogDepartmentId = id;
+    state.dialogRecordIndex = -1;
     detailDialog.classList.add("is-major-dialog");
     detailDialog.classList.remove("is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog");
     const visual = fieldVisual(department.field);
@@ -578,6 +790,7 @@
       : `<span class="major-subject-chip is-related"><span>${escapeHtml(subject)}</span></span>`);
     detailContent.innerHTML = `
       ${state.dialogReturnToRecommend && state.recommendField ? `<button class="recommend-dialog-back" type="button" data-return-recommend-field>${icon("arrow")} ${escapeHtml(state.recommendField)} 분야로 돌아가기</button>` : ""}
+      <div class="detail-print-row">${printActionMarkup("department", department.id)}</div>
       <div class="major-dialog-head" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}">
         <span>${icon(visual.icon)}</span>
         <div><p class="dialog-kicker">${escapeHtml(department.field)} FIELD · DEPARTMENT GUIDE</p><h2 id="record-dialog-title">${escapeHtml(department.name)}</h2></div>
@@ -587,6 +800,7 @@
         ${department.guide?.aptitude ? `<section><small>02 · APTITUDE</small><h3>흥미와 적성</h3><p>${escapeHtml(department.guide.aptitude)}</p></section>` : ""}
         ${department.guide?.careers ? `<section><small>03 · CAREER</small><h3>졸업 후 진출 분야</h3><p class="preserve-lines">${escapeHtml(department.guide.careers)}</p></section>` : ""}
       </div>
+      ${departmentRecommendedBooksMarkup(department.recommendedBooks)}
       <section class="major-course-section is-related">
         <div class="major-course-title"><span>${icon("book-open")}</span><div><small>RELATED COURSES</small><h3>관련 과목</h3></div><em>${department.relatedSubjects.length}</em></div>
         ${relatedMarkup}
@@ -594,7 +808,7 @@
       </section>
       ${department.reflectedSubjects.length ? `<section class="major-course-section is-reflected"><div class="major-course-title"><span class="reflection-section-icon">${icon("solid-star")}</span><div><small>ADMISSION REFLECTION</small><h3>반영 과목 <b>중요</b></h3><p>과목을 누르면 반영 대학을 확인할 수 있습니다.</p></div><em>${department.reflectedSubjects.length}</em></div>${subjectUniversityButtons(department.reflectedSubjects, "reflectedSubjects", department.id)}${universityRevealMarkup(department, "reflectedSubjects", state.dialogSubjectName)}</section>` : ""}
       ${department.scienceRecommendedSubjects.length ? `<section class="major-course-section is-science"><div class="major-course-title"><span>${icon("flask")}</span><div><small>SCIENCE RECOMMENDATION</small><h3>과학 권장 과목</h3><p>학과와 대학에서 권장하는 과학 과목입니다.</p></div><em>${department.scienceRecommendedSubjects.length}</em></div>${subjectUniversityButtons(department.scienceRecommendedSubjects, "scienceRecommendedSubjects", department.id)}${universityRevealMarkup(department, "scienceRecommendedSubjects", state.dialogSubjectName)}</section>` : ""}
-      <p class="major-data-note">대학별 반영·권장 정보는 제공된 엑셀 DB를 기준으로 표시합니다.</p>`;
+      <p class="major-data-note">권장 도서와 대학별 반영·권장 정보는 제공된 엑셀 DB를 기준으로 표시합니다.</p>`;
     if (!detailDialog.open) detailDialog.showModal();
   }
 
@@ -609,6 +823,7 @@
         <article class="record-card course-record-card course-card-variant-${visual.variant}" style="--group-accent:${accent}; --group-soft:${soft}" role="button" tabindex="0" data-record-index="${originalIndex}" aria-label="${escapeHtml(courseName)} 상세 정보 보기">
           <span class="course-card-symbol" aria-hidden="true">${icon(visual.iconName)}</span>
           <div class="course-card-main"><h3>${escapeHtml(courseName)}</h3><span class="course-card-badges">${badge ? `<span class="course-type-badge ${badge.className}">${badge.label}</span>` : ""}${seriesLabel ? `<span class="course-series-badge">${escapeHtml(seriesLabel)}</span>` : ""}</span></div>
+          ${printActionMarkup("subject", originalIndex, { compact: true, iconOnly: true, label: `${courseName} 인쇄 · PDF 저장` })}
           <span class="course-card-arrow" aria-hidden="true">${icon("arrow")}</span>
         </article>`;
     }
@@ -797,6 +1012,7 @@
         <label class="search-field"><span class="sr-only">학과 검색</span>${icon("search")}<input type="search" value="${escapeHtml(state.departmentSearch)}" placeholder="학과명, 과목 또는 대학명 검색" data-department-search autocomplete="off"></label>
       </section>
       ${showingFields ? `<section class="major-field-grid" aria-label="학과 분야 목록">${fields.map((field) => fieldCardMarkup(field)).join("")}</section>` : `
+        ${state.departmentField ? departmentCommonDisclosureMarkup(fieldByName(state.departmentField)) : ""}
         <section class="major-browser" style="--field-accent:${selectedVisual.accent}; --field-soft:${selectedVisual.soft}">
           <header class="major-browser-head"><div><span>${icon(state.departmentField ? selectedVisual.icon : "search")}</span><div><small>${state.departmentField ? `${escapeHtml(state.departmentField)} FIELD` : "SEARCH RESULTS"}</small><h2>${state.departmentField ? `${escapeHtml(state.departmentField)} 분야 학과` : `‘${escapeHtml(state.departmentSearch)}’ 검색 결과`}</h2></div></div><em>${matches.length.toLocaleString("ko-KR")}개</em></header>
           <div class="major-grid" aria-live="polite">${matches.length ? matches.map((department) => departmentCardMarkup(department)).join("") : `<div class="empty-state"><span class="empty-icon">${icon("search")}</span><h2>검색 결과가 없습니다.</h2><p>다른 학과명이나 과목, 대학명을 검색해 보세요.</p></div>`}</div>
@@ -915,12 +1131,13 @@
   }
 
   function setComparisonDialogMode(mode) {
-    detailDialog.classList.remove("is-major-dialog", "is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog");
+    detailDialog.classList.remove("is-major-dialog", "is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog", "is-department-common-dialog");
     detailDialog.classList.add(mode);
     state.dialogReturnToRecommend = false;
     state.dialogDepartmentId = "";
     state.dialogSubjectKind = "";
     state.dialogSubjectName = "";
+    state.dialogRecordIndex = -1;
   }
 
   function openComparisonPicker() {
@@ -981,6 +1198,554 @@
     return majorSubjectGroupsMarkup(subjects, (subject) => `<span title="${escapeHtml(subject.name)}"><strong>${escapeHtml(subject.name)}</strong><small>${subject.coverageCount}/${subject.totalCount}개 학과</small></span>`, { className: "is-field-common", listClass: "common-major-subjects" });
   }
 
+  function departmentCommonDisclosureMarkup(field) {
+    if (!field) return "";
+    const visual = fieldVisual(field.name);
+    return `<section class="department-common-disclosure" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}">
+      <button type="button" data-department-common-open="${escapeHtml(field.name)}" aria-haspopup="dialog">
+        <span>${icon("book-open")}</span>
+        <span><small>FIELD COMMON COURSES</small><strong>${escapeHtml(field.name)} 분야 공통 과목</strong><em>분야 내 과반수 학과에서 공통으로 확인되는 과목</em></span>
+        <b>${field.commonSubjects.length.toLocaleString("ko-KR")}</b>
+        <i>${icon("arrow")}</i>
+      </button>
+    </section>`;
+  }
+
+  function openDepartmentCommonDialog(fieldName) {
+    const field = fieldByName(fieldName);
+    if (!field) return;
+    const visual = fieldVisual(field.name);
+    detailDialog.classList.remove("is-major-dialog", "is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog", "is-department-common-dialog");
+    detailDialog.classList.add("is-department-common-dialog");
+    detailContent.innerHTML = `
+      <div class="major-dialog-head department-common-dialog-head" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}">
+        <span>${icon("book-open")}</span>
+        <div><p class="dialog-kicker">${escapeHtml(field.name.toLocaleUpperCase("ko"))} · FIELD COMMON COURSES</p><h2 id="record-dialog-title">${escapeHtml(field.name)} 분야 공통 과목</h2><p>${escapeHtml(state.departmentDataset.meta.commonSubjectRule || "분야 내 과반수 학과에서 공통으로 확인되는 관련 과목")}입니다.</p></div>
+        <em>${field.commonSubjects.length}</em>
+      </div>
+      <section class="department-common-dialog-body">${fieldCommonSubjectsMarkup(field.commonSubjects)}</section>`;
+    if (!detailDialog.open) detailDialog.showModal();
+    detailDialog.scrollTop = 0;
+  }
+
+  function selectedRecommendDepartments() {
+    const selected = new Set(state.recommendDepartmentIds);
+    return state.departmentDataset.departments.filter((department) => selected.has(department.id) && department.field === state.recommendField);
+  }
+
+  function recommendationSubjectCategory(subject) {
+    const name = typeof subject === "string" ? subject : subject?.name;
+    const directCategory = typeof subject === "object" ? compactText(subject?.category) : "";
+    if (directCategory) return normalizeCourseGroup(directCategory);
+    const key = normalizedCourseName(name);
+    const courseNameColumn = findColumn(state.dataset.columns, COLUMN_ALIASES.courseName);
+    const row = typeof subject === "object" && subject?.row
+      ? subject.row
+      : state.dataset.rows.find((item) => normalizedCourseName(item[courseNameColumn]) === key);
+    return normalizeCourseGroup(row ? valueAt(row, COLUMN_ALIASES.category) : "");
+  }
+
+  function groupedRecommendationSubjects(subjects) {
+    const groups = new Map();
+    subjects.forEach((subject) => {
+      const name = typeof subject === "string" ? subject : subject?.name;
+      if (!compactText(name)) return;
+      const category = recommendationSubjectCategory(subject);
+      if (!groups.has(category)) groups.set(category, []);
+      groups.get(category).push(subject);
+    });
+    return [...groups.entries()]
+      .map(([category, entries]) => ({ category, entries }))
+      .sort((a, b) => {
+        const aIndex = COURSE_GROUP_ORDER.indexOf(a.category);
+        const bIndex = COURSE_GROUP_ORDER.indexOf(b.category);
+        if (aIndex >= 0 && bIndex >= 0) return aIndex - bIndex;
+        if (aIndex >= 0) return -1;
+        if (bIndex >= 0) return 1;
+        return a.category.localeCompare(b.category, "ko");
+      });
+  }
+
+  function recommendationSubjectStats(departments, kind = "related") {
+    const stats = new Map();
+    const courseIndex = recommendationCourseIndex();
+    departments.forEach((department) => {
+      const source = kind === "reflected"
+        ? (department.reflectedSubjects || []).map((subject) => ({ name: subject.name, universities: subject.universities || [] }))
+        : (department.relatedSubjects || []).map((name) => ({ name, universities: [] }));
+      const seen = new Set();
+      source.forEach((subject) => {
+        const references = recommendationCourseReferences(subject.name, courseIndex);
+        const candidates = references.length ? references : [{
+          key: `unresolved:${looseCourseName(subject.name)}`,
+          name: subject.name,
+          category: recommendationSubjectCategory(subject),
+          row: null
+        }];
+        candidates.forEach((candidate) => {
+          const key = candidate.key;
+          if (!key) return;
+          if (!stats.has(key)) stats.set(key, {
+            key,
+            name: candidate.name,
+            category: candidate.category || recommendationSubjectCategory(candidate),
+            row: candidate.row || null,
+            count: 0,
+            departments: [],
+            universities: new Set()
+          });
+          const item = stats.get(key);
+          if (seen.has(key)) {
+            subject.universities.forEach((university) => item.universities.add(university));
+            return;
+          }
+          seen.add(key);
+          item.count += 1;
+          item.departments.push(department.name);
+          subject.universities.forEach((university) => item.universities.add(university));
+        });
+      });
+    });
+    const sortedNames = sortMajorSubjects([...stats.values()].map((item) => item.name));
+    const courseOrder = new Map(sortedNames.map((name, index) => [normalizedCourseName(name), index]));
+    return [...stats.values()].sort((a, b) => b.count - a.count
+      || (courseOrder.get(normalizedCourseName(a.name)) ?? Number.MAX_SAFE_INTEGER) - (courseOrder.get(normalizedCourseName(b.name)) ?? Number.MAX_SAFE_INTEGER)
+      || a.name.localeCompare(b.name, "ko"));
+  }
+
+  function recommendKeywordResults() {
+    const keywordMap = new Map();
+    state.recommendKeywords.map(compactText).filter(Boolean).forEach((keyword) => {
+      const key = normalizedCourseName(keyword);
+      if (!keywordMap.has(key)) keywordMap.set(key, keyword);
+    });
+    const keywords = [...keywordMap.values()];
+    if (!keywords.length) return [];
+    const courseIndex = recommendationCourseIndex();
+    const subjects = courseIndex.subjects;
+    if (!subjects.length) return [];
+    const settings = new Map((state.dataset.chatbot?.searchSettings || []).map((row) => [compactText(row["항목"]), row]));
+    const weights = Array.isArray(state.dataset.chatbot?.keywordWeights) ? state.dataset.chatbot.keywordWeights : [];
+    const settingNumber = (name, fallback) => {
+      const number = Number(String(settings.get(name)?.["값"] ?? "").replace(/[^0-9.-]/g, ""));
+      return Number.isFinite(number) ? number : fallback;
+    };
+    const fieldRules = [
+      ["이 과목을 누구에게 추천하나요?", settingNumber("추천대상 필드 직접 일치", 8), "추천 대상"],
+      ["이 과목은 어떤 과목인가요?", settingNumber("과목 설명 필드 직접 일치", 5), "과목 설명"],
+      ["과목의 주요 내용", settingNumber("주요내용 필드 직접 일치", 6), "주요 내용"],
+      ["그 외 질문 1", settingNumber("그 외 질문 필드 직접 일치", 4), "추가 안내"],
+      ["그 외 질문 2", settingNumber("그 외 질문 필드 직접 일치", 4), "추가 안내"]
+    ];
+    const minimumLength = settingNumber("최소 검색어 길이", 2);
+    const synonymMultiplier = settingNumber("동의어 DB 점수 배수", 4);
+    const exactNameScore = settingNumber("과목명 정확 일치 보너스", 100);
+    const partialNameScore = settingNumber("과목명 부분 일치 보너스", 40);
+    const groupScore = settingNumber("교과군 직접 일치", 3);
+    const extraKeywordScore = settingNumber("추가 키워드 동시 일치 보너스", 5);
+    const extraKeywordCap = settingNumber("추가 키워드 보너스 상한", 20);
+    const stopWords = new Set(["관심", "분야", "진로", "과목", "수업", "관련", "희망", "좋아함", "좋아요"]);
+    const scores = new Map();
+    const ensureResult = (subject) => {
+      if (!scores.has(subject.key)) scores.set(subject.key, {
+        ...subject,
+        score: 0,
+        keywordScore: 0,
+        contextScore: 0,
+        strongestKeywordScore: 0,
+        strongestSynonym: 0,
+        exactName: false,
+        partialName: false,
+        keywords: new Set(),
+        matchReasons: new Set(),
+        contextReasons: new Set(),
+        evidenceTypes: new Set()
+      });
+      return scores.get(subject.key);
+    };
+
+    keywords.forEach((keyword) => {
+      const normalizedKeyword = normalizedCourseName(keyword);
+      const tokens = [...new Set((String(keyword).normalize("NFKC").toLocaleLowerCase("ko").match(/[0-9a-z가-힣]+/g) || [])
+        .filter((token) => token.length >= minimumLength && !stopWords.has(token)))];
+      const keywordMatches = new Map();
+      const ensureEvidence = (subject) => {
+        if (!keywordMatches.has(subject.key)) keywordMatches.set(subject.key, {
+          subject,
+          nameScore: 0,
+          exactName: false,
+          partialName: false,
+          groupScore: 0,
+          fieldScores: new Map(),
+          synonymScores: new Map()
+        });
+        return keywordMatches.get(subject.key);
+      };
+      subjects.forEach((subject) => {
+        if (subject.key === normalizedKeyword) {
+          const evidence = ensureEvidence(subject);
+          evidence.nameScore = exactNameScore;
+          evidence.exactName = true;
+        }
+        else if (subject.key.includes(normalizedKeyword) || normalizedKeyword.includes(subject.key)) {
+          const evidence = ensureEvidence(subject);
+          evidence.nameScore = Math.max(evidence.nameScore, partialNameScore);
+          evidence.partialName = true;
+        }
+        const group = normalizedCourseName(valueAt(subject.row, COLUMN_ALIASES.category));
+        if (group && normalizedKeyword.includes(group)) ensureEvidence(subject).groupScore = groupScore;
+        tokens.forEach((token) => {
+          const normalizedToken = normalizedCourseName(token);
+          fieldRules.forEach(([field, points, reason]) => {
+            if (!normalizedCourseName(subject.row[field]).includes(normalizedToken)) return;
+            const evidence = ensureEvidence(subject);
+            const previous = evidence.fieldScores.get(field);
+            if (!previous || points > previous.points) evidence.fieldScores.set(field, { points, reason });
+          });
+        });
+      });
+      weights.forEach((weight) => {
+        const searchTerm = compactText(weight["검색어"]);
+        const normalizedTerm = normalizedCourseName(searchTerm);
+        if (!normalizedTerm || normalizedTerm.length < minimumLength
+          || (!normalizedKeyword.includes(normalizedTerm) && !normalizedTerm.includes(normalizedKeyword))) return;
+        parseMultiValue(weight["적용과목"]).forEach((courseName) => {
+          recommendationCourseReferences(courseName, courseIndex).forEach((subject) => {
+            const evidence = ensureEvidence(subject);
+            const points = (Number(weight["가중치"]) || 0) * synonymMultiplier;
+            evidence.synonymScores.set(normalizedTerm, Math.max(evidence.synonymScores.get(normalizedTerm) || 0, points));
+          });
+        });
+      });
+
+      keywordMatches.forEach((evidence) => {
+        const textScore = Math.min(20, [...evidence.fieldScores.values()].reduce((sum, item) => sum + item.points, 0));
+        const synonymValues = [...evidence.synonymScores.values()].sort((a, b) => b - a);
+        const synonymScore = Math.min(60, synonymValues.reduce((sum, points) => sum + points, 0));
+        const keywordScore = evidence.nameScore + evidence.groupScore + textScore + synonymScore;
+        const hasReliableSignal = evidence.exactName || evidence.partialName || synonymScore >= 12 || evidence.fieldScores.size >= 2;
+        if (!hasReliableSignal || keywordScore < 12) return;
+
+        const result = ensureResult(evidence.subject);
+        result.score += keywordScore;
+        result.keywordScore += keywordScore;
+        result.strongestKeywordScore = Math.max(result.strongestKeywordScore, keywordScore);
+        result.strongestSynonym = Math.max(result.strongestSynonym, synonymValues[0] || 0);
+        result.exactName ||= evidence.exactName;
+        result.partialName ||= evidence.partialName;
+        result.keywords.add(keyword);
+        if (evidence.exactName) {
+          result.matchReasons.add("과목명 정확 일치");
+          result.evidenceTypes.add("name");
+        } else if (evidence.partialName) {
+          result.matchReasons.add("과목명 부분 일치");
+          result.evidenceTypes.add("name");
+        }
+        if (synonymScore) {
+          result.matchReasons.add("검증된 키워드 DB 연결");
+          result.evidenceTypes.add("keyword-db");
+        }
+        if (evidence.fieldScores.size >= 2) {
+          result.matchReasons.add("과목 설명·내용 교차 일치");
+          result.evidenceTypes.add("course-data");
+        } else if (evidence.fieldScores.size === 1) {
+          result.matchReasons.add(`${[...evidence.fieldScores.values()][0].reason} 일치`);
+          result.evidenceTypes.add("course-data");
+        }
+        if (evidence.groupScore) {
+          result.matchReasons.add("교과군 직접 일치");
+          result.evidenceTypes.add("course-group");
+        }
+      });
+    });
+
+    const departments = selectedRecommendDepartments();
+    const departmentCount = departments.length;
+    const related = new Map(recommendationSubjectStats(departments).map((subject) => [subject.key, subject]));
+    const reflected = new Map(recommendationSubjectStats(departments, "reflected").map((subject) => [subject.key, subject]));
+    const fieldCommon = new Set();
+    (fieldByName(state.recommendField)?.commonSubjects || []).forEach((subject) => {
+      const references = recommendationCourseReferences(subject.name, courseIndex);
+      (references.length ? references.map((item) => item.key) : [normalizedCourseName(subject.name)]).forEach((key) => fieldCommon.add(key));
+    });
+    scores.forEach((result) => {
+      if (fieldCommon.has(result.key)) {
+        result.score += 6;
+        result.contextScore += 6;
+        result.contextReasons.add(`${state.recommendField} 분야 공통 과목`);
+      }
+      const relatedItem = related.get(result.key);
+      if (relatedItem && departmentCount) {
+        const isCommon = departmentCount > 1 && relatedItem.count === departmentCount;
+        const points = isCommon ? 24 : Math.round(6 + (12 * relatedItem.count / departmentCount));
+        result.score += points;
+        result.contextScore += points;
+        result.contextReasons.add(isCommon ? "선택 학과 공통 관련 과목" : departmentCount > 1
+          ? `${relatedItem.count}/${departmentCount}개 학과 관련 과목` : "선택 학과 관련 과목");
+      }
+      const reflectedItem = reflected.get(result.key);
+      if (reflectedItem && departmentCount) {
+        const isCommon = departmentCount > 1 && reflectedItem.count === departmentCount;
+        const points = isCommon ? 32 : Math.round(10 + (16 * reflectedItem.count / departmentCount));
+        result.score += points;
+        result.contextScore += points;
+        result.contextReasons.add(isCommon ? "선택 학과 공통 반영 과목" : departmentCount > 1
+          ? `${reflectedItem.count}/${departmentCount}개 학과 반영 과목` : "선택 학과 반영 과목");
+      }
+      const multipleKeywordBonus = Math.min(extraKeywordCap, Math.max(0, result.keywords.size - 1) * extraKeywordScore);
+      result.score += multipleKeywordBonus;
+      const hasContext = result.contextScore > 0;
+      const corroborated = result.evidenceTypes.size >= 2 || result.keywords.size >= 2;
+      if (result.exactName || (result.strongestSynonym >= 32 && hasContext)
+        || (result.strongestKeywordScore >= 60 && corroborated) || (result.keywords.size >= 2 && hasContext)) {
+        result.confidence = "high";
+        result.confidenceRank = 3;
+        result.confidenceLabel = "높은 연관";
+      } else if (result.partialName || result.strongestSynonym >= 24 || corroborated || hasContext) {
+        result.confidence = "medium";
+        result.confidenceRank = 2;
+        result.confidenceLabel = "연관 있음";
+      } else {
+        result.confidence = "explore";
+        result.confidenceRank = 1;
+        result.confidenceLabel = "탐색 후보";
+      }
+      result.reasons = new Set([...result.contextReasons, ...result.matchReasons]);
+      result.reasonText = [...result.reasons].slice(0, 3).join(" · ");
+    });
+    return [...scores.values()].filter((result) => result.keywordScore >= 12)
+      .sort((a, b) => b.confidenceRank - a.confidenceRank || b.score - a.score || a.name.localeCompare(b.name, "ko"))
+      .slice(0, 12);
+  }
+
+  function recommendFinalGroups() {
+    const departments = selectedRecommendDepartments();
+    const related = recommendationSubjectStats(departments)
+      .filter((subject) => departments.length && subject.count === departments.length);
+    const reflected = recommendationSubjectStats(departments, "reflected")
+      .filter((subject) => departments.length && subject.count === departments.length);
+    const special = recommendKeywordResults();
+    const reflectedKeys = new Set(reflected.map((subject) => subject.key));
+    const relatedKeys = new Set(related.map((subject) => subject.key));
+    const specialByKey = new Map(special.map((subject) => [subject.key, subject]));
+    const overlapKeys = new Set(special.filter((subject) => relatedKeys.has(subject.key) && !reflectedKeys.has(subject.key)).map((subject) => subject.key));
+    return [
+      {
+        label: "공통 반영 과목",
+        description: "선택한 모든 학과에 공통으로 포함된 대학별 핵심·권장 반영 과목입니다.",
+        iconName: "solid-star",
+        entries: reflected.map((subject) => ({ ...subject, detail: `${subject.departments.join(" · ")}${subject.universities.size ? ` · ${subject.universities.size}개 대학` : ""}` }))
+      },
+      {
+        label: "공통 관련 과목 x 나만의 특별함",
+        description: "모든 선택 학과의 공통 관련 과목이면서 입력한 관심 키워드와도 연결됩니다.",
+        iconName: "sparkles",
+        entries: related.filter((subject) => overlapKeys.has(subject.key)).map((subject) => {
+          const match = specialByKey.get(subject.key);
+          return { ...subject, score: match.score, detail: `${subject.departments.join(" · ")} · ${[...match.keywords].map((keyword) => `#${keyword}`).join(" ")} · ${match.confidenceLabel}` };
+        }).sort((a, b) => b.score - a.score || b.count - a.count)
+      },
+      {
+        label: "공통 관련 과목",
+        description: "선택한 모든 학과에 공통으로 포함된 관련 과목입니다.",
+        iconName: "book-open",
+        entries: related.filter((subject) => !reflectedKeys.has(subject.key) && !overlapKeys.has(subject.key))
+          .map((subject) => ({ ...subject, detail: subject.departments.join(" · ") }))
+      },
+      {
+        label: "나만의 특별함",
+        description: "입력한 관심사와 세부 진로를 과목 DB의 키워드·설명과 연결했습니다.",
+        iconName: "hand-star",
+        entries: special.filter((subject) => !relatedKeys.has(subject.key) && !reflectedKeys.has(subject.key))
+          .map((subject) => ({ ...subject, detail: `${[...subject.keywords].map((keyword) => `#${keyword}`).join(" ")} · ${subject.confidenceLabel}` }))
+      }
+    ];
+  }
+
+  function recommendProgressMarkup() {
+    const labels = ["관심 분야 선택", "관심 학과 선택", "과목 확인", "나만의 특별함 더하기", "최종 결과 확인"];
+    return `<ol class="recommend-progress" aria-label="과목 추천 진행 단계">${labels.map((label, index) => {
+      const step = index + 1;
+      const active = step === state.recommendStep;
+      const completed = step < state.recommendStep || step < state.recommendMaxStep;
+      return `<li class="${active ? "is-active" : ""} ${completed ? "is-complete" : ""}"><button type="button" data-recommend-go-step="${step}" ${step > state.recommendMaxStep ? "disabled" : ""} aria-current="${active ? "step" : "false"}"><span>${completed && !active ? icon("check") : String(step).padStart(2, "0")}</span><strong>${escapeHtml(label)}</strong></button></li>`;
+    }).join("")}</ol>`;
+  }
+
+  function recommendStepHeading(step, title, description, meta = "") {
+    return `<header class="recommend-step-heading"><div><p class="section-kicker">STEP ${String(step).padStart(2, "0")}</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p></div>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</header>`;
+  }
+
+  function recommendActionsMarkup(options = {}) {
+    return `<footer class="recommend-step-actions">
+      ${options.back ? `<button class="recommend-secondary-action" type="button" data-recommend-prev>${icon("arrow")} 이전 단계</button>` : "<span></span>"}
+      ${options.restart ? `<button class="recommend-secondary-action" type="button" data-recommend-restart>처음부터 다시 추천받기</button>` : ""}
+      ${options.next ? `<button class="recommend-primary-action" type="button" data-recommend-next ${options.disabled ? "disabled" : ""}>${escapeHtml(options.label || "확인하고 다음")} ${icon("arrow")}</button>` : ""}
+    </footer>`;
+  }
+
+  function recommendChoiceSummaryMarkup(keywordEmptyText = "다음 단계에서 입력") {
+    const departments = selectedRecommendDepartments();
+    const keywords = state.recommendKeywords;
+    return `<aside class="recommend-choice-summary" aria-label="나의 선택 정보">
+      <div class="recommend-choice-summary-title"><small>MY CHOICES</small><strong>나의 선택 정보</strong></div>
+      <section><small>관심 분야</small><div><span>${escapeHtml(state.recommendField)} 분야</span></div></section>
+      <section class="is-departments"><small>선택 학과</small><div>${departments.map((department) => `<span>${escapeHtml(department.name)}</span>`).join("")}</div></section>
+      <section class="is-keywords"><small>입력 키워드</small><div>${keywords.length ? keywords.map((keyword) => `<span>#${escapeHtml(keyword)}</span>`).join("") : `<span class="is-placeholder">${escapeHtml(keywordEmptyText)}</span>`}</div></section>
+    </aside>`;
+  }
+
+  function recommendStepOneMarkup(fields) {
+    return `${recommendStepHeading(1, "관심 분야 선택", "가장 관심 있는 전공 분야 하나를 먼저 골라 주세요.", state.recommendField ? `${state.recommendField} 분야 선택` : "1개 선택")}
+      <div class="recommend-field-choices" role="radiogroup" aria-label="관심 분야">
+        ${fields.map((field) => {
+          const selected = field.name === state.recommendField;
+          const visual = fieldVisual(field.name);
+          return `<button class="${selected ? "is-selected" : ""}" type="button" role="radio" aria-checked="${selected}" data-recommend-field="${escapeHtml(field.name)}" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}"><span>${icon(visual.icon)}</span><span><small>${field.departmentCount} DEPARTMENTS</small><strong>${escapeHtml(field.name)}</strong><em>${escapeHtml(visual.description)}</em></span><i>${selected ? icon("check") : icon("arrow")}</i></button>`;
+        }).join("")}
+      </div>
+      ${recommendActionsMarkup({ next: true, disabled: !state.recommendField, label: "분야 선택 확인" })}`;
+  }
+
+  function recommendStepTwoMarkup() {
+    const departments = departmentsInField(state.recommendField);
+    const selectedDepartments = selectedRecommendDepartments();
+    const query = state.recommendDepartmentSearch.trim().toLocaleLowerCase("ko");
+    const visible = departments.filter((department) => !query || departmentSearchText(department).includes(query));
+    const field = fieldByName(state.recommendField);
+    const visual = fieldVisual(state.recommendField);
+    return `${recommendStepHeading(2, "관심 학과 선택", "관심 학과를 최대 3개까지 선택할 수 있습니다. 다음 단계에서 공통 과목과 학과별 과목을 확인합니다.", `${selectedDepartments.length}/3 선택`)}
+      <div class="recommend-department-stage">
+        <section class="recommend-department-picker">
+          <label class="recommend-search">${icon("search")}<span class="sr-only">학과 검색</span><input type="search" data-recommend-department-search value="${escapeHtml(state.recommendDepartmentSearch)}" placeholder="${escapeHtml(state.recommendField)} 분야 학과 검색" autocomplete="off"></label>
+          <div class="recommend-department-options" role="group" aria-label="추천 학과 복수 선택">${visible.map((department) => {
+            const selected = state.recommendDepartmentIds.includes(department.id);
+            const limitReached = selectedDepartments.length >= 3 && !selected;
+            return `<button class="${selected ? "is-selected" : ""}" type="button" data-recommend-department-choice="${escapeHtml(department.id)}" aria-pressed="${selected}" data-recommend-search-text="${escapeHtml(departmentSearchText(department))}" ${limitReached ? "disabled" : ""}><span>${selected ? icon("check") : icon("graduation")}</span><span><strong>${escapeHtml(department.name)}</strong><small>${limitReached ? "최대 3개 선택 완료" : `관련 ${department.relatedSubjects.length} · 반영 ${department.reflectedSubjects.length}`}</small></span></button>`;
+          }).join("") || `<p class="recommend-no-match">검색 결과가 없습니다.</p>`}</div>
+        </section>
+        <aside class="recommend-major-selection ${selectedDepartments.length ? "has-selections" : "is-empty"}" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}">
+          <div class="recommend-major-selection-symbol">${icon(visual.icon)}</div>
+          <div><small>SELECTED MAJORS</small><h3>${escapeHtml(field?.name || "")} 분야 관심 학과</h3><p>선택한 모든 학과를 기준으로 다음 단계에서 공통 관련 과목과 공통 반영 과목을 계산합니다.</p></div>
+          <div class="recommend-major-selection-list">${selectedDepartments.length ? selectedDepartments.map((department, index) => `<span class="recommend-major-selection-item"><b>${String(index + 1).padStart(2, "0")}</b><strong>${escapeHtml(department.name)}</strong></span>`).join("") : `<p>관심 학과를 하나 이상 선택해 주세요.</p>`}</div>
+          <em>${selectedDepartments.length}/3</em>
+        </aside>
+      </div>
+      ${recommendActionsMarkup({ back: true, next: true, disabled: !selectedDepartments.length, label: "학과 선택 확인" })}`;
+  }
+
+  function recommendReviewCourseListMarkup(subjects, emptyText, options = {}) {
+    if (!subjects.length) return `<p class="recommend-review-empty">${escapeHtml(emptyText)}</p>`;
+    const reflectedNames = options.reflectedNames || new Set();
+    return majorSubjectGroupsMarkup(subjects, (subject) => {
+      const name = typeof subject === "string" ? subject : subject.name;
+      const universities = typeof subject === "object" ? subject.universities : null;
+      const universityCount = universities instanceof Set ? universities.size : (universities?.length || 0);
+      if (options.kind === "reflected") {
+        return `<span class="major-subject-chip is-reflected"><span>${escapeHtml(name)}</span>${universityCount ? `<small>${universityCount.toLocaleString("ko-KR")}개 대학</small>` : ""}</span>`;
+      }
+      return reflectedNames.has(normalizedCourseName(name))
+        ? `<span class="major-subject-chip is-related-reflected"><span>${escapeHtml(name)}</span>${reflectionStarMarkup()}</span>`
+        : `<span class="major-subject-chip is-related"><span>${escapeHtml(name)}</span></span>`;
+    }, { className: "recommend-review-subject-groups" });
+  }
+
+  function recommendStepThreeMarkup() {
+    const selectedDepartments = selectedRecommendDepartments();
+    const relatedStats = recommendationSubjectStats(selectedDepartments);
+    const reflectedStats = recommendationSubjectStats(selectedDepartments, "reflected");
+    const commonRelated = selectedDepartments.length > 1
+      ? relatedStats.filter((subject) => subject.count === selectedDepartments.length)
+      : relatedStats;
+    const commonReflected = selectedDepartments.length > 1
+      ? reflectedStats.filter((subject) => subject.count === selectedDepartments.length)
+      : reflectedStats;
+    return `${recommendStepHeading(3, "과목 확인", "선택 학과의 공통 과목을 먼저 보고, 각 학과의 반영·관련 과목을 함께 확인하세요.", `${selectedDepartments.length}개 학과 기준`)}
+      ${recommendChoiceSummaryMarkup()}
+      <div class="recommend-course-review">
+        <section class="recommend-common-review">
+          <header><div><small>COMMON COURSES</small><h3>선택 학과 공통 과목</h3></div><em>${commonRelated.length + commonReflected.length}</em></header>
+          <div class="recommend-common-course-stack">
+            <section class="is-common-reflected"><h4>${icon("solid-star")}<span>공통 반영 과목</span><em>${commonReflected.length}</em></h4>${recommendReviewCourseListMarkup(commonReflected, "모든 선택 학과에 공통인 반영 과목이 없습니다.", { kind: "reflected" })}</section>
+            <section class="is-common-related"><h4>${icon("book-open")}<span>공통 관련 과목</span><em>${commonRelated.length}</em></h4>${recommendReviewCourseListMarkup(commonRelated, "모든 선택 학과에 공통인 관련 과목이 없습니다.", { reflectedNames: new Set(commonReflected.map((subject) => subject.key)) })}</section>
+          </div>
+        </section>
+        <section class="recommend-department-review">
+          <header><div><small>COURSES BY DEPARTMENT</small><h3>학과별 반영·관련 과목</h3></div><span>아래로 스크롤해 학과별로 하나씩 크게 확인하세요.</span></header>
+          <div class="recommend-department-review-track">${selectedDepartments.map((department) => `<article class="recommend-department-review-card">
+            <header><div><small>${escapeHtml(department.field)} FIELD</small><h4>${escapeHtml(department.name)}</h4></div><em>${department.relatedSubjects.length + department.reflectedSubjects.length}</em></header>
+            <div class="recommend-department-course-stack">
+              <section class="is-reflected"><h5>${icon("solid-star")} <span>반영 과목</span> <em>${department.reflectedSubjects.length}</em></h5>${recommendReviewCourseListMarkup(department.reflectedSubjects, "반영 과목 정보가 없습니다.", { kind: "reflected" })}</section>
+              <section class="is-related"><h5>${icon("book-open")} <span>관련 과목</span> <em>${department.relatedSubjects.length}</em></h5>${recommendReviewCourseListMarkup(department.relatedSubjects, "관련 과목 정보가 없습니다.", { reflectedNames: new Set(department.reflectedSubjects.map((subject) => normalizedCourseName(subject.name))) })}</section>
+            </div>
+          </article>`).join("")}</div>
+        </section>
+      </div>
+      ${recommendActionsMarkup({ back: true, next: true, label: "과목 확인 완료" })}`;
+  }
+
+  function recommendStepFourMarkup() {
+    const matches = recommendKeywordResults();
+    return `${recommendStepHeading(4, "나만의 특별함 더하기", "관심 활동이나 세부 진로를 키워드로 최대 3개까지 입력하세요.", `${state.recommendKeywords.length}/3`)}
+      <div class="recommend-keyword-stage">
+        <section class="recommend-keyword-entry">
+          <form data-recommend-keyword-form>
+            <label><span class="sr-only">관심 키워드</span><input type="text" name="keyword" maxlength="30" autocomplete="off" placeholder="예: 인공지능, 상담, 콘텐츠 제작" ${state.recommendKeywords.length >= 3 ? "disabled" : ""}></label>
+            <button type="submit" ${state.recommendKeywords.length >= 3 ? "disabled" : ""}>키워드 추가</button>
+          </form>
+          <div class="recommend-keyword-tags">${state.recommendKeywords.length ? state.recommendKeywords.map((keyword, index) => `<button type="button" data-recommend-keyword-remove="${index}" aria-label="${escapeHtml(keyword)} 삭제"><span>${escapeHtml(keyword)}</span> ×</button>`).join("") : `<p>키워드를 하나씩 입력하고 ‘추가’를 눌러 주세요.</p>`}</div>
+          <div class="recommend-keyword-tip"><span>${icon("lightbulb")}</span><p><strong>구체적으로 적을수록 좋아요.</strong><br>‘컴퓨터’보다 ‘인공지능 개발’, ‘미술’보다 ‘게임 캐릭터 디자인’처럼 입력해 보세요.</p></div>
+        </section>
+        <section class="recommend-special-preview">
+          <header><div><small>LIVE COURSE MATCH</small><h3>키워드 연결 과목</h3></div><em>${matches.length}</em></header>
+          <p class="recommend-confidence-guide">연관 수준은 키워드 DB·과목 설명·선택 학과가 서로 뒷받침하는 정도입니다.</p>
+          <div>${matches.length ? matches.map((result) => {
+            const category = valueAt(result.row, COLUMN_ALIASES.category);
+            const keywordTags = [...result.keywords].map((keyword) => `#${keyword}`).join(" ");
+            return `<article class="is-confidence-${result.confidence}"><span>${icon("sparkles")}</span><div><strong>${escapeHtml(result.name)}</strong><small>${escapeHtml([category, keywordTags].filter(Boolean).join(" · "))}</small><p class="recommend-match-reason">${escapeHtml(result.reasonText || "과목 데이터와 연결됨")}</p></div><em class="recommend-confidence">${escapeHtml(result.confidenceLabel)}</em></article>`;
+          }).join("") : `<p class="recommend-special-empty">${state.recommendKeywords.length ? "신뢰할 만한 연결 근거가 있는 과목을 찾지 못했습니다. 조금 더 구체적인 키워드를 입력해 보세요." : "키워드를 입력하면 선택한 분야·학과를 함께 고려한 과목이 여기에 표시됩니다."}</p>`}</div>
+        </section>
+      </div>
+      ${recommendActionsMarkup({ back: true, next: true, label: state.recommendKeywords.length ? "입력 완료 · 결과 보기" : "건너뛰고 결과 보기" })}`;
+  }
+
+  function recommendResultEntryMarkup(entry) {
+    return `<a href="section.html?tab=subjects&q=${encodeURIComponent(entry.name)}"><strong>${escapeHtml(entry.name)}</strong><small>${escapeHtml(entry.detail || "과목 정보를 확인해 보세요.")}</small>${entry.count > 1 ? `<b>${entry.count}개 학과 공통</b>` : ""}</a>`;
+  }
+
+  function recommendResultGroupMarkup(group, index) {
+    const subjectGroups = groupedRecommendationSubjects(group.entries);
+    return `<article class="recommend-result-group result-priority-${index + 1}">
+      <header><b class="recommend-result-order">${String(index + 1).padStart(2, "0")}</b><span>${icon(group.iconName)}</span><div><small>PRIORITY</small><h3>${escapeHtml(group.label)}</h3><p>${escapeHtml(group.description)}</p></div><em>${group.entries.length}</em></header>
+      <div class="recommend-result-list">${subjectGroups.length ? subjectGroups.map((subjectGroup) => {
+        const [accent, soft] = courseGroupPalette(subjectGroup.category);
+        return `<section class="recommend-result-course-group" style="--course-group-accent:${accent}; --course-group-soft:${soft}">
+          <header><span>${escapeHtml(subjectGroup.category)}</span><em>${subjectGroup.entries.length}</em></header>
+          <div class="recommend-result-course-items">${subjectGroup.entries.map(recommendResultEntryMarkup).join("")}</div>
+        </section>`;
+      }).join("") : `<div class="recommend-result-empty">${icon("book-open")}<span>해당하는 과목이 없습니다.</span></div>`}</div>
+    </article>`;
+  }
+
+  function recommendStepFiveMarkup() {
+    const groups = recommendFinalGroups();
+    const total = new Set(groups.flatMap((group) => group.entries.map((entry) => entry.key))).size;
+    return `${recommendStepHeading(5, "최종 결과 확인", "선택한 분야·학과·키워드를 반영해 중요도 순서로 나눴습니다.", `추천 ${total}개`)}
+      <div class="recommend-result-print-row">${printActionMarkup("recommendation")}</div>
+      ${recommendChoiceSummaryMarkup("입력하지 않음")}
+      <div class="recommend-final-groups">${groups.map(recommendResultGroupMarkup).join("")}</div>
+      <aside class="recommend-final-warning" role="note"><span>${icon("warning")}</span><p><strong>과목 추천은 정답이 아닙니다.</strong> 꼭 담임 선생님과 검토하세요.</p></aside>
+      ${recommendActionsMarkup({ back: true, restart: true })}`;
+  }
+
+  function recommendCurrentStepMarkup(fields) {
+    if (state.recommendStep === 2) return recommendStepTwoMarkup();
+    if (state.recommendStep === 3) return recommendStepThreeMarkup();
+    if (state.recommendStep === 4) return recommendStepFourMarkup();
+    if (state.recommendStep === 5) return recommendStepFiveMarkup();
+    return recommendStepOneMarkup(fields);
+  }
+
   function recommendFieldExpansionMarkup(field, departments) {
     const visual = fieldVisual(field.name);
     return `<div class="recommend-field-expansion" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}">
@@ -1008,7 +1773,7 @@
     detailContent.innerHTML = `
       <div class="major-dialog-head recommend-field-dialog-head" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}">
         <span>${icon(visual.icon)}</span>
-        <div><p class="dialog-kicker">STEP 01 · ${escapeHtml(field.name.toLocaleUpperCase("ko"))} FIELD</p><h2 id="record-dialog-title">${escapeHtml(field.name)} 분야 과목 추천</h2><p class="recommend-field-dialog-description">분야별 공통 과목 혹은 학과별 관련 과목을 확인하세요.</p></div>
+        <div><p class="dialog-kicker">STEP 01 · ${escapeHtml(field.name.toLocaleUpperCase("ko"))} FIELD</p><h2 id="record-dialog-title">${escapeHtml(field.name)} 분야 과목 추천</h2><p class="recommend-field-dialog-description">분야 공통 과목 혹은 학과별 관련 과목을 확인하세요.</p></div>
       </div>
       ${recommendFieldExpansionMarkup(field, departments)}`;
     if (!detailDialog.open) detailDialog.showModal();
@@ -1017,14 +1782,23 @@
   function renderRecommend() {
     const fields = state.departmentDataset.fields;
     if (state.recommendField && !fields.some((field) => field.name === state.recommendField)) state.recommendField = "";
-    if (!["common", "departments"].includes(state.recommendSection)) state.recommendSection = "";
-
+    state.recommendDepartmentIds = state.recommendDepartmentIds.filter((id) => {
+      const department = departmentById(id);
+      return department && department.field === state.recommendField;
+    });
+    state.recommendStep = Math.max(1, Math.min(5, Number(state.recommendStep) || 1));
+    if (!state.recommendField && state.recommendStep > 1) state.recommendStep = 1;
+    if (!state.recommendDepartmentIds.length && state.recommendStep > 2) state.recommendStep = 2;
+    state.recommendMaxStep = Math.max(state.recommendStep, Math.min(5, Number(state.recommendMaxStep) || 1));
     root.innerHTML = `
       ${renderNotices()}
-      ${pageHead("전공별 과목 추천", "관심 분야의 공통 과목과 학과별 관련·반영·권장 과목을 확인하거나 두 학과를 비교해 보세요.", fields.length, "전공 분야")}
-      ${comparisonTrayMarkup()}
-      <section class="recommend-field-panel"><header><div><p class="section-kicker">STEP 01 · FIELD</p><h2>관심 분야를 선택하세요</h2></div></header><div class="recommend-field-grid" role="group" aria-label="관심 분야 선택">${fields.map((field) => fieldCardMarkup(field, "recommend")).join("")}</div></section>
-      `;
+      <section class="recommend-wizard" data-recommend-step="${state.recommendStep}">
+        <header class="recommend-wizard-head">
+          <div><p class="page-eyebrow">FIND YOUR BEST PATH</p><h1>나만의 과목 추천</h1><p>다섯 단계를 차례로 확인하며 진로에 맞는 과목을 찾아보세요.</p></div>
+          ${recommendProgressMarkup()}
+        </header>
+        <section class="recommend-step-panel" aria-live="polite">${recommendCurrentStepMarkup(fields)}</section>
+      </section>`;
   }
 
   function allSubjects() {
@@ -1054,53 +1828,227 @@
   function schoolSelectionMap() {
     const schoolId = state.selectedSchool?.id;
     if (!schoolId) return {};
-    if (!state.schoolSelections[schoolId] || typeof state.schoolSelections[schoolId] !== "object") state.schoolSelections[schoolId] = {};
-    return state.schoolSelections[schoolId];
+    const storageKey = state.selectedAdmissionYear ? `${schoolId}:${state.selectedAdmissionYear}` : schoolId;
+    if (!state.schoolSelections[storageKey] || typeof state.schoolSelections[storageKey] !== "object") {
+      const legacySelection = state.selectedAdmissionYear && state.schoolSelections[schoolId]
+        && typeof state.schoolSelections[schoolId] === "object" ? state.schoolSelections[schoolId] : null;
+      state.schoolSelections[storageKey] = legacySelection ? { ...legacySelection } : {};
+      if (legacySelection) delete state.schoolSelections[schoolId];
+    }
+    return state.schoolSelections[storageKey];
   }
 
   function curriculumOptionKey(grade, option, index) {
     return `grade-${grade}:${option.id || option.label || index + 1}`;
   }
 
+  function curriculumStandaloneKey(grade, semester) {
+    return `grade-${grade}:semester-${semester}:open-electives`;
+  }
+
+  function semesterStandaloneCourses(semesterData) {
+    const optionNames = new Set(semesterData.options.flatMap((option) => option.courses || []).map(normalizedCourseName));
+    return semesterData.electives.filter((course) => !optionNames.has(normalizedCourseName(course)));
+  }
+
+  function selectedSemesterStandalone(selections, grade, semesterData) {
+    const key = curriculumStandaloneKey(grade, semesterData.semester);
+    const legacyKey = `grade-${grade}:open-electives`;
+    const stored = Array.isArray(selections[key]) ? selections[key]
+      : semesterData.semester === 1 && Array.isArray(selections[legacyKey]) ? selections[legacyKey] : [];
+    const allowed = new Set(semesterStandaloneCourses(semesterData));
+    return stored.filter((course) => allowed.has(course));
+  }
+
   function selectedCurriculumSubjects() {
     const map = schoolSelectionMap();
     const selected = [];
     curriculumGrades().forEach((grade) => {
-      const optionNames = new Set();
-      grade.options.forEach((option, index) => {
-        option.courses.forEach((course) => optionNames.add(normalizedCourseName(course)));
-        const key = curriculumOptionKey(grade.grade, option, index);
-        const allowed = new Set(option.courses);
-        (Array.isArray(map[key]) ? map[key] : []).filter((course) => allowed.has(course)).forEach((course) => selected.push(course));
+      grade.semesters.forEach((semesterData) => {
+        semesterData.options.forEach((option, index) => {
+          const key = curriculumOptionKey(grade.grade, option, index);
+          const allowed = new Set(option.courses);
+          (Array.isArray(map[key]) ? map[key] : []).filter((course) => allowed.has(course)).forEach((course) => selected.push(course));
+        });
+        selectedSemesterStandalone(map, grade.grade, semesterData).forEach((course) => selected.push(course));
       });
-      const standaloneKey = `grade-${grade.grade}:open-electives`;
-      const standalone = new Set(grade.electives.filter((course) => !optionNames.has(normalizedCourseName(course))));
-      (Array.isArray(map[standaloneKey]) ? map[standaloneKey] : []).filter((course) => standalone.has(course)).forEach((course) => selected.push(course));
     });
     return [...new Set(selected)];
   }
 
-  function saveSchoolSelections() {
+  function curriculumSelectionProgress(grades = curriculumGrades()) {
+    const selections = schoolSelectionMap();
+    const gradeProgress = grades.map((grade) => {
+      const semesterProgress = grade.semesters.map((semesterData) => {
+        const options = semesterData.options.map((option, index) => {
+          const key = curriculumOptionKey(grade.grade, option, index);
+          const allowed = new Set(option.courses);
+          const selected = (Array.isArray(selections[key]) ? selections[key] : []).filter((course) => allowed.has(course));
+          const target = Math.min(Math.max(1, Number(option.choose) || 1), option.courses.length);
+          return { key, selected, target, complete: selected.length === target };
+        });
+        const standaloneSelected = selectedSemesterStandalone(selections, grade.grade, semesterData);
+        return {
+          semester: semesterData.semester,
+          options,
+          optionCount: options.length,
+          completedOptions: options.filter((option) => option.complete).length,
+          requiredChoices: options.reduce((sum, option) => sum + option.target, 0),
+          selectedChoices: options.reduce((sum, option) => sum + option.selected.length, 0),
+          standaloneSelected,
+          complete: options.every((option) => option.complete)
+        };
+      });
+      return {
+        grade: grade.grade,
+        semesterProgress,
+        options: semesterProgress.flatMap((semester) => semester.options),
+        optionCount: semesterProgress.reduce((sum, semester) => sum + semester.optionCount, 0),
+        completedOptions: semesterProgress.reduce((sum, semester) => sum + semester.completedOptions, 0),
+        requiredChoices: semesterProgress.reduce((sum, semester) => sum + semester.requiredChoices, 0),
+        selectedChoices: semesterProgress.reduce((sum, semester) => sum + semester.selectedChoices, 0),
+        standaloneSelected: semesterProgress.flatMap((semester) => semester.standaloneSelected),
+        complete: semesterProgress.every((semester) => semester.complete)
+      };
+    });
+    const optionCount = gradeProgress.reduce((sum, grade) => sum + grade.optionCount, 0);
+    const completedOptions = gradeProgress.reduce((sum, grade) => sum + grade.completedOptions, 0);
+    const requiredChoices = gradeProgress.reduce((sum, grade) => sum + grade.requiredChoices, 0);
+    const selectedChoices = gradeProgress.reduce((sum, grade) => sum + grade.selectedChoices, 0);
+    const standaloneCount = gradeProgress.reduce((sum, grade) => sum + grade.standaloneSelected.length, 0);
+    return {
+      gradeProgress,
+      optionCount,
+      completedOptions,
+      requiredChoices,
+      selectedChoices,
+      standaloneCount,
+      selectedCount: selectedChoices + standaloneCount,
+      complete: optionCount === 0 || completedOptions === optionCount
+    };
+  }
+
+  function curriculumCourseEntry(name, source = "elective", semester = 1) {
+    const reference = curriculumCourseReference(name);
+    const row = reference?.row || null;
+    const badge = row ? courseBadge(row) : null;
+    const uploadedMetadata = state.curriculum?.courseMetadata?.[curriculumCourseAliasKey(name)] || {};
+    const uploadedType = uploadedCourseType(uploadedMetadata.type);
+    let type = "elective";
+    if (source === "common") type = "common";
+    else if (source === "designated") type = "designated";
+    else if (uploadedType === "공통") type = "common";
+    else if (uploadedType === "일반") type = "general";
+    else if (uploadedType === "진로") type = "career";
+    else if (uploadedType === "융합") type = "convergence";
+    else if (uploadedType === "전문") type = "professional";
+    else if (badge?.label === "공통") type = "common";
+    else if (badge?.label === "일반") type = "general";
+    else if (badge?.label === "진로") type = "career";
+    else if (badge?.label === "융합") type = "convergence";
+    else if (badge?.label === "전문") type = "professional";
+    return {
+      name: compactText(name),
+      key: normalizedCourseName(name),
+      source,
+      semester,
+      type,
+      category: uploadedMetadata.category || (row ? reference.category || majorSubjectGroup(name).name || "교과군 미분류" : "고시 외 과목"),
+      row
+    };
+  }
+
+  function curriculumCoursePlan() {
+    const selections = schoolSelectionMap();
+    return curriculumGrades().map((grade) => {
+      const entries = new Map();
+      const add = (name, source, semester) => {
+        const entry = curriculumCourseEntry(name, source, semester);
+        if (!entry.name) return;
+        const planKey = `${semester}:${entry.key}`;
+        const existing = entries.get(planKey);
+        if (!existing || source === "common") entries.set(planKey, entry);
+      };
+      grade.semesters.forEach((semesterData) => {
+        semesterData.common.forEach((course) => add(course, grade.grade === 1 ? "common" : "designated", semesterData.semester));
+        semesterData.options.forEach((option, index) => {
+          const key = curriculumOptionKey(grade.grade, option, index);
+          const allowed = new Set(option.courses);
+          (Array.isArray(selections[key]) ? selections[key] : []).filter((course) => allowed.has(course)).forEach((course) => add(course, "elective", semesterData.semester));
+        });
+        selectedSemesterStandalone(selections, grade.grade, semesterData).forEach((course) => add(course, "elective", semesterData.semester));
+      });
+      return { grade: grade.grade, entries: [...entries.values()] };
+    });
+  }
+
+  const CURRICULUM_RESULT_TYPES = Object.freeze([
+    { key: "common", label: "공통", className: "is-common" },
+    { key: "designated", label: "학교 지정", className: "is-designated" },
+    { key: "general", label: "일반 선택", className: "is-general" },
+    { key: "career", label: "진로 선택", className: "is-career" },
+    { key: "convergence", label: "융합 선택", className: "is-convergence" },
+    { key: "professional", label: "전문 선택", className: "is-professional" },
+    { key: "elective", label: "기타 선택", className: "is-elective" }
+  ]);
+
+  function simulationCourseGroupMarkup(entries) {
+    return groupedRecommendationSubjects(entries).map((group) => `<section class="simulation-final-course-group"><header><span>${escapeHtml(group.category)}</span><em>${group.entries.length}</em></header><ul>${group.entries.map((entry) => `<li><small>${entry.semester}학기</small>${entry.row ? `<a href="section.html?tab=subjects&q=${encodeURIComponent(entry.name)}" title="${escapeHtml(entry.name)} 과목 안내 보기">${escapeHtml(entry.name)}</a>` : `<span>${escapeHtml(entry.name)}</span><em>고시 외 과목</em>`}</li>`).join("")}</ul></section>`).join("");
+  }
+
+  function simulationFinalGradeMarkup(gradePlan) {
+    const typeSections = CURRICULUM_RESULT_TYPES.map((type) => {
+      const entries = gradePlan.entries.filter((entry) => entry.type === type.key);
+      if (!entries.length) return "";
+      return `<section class="simulation-final-type ${type.className}"><header><strong>${escapeHtml(type.label)}</strong><span>${entries.length}과목</span></header><div>${simulationCourseGroupMarkup(entries)}</div></section>`;
+    }).join("");
+    return `<article class="simulation-final-grade"><header><span>${gradePlan.grade}</span><div><small>GRADE ${String(gradePlan.grade).padStart(2, "0")}</small><h2>${gradePlan.grade}학년 수강 과목</h2></div><em>${gradePlan.entries.length}과목</em></header><div class="simulation-final-type-list">${typeSections || '<p class="simulation-final-empty">등록된 과목이 없습니다.</p>'}</div></article>`;
+  }
+
+  function simulationFinalContentMarkup() {
+    const plan = curriculumCoursePlan();
+    const progress = curriculumSelectionProgress();
+    const fixedCount = plan.reduce((sum, grade) => sum + grade.entries.filter((entry) => ["common", "designated"].includes(entry.type)).length, 0);
+    const total = plan.reduce((sum, grade) => sum + grade.entries.length, 0);
+    return `<section class="simulation-final-document">
+      <header class="simulation-final-summary"><div><p>MY COURSE PLAN</p><h1>${escapeHtml(state.selectedSchool?.name || "선택 학교")} 수강 과목표</h1><span>${escapeHtml(state.selectedAdmissionYear || state.curriculum?.admissionYear || "-")}학년도 입학생 기준</span></div><dl><div><dt>전체 수강</dt><dd>${total}</dd></div><div><dt>공통·학교 지정</dt><dd>${fixedCount}</dd></div><div><dt>선택 완료</dt><dd>${progress.selectedCount}</dd></div></dl></header>
+      <div class="simulation-final-grade-grid">${plan.map(simulationFinalGradeMarkup).join("")}</div>
+      <footer><span>${icon("check")} 학교 편제표의 공통 과목과 직접 선택한 과목을 합산했습니다.</span><small>선택 과목 안내 플랫폼</small></footer>
+    </section>`;
+  }
+
+  function syncSchoolSimulationSubjects(save = false) {
     state.settings.schoolSelections = state.schoolSelections;
     state.simulationSubjects = selectedCurriculumSubjects();
     state.settings.simulationSubjects = state.simulationSubjects;
-    store.saveSettings(state.settings);
+    if (save) store.saveSettings(state.settings);
   }
 
-  function gradeCurriculumMarkup(gradeData) {
+  function saveSchoolSelections() {
+    syncSchoolSimulationSubjects(true);
+  }
+
+  function curriculumCourseDisplayMarkup(course) {
+    const name = compactText(course);
+    const isUnlisted = !curriculumCourseReference(name);
+    return `<b>${escapeHtml(name)}</b>${isUnlisted ? '<small class="curriculum-unlisted-badge">고시 외 과목</small>' : ""}`;
+  }
+
+  function semesterCurriculumMarkup(gradeData, semesterData, semesterProgress, locked = false) {
     const selections = schoolSelectionMap();
-    const optionCourseNames = new Set(gradeData.options.flatMap((option) => option.courses || []).map(normalizedCourseName));
-    const standalone = gradeData.electives.filter((course) => !optionCourseNames.has(normalizedCourseName(course)));
-    const commonMarkup = gradeData.common.length
-      ? gradeData.common.map((course) => `<span class="common-course-chip">${icon("check")} ${escapeHtml(course)}</span>`).join("")
-      : '<span class="curriculum-empty-copy">입력된 공통 과목이 없습니다.</span>';
-    const standaloneKey = `grade-${gradeData.grade}:open-electives`;
-    const standaloneSelected = Array.isArray(selections[standaloneKey]) ? selections[standaloneKey] : [];
+    const standalone = semesterStandaloneCourses(semesterData);
+    const fixedCourseLabel = gradeData.grade === 1 ? "공통 과목" : "학교 지정 과목";
+    const fixedCourseKicker = gradeData.grade === 1 ? "COMMON COURSES · AUTO" : "SCHOOL DESIGNATED · AUTO";
+    const commonMarkup = semesterData.common.length
+      ? semesterData.common.map((course) => `<span class="common-course-chip">${icon("check")}${curriculumCourseDisplayMarkup(course)}</span>`).join("")
+      : `<span class="curriculum-empty-copy">입력된 ${fixedCourseLabel}이 없습니다.</span>`;
+    const standaloneKey = curriculumStandaloneKey(gradeData.grade, semesterData.semester);
+    const standaloneSelected = selectedSemesterStandalone(selections, gradeData.grade, semesterData);
     const standaloneMarkup = standalone.length
-      ? `<section class="curriculum-option-card is-open"><header><div><small>개설 선택과목</small><h3>자유 선택</h3></div><span>선택 제한 없음</span></header><div class="curriculum-course-options">${standalone.map((course) => `<button type="button" class="${standaloneSelected.includes(course) ? "is-selected" : ""}" data-curriculum-choice data-selection-key="${escapeHtml(standaloneKey)}" data-course-name="${escapeHtml(course)}" data-choose="0" aria-pressed="${standaloneSelected.includes(course)}"><span>${standaloneSelected.includes(course) ? "✓" : "+"}</span>${escapeHtml(course)}</button>`).join("")}</div></section>`
+      ? `<section class="curriculum-option-card is-open"><header><div><small>개설 선택과목</small><h3>자유 선택</h3></div><span><strong>${standaloneSelected.length}</strong>개 선택</span></header><div class="curriculum-course-options">${standalone.map((course) => `<button type="button" class="${standaloneSelected.includes(course) ? "is-selected" : ""}" data-curriculum-choice data-selection-key="${escapeHtml(standaloneKey)}" data-course-name="${escapeHtml(course)}" data-choose="0" aria-pressed="${standaloneSelected.includes(course)}" ${locked ? "disabled" : ""}><span>${standaloneSelected.includes(course) ? "✓" : "+"}</span>${curriculumCourseDisplayMarkup(course)}</button>`).join("")}</div></section>`
       : "";
-    const optionsMarkup = gradeData.options.length
-      ? gradeData.options.map((option, index) => {
+    const optionsMarkup = semesterData.options.length
+      ? semesterData.options.map((option, index) => {
         const key = curriculumOptionKey(gradeData.grade, option, index);
         const selected = Array.isArray(selections[key]) ? selections[key].filter((course) => option.courses.includes(course)) : [];
         const choose = Math.max(1, Number(option.choose) || 1);
@@ -1110,63 +2058,111 @@
           <div class="curriculum-course-options">${option.courses.map((course) => {
             const isSelected = selected.includes(course);
             const atLimit = !isSelected && selected.length >= choose;
-            return `<button type="button" class="${isSelected ? "is-selected" : ""} ${atLimit ? "is-limit" : ""}" data-curriculum-choice data-selection-key="${escapeHtml(key)}" data-course-name="${escapeHtml(course)}" data-choose="${choose}" aria-pressed="${isSelected}" aria-disabled="${atLimit}"><span>${isSelected ? "✓" : "+"}</span>${escapeHtml(course)}</button>`;
+            return `<button type="button" class="${isSelected ? "is-selected" : ""} ${atLimit ? "is-limit" : ""}" data-curriculum-choice data-selection-key="${escapeHtml(key)}" data-course-name="${escapeHtml(course)}" data-choose="${choose}" aria-pressed="${isSelected}" aria-disabled="${atLimit || locked}" ${locked ? "disabled" : ""}><span>${isSelected ? "✓" : "+"}</span>${curriculumCourseDisplayMarkup(course)}</button>`;
           }).join("")}</div>
         </section>`;
       }).join("")
-      : '<div class="curriculum-empty-option"><p>이 학년에 입력된 선택 옵션이 없습니다.</p></div>';
+      : "";
 
+    const optionArea = optionsMarkup || standaloneMarkup
+      ? `<div class="curriculum-options-grid">${optionsMarkup}${standaloneMarkup}</div>`
+      : '<div class="curriculum-empty-option semester-empty-option"><p>이 학기는 선택 옵션이 없습니다. 공통 과목을 확인한 뒤 다음 단계로 이동하세요.</p></div>';
+
+    return `<section class="semester-curriculum-section ${locked ? "is-locked" : ""}" data-semester="${semesterData.semester}">
+      <header class="semester-curriculum-head"><div><span>${semesterData.semester}</span><div><small>SEMESTER ${String(semesterData.semester).padStart(2, "0")}</small><h3>${semesterData.semester}학기</h3></div></div><em class="${semesterProgress.complete ? "is-complete" : ""}">${semesterProgress.optionCount ? `택 ${semesterProgress.selectedChoices}/${semesterProgress.requiredChoices} · 옵션 ${semesterProgress.completedOptions}/${semesterProgress.optionCount}` : "선택 옵션 없음"}</em></header>
+      ${locked ? `<p class="semester-lock-notice">${icon("lock")} 1학기 선택을 완료하면 2학기 옵션이 열립니다.</p>` : ""}
+      <section class="common-course-block"><div><small>${fixedCourseKicker}</small><h3>${fixedCourseLabel} <em>${semesterData.common.length}과목 자동 포함</em></h3></div><div class="common-course-list">${commonMarkup}</div></section>
+      ${optionArea}
+    </section>`;
+  }
+
+  function gradeCurriculumMarkup(gradeData) {
+    const progress = curriculumSelectionProgress([gradeData]).gradeProgress[0];
+    const firstSemesterComplete = progress.semesterProgress[0]?.complete !== false;
     return `<article class="grade-curriculum-card">
-      <header class="grade-curriculum-head"><span>${gradeData.grade}</span><div><p>GRADE ${String(gradeData.grade).padStart(2, "0")}</p><h2>${gradeData.grade}학년 편제</h2></div></header>
-      <section class="common-course-block"><div><small>COMMON COURSES</small><h3>공통 과목</h3></div><div class="common-course-list">${commonMarkup}</div></section>
-      <div class="curriculum-options-grid">${optionsMarkup}${standaloneMarkup}</div>
+      <header class="grade-curriculum-head"><span>${gradeData.grade}</span><div><p>GRADE ${String(gradeData.grade).padStart(2, "0")}</p><h2>${gradeData.grade}학년 편제</h2></div><em class="grade-selection-progress ${progress.optionCount === progress.completedOptions ? "is-complete" : ""}">${progress.optionCount ? `택 ${progress.selectedChoices}/${progress.requiredChoices} · 옵션 ${progress.completedOptions}/${progress.optionCount}` : "선택 옵션 없음"}</em></header>
+      <div class="semester-curriculum-list">${gradeData.semesters.map((semesterData, index) => semesterCurriculumMarkup(gradeData, semesterData, progress.semesterProgress[index], index > 0 && !firstSemesterComplete)).join("")}</div>
     </article>`;
   }
 
   function simulationSchoolPickerMarkup() {
     const schoolOptions = state.schools.length
-      ? state.schools.map((school, index) => `<button type="button" class="${state.selectedSchool?.id === school.id ? "is-selected" : ""}" data-simulation-school-id="${escapeHtml(school.id)}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.region || "학교 편제표 연동")}</small></div>${icon("arrow")}</button>`).join("")
+      ? state.schools.map((school, index) => {
+        const selected = state.selectedSchool?.id === school.id;
+        const years = schoolAdmissionYears(school);
+        return `<button type="button" class="${selected ? "is-selected" : ""}" data-simulation-school-id="${escapeHtml(school.id)}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.region || "지역 정보 없음")} · ${years.length ? `${years.length}개 입학년도` : "등록 편제표 없음"}</small></div>${icon("arrow")}</button>${selected ? schoolAdmissionYearOptionsMarkup(school) : ""}`;
+      }).join("")
       : `<p class="simulation-school-menu-empty">아직 연동된 학교가 없습니다.</p>`;
     return `<div class="simulation-school-picker">
-      <button class="primary-action" type="button" data-open-school-picker aria-expanded="false" aria-controls="simulation-school-menu">학교 선택 열기</button>
+      <button class="primary-action" type="button" data-open-school-picker aria-expanded="false" aria-controls="simulation-school-menu">${state.selectedSchool ? "입학년도 선택 열기" : "학교 선택 열기"}</button>
       <section class="simulation-school-menu" id="simulation-school-menu" data-simulation-school-menu hidden>
-        <header><strong>연동된 학교</strong><span>${state.schools.length.toLocaleString("ko-KR")}곳</span></header>
+        <header><strong>${state.selectedSchool ? `${escapeHtml(state.selectedSchool.name)} 입학년도 선택` : "연동된 학교"}</strong><span>${state.schools.length.toLocaleString("ko-KR")}곳</span></header>
         <div class="simulation-school-options">${schoolOptions}</div>
       </section>
     </div>`;
   }
 
+  function simulationGradeProgressMarkup(progress, maxAccessibleGrade = 1) {
+    const gradeItems = progress.gradeProgress.map((gradeProgress) => {
+      const accessible = gradeProgress.grade <= maxAccessibleGrade;
+      const active = !state.simulationResultOpen && state.simulationGradeStep === gradeProgress.grade;
+      const confirmed = gradeProgress.grade < state.simulationMaxGradeStep || (gradeProgress.grade === 3 && state.simulationResultUnlocked);
+      const completed = gradeProgress.complete && confirmed;
+      return `<li class="${active ? "is-active" : ""} ${completed ? "is-complete" : ""}"><button type="button" data-simulation-grade="${gradeProgress.grade}" ${accessible ? "" : "disabled"} aria-current="${active ? "step" : "false"}"><span>${completed ? icon("check") : String(gradeProgress.grade).padStart(2, "0")}</span><strong>${gradeProgress.grade}학년</strong><small>${gradeProgress.optionCount ? `옵션 ${gradeProgress.completedOptions}/${gradeProgress.optionCount}` : "확인만"}</small></button></li>`;
+    }).join("");
+    const resultActive = state.simulationResultOpen;
+    const resultAvailable = progress.complete && (state.simulationGradeStep === 3 || state.simulationResultUnlocked);
+    const resultCompleted = progress.complete && state.simulationResultUnlocked;
+    return `<ol class="simulation-grade-progress" aria-label="학년별 과목 선택 진행 단계">${gradeItems}<li class="is-result ${resultActive ? "is-active" : ""} ${resultCompleted ? "is-complete" : ""}"><button type="button" data-show-simulation-result ${resultAvailable ? "" : "disabled"} aria-current="${resultActive ? "step" : "false"}"><span>${resultCompleted ? icon("check") : "04"}</span><strong>최종 결과</strong><small>${resultAvailable ? "확인 가능" : "선택 중"}</small></button></li></ol>`;
+  }
+
   function renderSimulation() {
     if (!state.selectedSchool || !state.curriculum) {
+      state.simulationResultOpen = false;
       root.innerHTML = `
         ${renderNotices()}
-        ${pageHead("과목 선택 시뮬레이션", "학교 편제표를 기준으로 학년별 공통 과목과 선택 옵션을 구성합니다.", 0, "연동 옵션")}
-        <div class="empty-state school-required-state"><span class="empty-icon">${icon("school")}</span><h2>${state.selectedSchool ? "이 학교에 공개된 편제표가 없습니다." : "먼저 학교를 선택해 주세요."}</h2><p>${state.selectedSchool ? "학교 담당자가 데이터 연동 탭에서 편제표를 업로드하면 시뮬레이션이 활성화됩니다." : "아래의 버튼을 누르면 연동된 학교 목록을 확인할 수 있습니다."}</p>${simulationSchoolPickerMarkup()}</div>`;
+        ${pageHead("과목 선택 시뮬레이션", "학교와 입학년도를 선택하면 해당 편제표의 학년별 공통 과목과 선택 옵션을 불러옵니다.", 0, "연동 옵션")}
+        <div class="empty-state school-required-state"><span class="empty-icon">${icon("school")}</span><h2>${state.selectedSchool ? schoolAdmissionYears(state.selectedSchool).length ? "입학년도를 선택해 주세요." : "이 학교에 공개된 편제표가 없습니다." : "먼저 학교를 선택해 주세요."}</h2><p>${state.selectedSchool ? schoolAdmissionYears(state.selectedSchool).length ? "학교에 등록된 입학년도 중 하나를 선택하면 해당 학생의 편제표가 연동됩니다." : "학교 담당자가 데이터 연동 탭에서 편제표를 업로드하면 시뮬레이션이 활성화됩니다." : "아래의 버튼을 누르면 연동된 학교 목록을 확인할 수 있습니다."}</p>${simulationSchoolPickerMarkup()}</div>`;
       return;
     }
 
     const grades = curriculumGrades();
-    const selectionMap = schoolSelectionMap();
-    let optionCount = 0;
-    let completedOptions = 0;
-    grades.forEach((grade) => grade.options.forEach((option, index) => {
-      optionCount += 1;
-      const selected = selectionMap[curriculumOptionKey(grade.grade, option, index)] || [];
-      if (selected.length === Math.min(Math.max(1, Number(option.choose) || 1), option.courses.length)) completedOptions += 1;
-    }));
-    const selectedCount = selectedCurriculumSubjects().length;
+    const progress = curriculumSelectionProgress(grades);
+    const commonCount = grades.reduce((sum, grade) => sum + grade.semesters.reduce((semesterSum, semester) => semesterSum + semester.common.length, 0), 0);
+    let prerequisiteMaxGrade = 1;
+    if (progress.gradeProgress[0]?.complete) prerequisiteMaxGrade = 2;
+    if (progress.gradeProgress.slice(0, 2).every((grade) => grade.complete)) prerequisiteMaxGrade = 3;
+    state.simulationMaxGradeStep = Math.max(1, Math.min(3, Number(state.simulationMaxGradeStep) || 1));
+    const maxAccessibleGrade = Math.min(prerequisiteMaxGrade, state.simulationMaxGradeStep);
+    state.simulationGradeStep = Math.max(1, Math.min(maxAccessibleGrade, Number(state.simulationGradeStep) || 1));
+
+    if (state.simulationResultOpen) {
+      root.innerHTML = `
+        ${renderNotices()}
+        ${pageHead("최종 수강 과목", `${state.selectedSchool.name} ${state.curriculum.admissionYear || ""}학년도 입학생의 학년별 과목을 확인합니다.`, commonCount + progress.selectedCount, "전체 과목")}
+        ${simulationGradeProgressMarkup(progress, maxAccessibleGrade)}
+        <div class="simulation-final-actions"><button class="recommend-secondary-action" type="button" data-edit-simulation>${icon("arrow")} 과목 선택 수정</button>${printActionMarkup("simulation")}</div>
+        ${simulationFinalContentMarkup()}`;
+      return;
+    }
+
+    const activeGrade = grades.find((grade) => grade.grade === state.simulationGradeStep) || grades[0];
+    const activeProgress = progress.gradeProgress.find((grade) => grade.grade === activeGrade.grade);
+    const semesterStatus = activeProgress.semesterProgress.map((semester) => `${semester.semester}학기 ${semester.optionCount ? `${semester.completedOptions}/${semester.optionCount}` : "확인"}`).join(" · ");
 
     root.innerHTML = `
       ${renderNotices()}
-      ${pageHead("과목 선택 시뮬레이션", `${state.selectedSchool.name} ${state.curriculum.admissionYear || ""}학년도 입학생 편제표를 기준으로 선택합니다.`, selectedCount, "선택 과목")}
+      ${pageHead("과목 선택 시뮬레이션", `${state.selectedSchool.name} ${state.curriculum.admissionYear || ""}학년도 입학생 편제표를 기준으로 선택합니다.`, progress.selectedCount, "선택 과목")}
+      ${simulationGradeProgressMarkup(progress, maxAccessibleGrade)}
       <section class="simulation-overview">
-        <div><p class="section-kicker">SCHOOL CURRICULUM</p><h2>${escapeHtml(state.selectedSchool.name)}</h2><span>${escapeHtml(state.curriculum.admissionYear || "-")}학년도 입학생 · 옵션 ${completedOptions}/${optionCount} 완료</span></div>
-        <button class="text-action" type="button" data-clear-school-simulation ${selectedCount ? "" : "disabled"}>선택 초기화</button>
+        <div><p class="section-kicker">GRADE ${String(activeGrade.grade).padStart(2, "0")} · SCHOOL CURRICULUM</p><h2>${activeGrade.grade}학년 과목 확인</h2><span>${escapeHtml(state.selectedSchool.name)} · ${escapeHtml(state.curriculum.admissionYear || "-")}학년도 입학생 · ${semesterStatus}</span></div>
+        <button class="text-action" type="button" data-clear-school-simulation ${progress.selectedCount ? "" : "disabled"}>선택 초기화</button>
       </section>
-      <section class="grade-curriculum-list" aria-live="polite">${grades.map(gradeCurriculumMarkup).join("")}</section>
-      <section class="simulation-selection-summary ${optionCount > 0 && completedOptions === optionCount ? "is-complete" : ""}">
-        <span>${icon(optionCount > 0 && completedOptions === optionCount ? "check" : "route")}</span>
-        <div><small>선택 현황</small><h2>${optionCount ? `${optionCount}개 옵션 중 ${completedOptions}개 완료` : "선택 옵션이 아직 없습니다."}</h2><p>${selectedCount ? `현재 ${selectedCount}개 과목을 선택했습니다.` : "각 옵션에서 안내된 개수만큼 과목을 선택해 주세요."}</p></div>
+      <section class="grade-curriculum-list is-single-grade" aria-live="polite">${gradeCurriculumMarkup(activeGrade)}</section>
+      <section class="simulation-selection-summary ${activeProgress.complete ? "is-complete" : ""}">
+        <span>${icon(activeProgress.complete ? "check" : "route")}</span>
+        <div><small>${activeGrade.grade}학년 선택 현황</small><h2>${activeProgress.optionCount ? `${activeProgress.optionCount}개 옵션 중 ${activeProgress.completedOptions}개 완료` : "선택 옵션 없음 · 공통 과목 확인 완료"}</h2><p>${activeProgress.optionCount ? `필수 선택 ${activeProgress.selectedChoices}/${activeProgress.requiredChoices} · ${semesterStatus}` : "공통 과목만 확인하면 다음 학년으로 이동할 수 있습니다."}</p></div>
+        <div class="simulation-grade-actions"><button class="simulation-grade-back" type="button" data-simulation-prev-grade ${activeGrade.grade === 1 ? "disabled" : ""}>${icon("arrow")} 이전 학년</button>${activeGrade.grade < 3 ? `<button class="simulation-final-open" type="button" data-simulation-next-grade ${activeProgress.complete ? "" : "disabled"}>다음 · ${activeGrade.grade + 1}학년 ${icon("arrow")}</button>` : `<button class="simulation-final-open" type="button" data-show-simulation-result ${progress.complete ? "" : "disabled"}>최종 수강표 확인 ${icon("arrow")}</button>`}</div>
       </section>`;
   }
 
@@ -1273,64 +2269,301 @@
       </section>`;
   }
 
-  function downloadCurriculumTemplate() {
-    if (!window.XLSX) {
-      showToast("엑셀 도구를 불러오지 못했습니다. 인터넷 연결 후 다시 시도해 주세요.", 4500);
+  async function downloadCurriculumTemplate() {
+    if (!window.ExcelJS) {
+      showToast("서식이 포함된 엑셀 양식 도구를 불러오지 못했습니다. 인터넷 연결 후 다시 시도해 주세요.", 4500);
       return;
     }
-    const schoolName = state.selectedSchool?.name || "";
-    const region = state.selectedSchool?.region || "";
-    const admissionYear = new Date().getFullYear() + 1;
+    const selectedSchoolName = compactText(state.selectedSchool?.name);
+    const selectedRegion = compactText(state.selectedSchool?.region);
+    const schoolName = /^.+고등학교$/u.test(selectedSchoolName) ? selectedSchoolName : "";
+    const region = SCHOOL_REGIONS.includes(selectedRegion) ? selectedRegion : "";
+    const admissionYear = 2026;
     const curriculumRows = [
       ["학교 편제표 표준 양식", "", "", "", "", ""],
       ["지역", region, "학교명", schoolName, "입학년도", admissionYear],
       [],
-      ["학년", "구분", "옵션", "선택 수", "과목명"]
+      ["학년", "학기", "구분", "옵션", "선택 수", "과목명"]
     ];
     [1, 2, 3].forEach((grade) => {
-      curriculumRows.push([grade, "공통", "", "", ""]);
-      for (let option = 1; option <= 10; option += 1) curriculumRows.push([grade, "선택", `옵션 ${option}`, "", ""]);
+      [1, 2].forEach((semester) => {
+        if (grade === 1) {
+          curriculumRows.push([grade, semester, "공통(기본)", "", "-", FIRST_GRADE_COMMON_BY_SEMESTER[semester].join(", ")]);
+          curriculumRows.push([grade, semester, "예술 추가", "", "-", ""]);
+        } else {
+          curriculumRows.push([grade, semester, "학교 지정", "", "-", ""]);
+        }
+        for (let option = 1; option <= 10; option += 1) curriculumRows.push([grade, semester, "선택", `옵션 ${option}`, "", ""]);
+      });
     });
     const guideRows = [
       ["학교 편제표 표준 양식 작성 안내", "", "", "", "", ""],
-      ["입력은 '편제표' 시트 한 곳에서만 합니다. 이 시트의 아래 예시는 참고용이며 업로드되지 않습니다.", "", "", "", "", ""],
+      ["입력은 '편제표' 시트 한 곳에서만 합니다. 1학년 기본 공통 과목은 수정하지 말고 예술 과목만 별도 행에 추가하세요.", "", "", "", "", ""],
       [],
       ["항목", "작성 방법", "입력 예시"],
-      ["학교 정보", "편제표 위쪽에 지역, 학교명, 입학년도를 모두 입력합니다.", "강원특별자치도 / 우리학교 / 2027"],
-      ["공통 과목", "학년별 공통 행 하나에 모든 공통 과목을 쉼표(,)로 구분해 입력합니다.", "공통국어1, 공통수학1, 공통영어1"],
-      ["선택 옵션", "같은 옵션의 과목은 행을 나누지 않고 과목명 한 칸에 쉼표(,)로 구분해 입력합니다.", "물리학, 화학, 생명과학, 지구과학"],
+      ["학교 정보", "지역은 목록에서 선택하고, 학교명은 '고등학교'로 끝나는 정식 명칭을 입력합니다. 입학년도는 2026 또는 2025를 선택합니다.", "강원특별자치도 / 우리고등학교 / 2026"],
+      ["학기", "각 학년의 과목을 1학기와 2학기로 나누어 입력합니다.", "2학년 1학기 → 학년 2 / 학기 1"],
+      ["1학년 기본 공통", "국어·수학·영어·한국사·통합사회·통합과학·과학탐구실험·체육이 학기별로 미리 입력되어 있습니다. 이 행은 수정하지 않습니다.", "공통국어1, …, 과학탐구실험1, 체육1"],
+      ["1학년 예술 추가", "학교에서 지정한 음악·미술 등 예술 과목만 '예술 추가' 행에 쉼표(,)로 입력합니다.", "음악, 미술"],
+      ["2·3학년 학교 지정", "학생이 선택하지 않고 학교가 지정한 과목을 학년·학기별 '학교 지정' 행에 입력합니다.", "문학, 대수"],
+      ["선택 옵션", "같은 학년·학기·옵션의 과목은 한 칸에 쉼표(,)로 구분해 입력합니다.", "물리학, 화학, 생명과학, 지구과학"],
       ["선택 수", "각 옵션에서 골라야 하는 과목 수를 1~10 사이의 정수로 입력합니다.", "4개 과목 중 2개 선택 → 2"],
+      ["과목명 자동 인식", "띄어쓰기와 로마숫자·숫자 표기 차이는 앱의 정식 과목명으로 자동 변환합니다.", "미적분I / 미적분1 → 미적분Ⅰ"],
+      ["고시 외 과목", "정식 과목 DB와 확실히 일치하지 않는 이름은 추측해서 연결하지 않고 입력한 이름 그대로 하나의 과목으로 저장합니다.", "학교 자체 개설 과목 → 고시 외 과목"],
       ["빈 옵션", "사용하지 않는 옵션 행은 선택 수와 과목명을 비워 둡니다.", "옵션 4를 사용하지 않으면 빈칸 유지"],
       ["확인 사항", "선택 수는 해당 옵션의 과목 수보다 클 수 없습니다.", "3개 과목이면 선택 수는 최대 3"],
       [],
       ["작성 예시", "", "", "", "", ""],
-      ["지역", "강원특별자치도", "학교명", "우리학교", "입학년도", 2027],
+      ["지역", "강원특별자치도", "학교명", "우리고등학교", "입학년도", 2026],
       [],
-      ["학년", "구분", "옵션", "선택 수", "과목명"],
-      [1, "공통", "", "", "공통국어1, 공통수학1, 공통영어1, 한국사1"],
-      [1, "선택", "옵션 1", 2, "물리학, 화학, 생명과학, 지구과학"],
-      [1, "선택", "옵션 2", 1, "한국지리 탐구, 사회와 문화, 윤리와 사상"],
-      [2, "공통", "", "", "공통국어2, 공통수학2, 공통영어2, 한국사2"],
-      [2, "선택", "옵션 1", 1, "기하, 미적분Ⅱ, 경제 수학"],
-      [3, "공통", "", "", "스포츠 생활1, 음악 연주"],
-      [3, "선택", "옵션 1", 2, "고급 물리학, 고급 화학, 고급 생명과학"]
+      ["학년", "학기", "구분", "옵션", "선택 수", "과목명"],
+      [1, 1, "공통(기본)", "", "-", FIRST_GRADE_COMMON_BY_SEMESTER[1].join(", ")],
+      [1, 1, "예술 추가", "", "-", "음악, 미술"],
+      [1, 2, "공통(기본)", "", "-", FIRST_GRADE_COMMON_BY_SEMESTER[2].join(", ")],
+      [1, 2, "예술 추가", "", "-", "음악 연주, 미술 창작"],
+      [2, 1, "선택", "옵션 1", 2, "물리학, 화학, 생명과학, 지구과학"],
+      [2, 1, "선택", "옵션 2", 1, "한국지리 탐구, 사회와 문화, 윤리와 사상"],
+      [2, 2, "선택", "옵션 1", 1, "기하, 미적분Ⅱ, 경제 수학"],
+      [3, 1, "학교 지정", "", "-", "스포츠 생활1, 음악 연주"],
+      [3, 2, "선택", "옵션 1", 2, "고급 물리학, 고급 화학, 고급 생명과학"]
     ];
-    const workbook = window.XLSX.utils.book_new();
-    const curriculumSheet = window.XLSX.utils.aoa_to_sheet(curriculumRows);
-    const guideSheet = window.XLSX.utils.aoa_to_sheet(guideRows);
-    curriculumSheet["!cols"] = [{ wch: 9 }, { wch: 11 }, { wch: 13 }, { wch: 11 }, { wch: 68 }, { wch: 14 }];
-    curriculumSheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }];
-    curriculumSheet["!autofilter"] = { ref: `A4:E${curriculumRows.length}` };
-    guideSheet["!cols"] = [{ wch: 16 }, { wch: 76 }, { wch: 48 }, { wch: 12 }, { wch: 68 }, { wch: 14 }];
-    guideSheet["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } },
-      { s: { r: 11, c: 0 }, e: { r: 11, c: 5 } }
-    ];
-    window.XLSX.utils.book_append_sheet(workbook, guideSheet, "작성안내");
-    window.XLSX.utils.book_append_sheet(workbook, curriculumSheet, "편제표");
-    window.XLSX.writeFile(workbook, "학교_편제표_연동_양식.xlsx");
-    showToast("학교 편제표 양식 다운로드를 시작했습니다.");
+    const guideExampleTitleRow = guideRows.findIndex((row) => row[0] === "작성 예시") + 1;
+    const guideExampleInfoRow = guideExampleTitleRow + 1;
+    const guideExampleHeaderRow = guideRows.findIndex((row, index) => index >= guideExampleTitleRow && row[0] === "학년") + 1;
+    const guideExampleDataStartRow = guideExampleHeaderRow + 1;
+
+    const colors = {
+      title: "FF083F3B",
+      accent: "FF087F6A",
+      blue: "FF1769AA",
+      text: "FF183D3A",
+      muted: "FF5A716D",
+      white: "FFFFFFFF",
+      grid: "FFB8CBC7",
+      label: "FFE7F1EE",
+      input: "FFFFF7D6",
+      example: "FFEAF4FF",
+      fixed: "FFF1F5F4"
+    };
+    const gridBorder = {
+      top: { style: "thin", color: { argb: colors.grid } },
+      left: { style: "thin", color: { argb: colors.grid } },
+      bottom: { style: "thin", color: { argb: colors.grid } },
+      right: { style: "thin", color: { argb: colors.grid } }
+    };
+    const inputBorder = {
+      top: { style: "medium", color: { argb: colors.accent } },
+      left: { style: "medium", color: { argb: colors.accent } },
+      bottom: { style: "medium", color: { argb: colors.accent } },
+      right: { style: "medium", color: { argb: colors.accent } }
+    };
+    const fill = (argb) => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+    const eachCell = (sheet, startRow, endRow, startColumn, endColumn, callback) => {
+      for (let row = startRow; row <= endRow; row += 1) {
+        for (let column = startColumn; column <= endColumn; column += 1) callback(sheet.getCell(row, column), row, column);
+      }
+    };
+    const styleTitle = (sheet, row, background = colors.title) => {
+      sheet.getRow(row).height = 34;
+      eachCell(sheet, row, row, 1, 6, (cell) => {
+        cell.fill = fill(background);
+        cell.font = { name: "맑은 고딕", size: 18, bold: true, color: { argb: colors.white } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = gridBorder;
+      });
+    };
+    const styleTableHeader = (sheet, row, endColumn = 5) => {
+      sheet.getRow(row).height = 27;
+      eachCell(sheet, row, row, 1, endColumn, (cell) => {
+        cell.fill = fill(colors.accent);
+        cell.font = { name: "맑은 고딕", size: 11, bold: true, color: { argb: colors.white } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = gridBorder;
+      });
+    };
+
+    try {
+      const workbook = new window.ExcelJS.Workbook();
+      workbook.creator = "선택 과목 안내 플랫폼";
+      workbook.created = new Date();
+
+      const guideSheet = workbook.addWorksheet("작성안내", {
+        views: [{ state: "frozen", ySplit: 4, showGridLines: false }],
+        properties: { defaultRowHeight: 22 }
+      });
+      const curriculumSheet = workbook.addWorksheet("편제표", {
+        views: [{ state: "frozen", ySplit: 4, showGridLines: false }],
+        properties: { defaultRowHeight: 22 }
+      });
+      guideRows.forEach((row) => guideSheet.addRow(row));
+      curriculumRows.forEach((row) => curriculumSheet.addRow(row));
+
+      guideSheet.columns = [{ width: 16 }, { width: 76 }, { width: 48 }, { width: 12 }, { width: 68 }, { width: 14 }];
+      curriculumSheet.columns = [{ width: 9 }, { width: 9 }, { width: 16 }, { width: 13 }, { width: 17 }, { width: 68 }, { width: 2, hidden: true }];
+      curriculumSheet.getColumn(7).hidden = true;
+      guideSheet.mergeCells("A1:F1");
+      guideSheet.mergeCells("A2:F2");
+      guideSheet.mergeCells(`A${guideExampleTitleRow}:F${guideExampleTitleRow}`);
+      curriculumSheet.mergeCells("A1:F1");
+      curriculumSheet.autoFilter = { from: "A4", to: `F${curriculumRows.length}` };
+      SCHOOL_REGIONS.forEach((regionName, index) => {
+        curriculumSheet.getCell(index + 2, 7).value = regionName;
+      });
+      curriculumSheet.getCell("B2").dataValidation = {
+        type: "list",
+        allowBlank: false,
+        formulae: [`$G$2:$G$${SCHOOL_REGIONS.length + 1}`],
+        showInputMessage: true,
+        promptTitle: "지역 선택",
+        prompt: "전국 17개 시·도 중 학교가 속한 지역을 목록에서 선택하세요.",
+        showErrorMessage: true,
+        errorStyle: "stop",
+        errorTitle: "지역 확인",
+        error: "드롭다운 목록에 있는 지역만 선택할 수 있습니다."
+      };
+      curriculumSheet.getCell("D2").dataValidation = {
+        type: "custom",
+        allowBlank: false,
+        formulae: ['AND(LEN(TRIM(D2))>4,RIGHT(TRIM(D2),4)="고등학교")'],
+        showInputMessage: true,
+        promptTitle: "학교명 입력",
+        prompt: "'고등학교'로 끝나는 정식 학교명을 입력하세요. 예: 우리고등학교",
+        showErrorMessage: true,
+        errorStyle: "stop",
+        errorTitle: "학교명 확인",
+        error: "학교명은 '고등학교'로 끝나야 합니다."
+      };
+      curriculumSheet.getCell("F2").dataValidation = {
+        type: "list",
+        allowBlank: false,
+        formulae: ['"2026,2025"'],
+        showInputMessage: true,
+        promptTitle: "입학년도 선택",
+        prompt: "2026 또는 2025 중에서 입학년도를 선택하세요.",
+        showErrorMessage: true,
+        errorStyle: "stop",
+        errorTitle: "입학년도 확인",
+        error: "입학년도는 2026 또는 2025만 선택할 수 있습니다."
+      };
+
+      styleTitle(curriculumSheet, 1);
+      curriculumSheet.getRow(2).height = 28;
+      [1, 3, 5].forEach((column) => {
+        const cell = curriculumSheet.getCell(2, column);
+        cell.fill = fill(colors.label);
+        cell.font = { name: "맑은 고딕", size: 11, bold: true, color: { argb: colors.text } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = gridBorder;
+      });
+      [2, 4, 6].forEach((column) => {
+        const cell = curriculumSheet.getCell(2, column);
+        cell.fill = fill(colors.input);
+        cell.font = { name: "맑은 고딕", size: 11, bold: true, color: { argb: colors.text } };
+        cell.alignment = { horizontal: "left", vertical: "middle" };
+        cell.border = inputBorder;
+      });
+      curriculumSheet.getCell("F2").alignment = { horizontal: "center", vertical: "middle" };
+      styleTableHeader(curriculumSheet, 4, 6);
+      eachCell(curriculumSheet, 5, curriculumRows.length, 1, 6, (cell, row, column) => {
+        const rowType = compactText(curriculumSheet.getCell(row, 3).value);
+        const isSelection = rowType.includes("선택");
+        cell.font = { name: "맑은 고딕", size: 10, color: { argb: colors.text } };
+        cell.alignment = { horizontal: column === 6 ? "left" : "center", vertical: "middle", wrapText: column === 6 };
+        cell.border = gridBorder;
+        if (column <= 4 || (column === 5 && !isSelection)) cell.fill = fill(colors.fixed);
+      });
+      for (let row = 5; row <= curriculumRows.length; row += 1) {
+        const rowType = compactText(curriculumSheet.getCell(row, 3).value);
+        const isSelection = rowType.includes("선택");
+        const isBaseCommon = rowType.includes("공통");
+        const inputColumns = isBaseCommon ? [] : isSelection ? [5, 6] : [6];
+        inputColumns.forEach((column) => {
+          const cell = curriculumSheet.getCell(row, column);
+          cell.fill = fill(colors.input);
+          cell.border = inputBorder;
+        });
+        if (isBaseCommon) {
+          const courseCell = curriculumSheet.getCell(row, 6);
+          courseCell.fill = fill(colors.fixed);
+          courseCell.note = "1학년 기본 공통 과목입니다. 이 셀은 수정하지 말고 바로 아래 '예술 추가' 행에 예술 과목만 입력하세요.";
+        } else if (rowType.includes("예술")) {
+          curriculumSheet.getCell(row, 6).dataValidation = {
+            type: "custom",
+            allowBlank: true,
+            formulae: ["TRUE"],
+            showInputMessage: true,
+            promptTitle: "예술 과목 추가",
+            prompt: "음악·미술 등 학교 지정 예술 과목만 쉼표(,)로 구분해 입력하세요."
+          };
+        } else if (isSelection) {
+          curriculumSheet.getCell(row, 5).dataValidation = {
+            type: "whole",
+            operator: "between",
+            allowBlank: true,
+            formulae: [1, 10],
+            showInputMessage: true,
+            promptTitle: "선택 수 입력",
+            prompt: "이 옵션에서 선택할 과목 수를 1~10 사이 숫자로 입력하세요."
+          };
+        }
+      }
+
+      styleTitle(guideSheet, 1);
+      guideSheet.getRow(2).height = 30;
+      const guideIntro = guideSheet.getCell("A2");
+      guideIntro.fill = fill(colors.label);
+      guideIntro.font = { name: "맑은 고딕", size: 11, bold: true, color: { argb: colors.text } };
+      guideIntro.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+      guideIntro.border = gridBorder;
+      styleTableHeader(guideSheet, 4, 3);
+      eachCell(guideSheet, 5, guideExampleTitleRow - 2, 1, 3, (cell, row, column) => {
+        cell.font = { name: "맑은 고딕", size: 10, bold: column === 1, color: { argb: column === 1 ? colors.text : colors.muted } };
+        cell.fill = fill(column === 1 ? colors.label : colors.white);
+        cell.alignment = { horizontal: column === 1 ? "center" : "left", vertical: "middle", wrapText: true };
+        cell.border = gridBorder;
+        guideSheet.getRow(row).height = 36;
+      });
+      styleTitle(guideSheet, guideExampleTitleRow, colors.blue);
+      guideSheet.getCell(guideExampleTitleRow, 1).font = { name: "맑은 고딕", size: 16, bold: true, color: { argb: colors.white } };
+
+      guideSheet.getRow(guideExampleInfoRow).height = 28;
+      [1, 3, 5].forEach((column) => {
+        const cell = guideSheet.getCell(guideExampleInfoRow, column);
+        cell.fill = fill(colors.label);
+        cell.font = { name: "맑은 고딕", size: 10, bold: true, color: { argb: colors.text } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = gridBorder;
+      });
+      [2, 4, 6].forEach((column) => {
+        const cell = guideSheet.getCell(guideExampleInfoRow, column);
+        cell.fill = fill(colors.example);
+        cell.font = { name: "맑은 고딕", size: 10, italic: true, color: { argb: colors.blue } };
+        cell.alignment = { horizontal: column === 6 ? "center" : "left", vertical: "middle" };
+        cell.border = gridBorder;
+      });
+      styleTableHeader(guideSheet, guideExampleHeaderRow, 6);
+      eachCell(guideSheet, guideExampleDataStartRow, guideRows.length, 1, 6, (cell, row, column) => {
+        cell.fill = fill(colors.example);
+        cell.font = { name: "맑은 고딕", size: 10, italic: true, color: { argb: colors.blue } };
+        cell.alignment = { horizontal: column === 6 ? "left" : "center", vertical: "middle", wrapText: column === 6 };
+        cell.border = gridBorder;
+        guideSheet.getRow(row).height = 24;
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blobUrl = URL.createObjectURL(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      const downloadLink = document.createElement("a");
+      downloadLink.href = blobUrl;
+      downloadLink.download = "학교_편제표_연동_양식.xlsx";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+      showToast("학교 편제표 양식 다운로드를 시작했습니다.");
+    } catch (error) {
+      console.error("학교 편제표 양식 생성 실패:", error);
+      showToast("학교 편제표 양식을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.", 4500);
+    }
   }
 
   function sheetMatrix(workbook, sheetName) {
@@ -1339,15 +2572,388 @@
     return window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true, blankrows: true });
   }
 
+  function sheetMatrixWithMergedValues(workbook, sheetName) {
+    const sheet = workbook.Sheets[sheetName];
+    const raw = sheetMatrix(workbook, sheetName);
+    const filled = raw.map((row) => [...row]);
+    const merges = Array.isArray(sheet?.["!merges"]) ? sheet["!merges"] : [];
+    merges.forEach((merge) => {
+      const value = raw[merge.s.r]?.[merge.s.c];
+      for (let row = merge.s.r; row <= merge.e.r; row += 1) {
+        if (!filled[row]) filled[row] = [];
+        for (let column = merge.s.c; column <= merge.e.c; column += 1) {
+          if (isBlank(filled[row][column])) filled[row][column] = value;
+        }
+      }
+    });
+    return { sheet, raw, filled, merges };
+  }
+
+  function fullYearCurriculumRegion(schoolName) {
+    const schoolKey = normalizedKey(schoolName);
+    const knownSchool = state.schools.find((school) => normalizedKey(school.name) === schoolKey);
+    return compactText(knownSchool?.region);
+  }
+
+  function parseChoiceCount(value) {
+    const text = compactText(value);
+    const match = text.match(/택\s*(\d+)/)
+      || text.match(/(\d+)\s*(?:개|과목)?\s*선택/)
+      || text.match(/선택\s*(?:수|과목\s*수)?\s*[:：]?\s*(\d+)/);
+    return match ? Number(match[1]) : 0;
+  }
+
+  function isPlainPlacementNumber(value) {
+    const text = compactText(value);
+    return /^[1-9]\d*(?:\.\d+)?$/.test(text);
+  }
+
+  function uploadedCourseType(value) {
+    const text = compactText(value);
+    if (text.includes("공통")) return "공통";
+    if (text.includes("일반")) return "일반";
+    if (text.includes("진로")) return "진로";
+    if (text.includes("융합")) return "융합";
+    if (text.includes("전문")) return "전문";
+    return text;
+  }
+
+  function uploadedCourseMetadataEntry(category, type) {
+    const normalizedCategory = compactText(category);
+    const normalizedType = uploadedCourseType(type);
+    return {
+      ...(normalizedCategory ? { category: normalizeCourseGroup(normalizedCategory) } : {}),
+      ...(normalizedType ? { type: normalizedType } : {})
+    };
+  }
+
+  function parseSchoolFullYearCurriculumWorkbook(file, workbook) {
+    let source = null;
+    workbook.SheetNames.some((sheetName) => {
+      const matrix = sheetMatrixWithMergedValues(workbook, sheetName);
+      const topCells = matrix.raw.slice(0, 30).flat().map(compactText).filter(Boolean);
+      const strictTitle = topCells.find((value) => /(\d{4})학년도\s*전학년\s*학교교육과정\s*편제표/.test(value));
+      const yearTitle = strictTitle || topCells.find((value) => /(20\d{2})학년도/.test(value));
+      const headerCandidate = matrix.filled.findIndex((row) => {
+        const keys = row.map(normalizedKey);
+        return keys.some((key) => ["과목명", "교과목명", "교과목"].map(normalizedKey).includes(key))
+          && keys.some((key) => /^[123]학년$/.test(key));
+      });
+      const hasSemesterHeader = headerCandidate >= 0 && matrix.filled.slice(headerCandidate, headerCandidate + 3)
+        .some((row) => row.some((value) => /^[12]학기$/.test(normalizedKey(value))));
+      if (!yearTitle || headerCandidate < 0 || !hasSemesterHeader) return false;
+      source = { sheetName, title: yearTitle, strictTitle: Boolean(strictTitle), ...matrix };
+      return true;
+    });
+    if (!source) return null;
+
+    const academicYear = Number(source.title.match(/(\d{4})학년도/)?.[1]);
+    const identity = workbookIdentity(workbook);
+    const schoolName = source.raw.slice(0, 30).flat().map(compactText).find((value) => /^.+고등학교$/u.test(value)) || identity.schoolName;
+    const region = identity.region || fullYearCurriculumRegion(schoolName);
+    if (!Number.isInteger(academicYear)) throw new Error("전학년 편제표 제목에서 기준 학년도를 읽지 못했습니다.");
+
+    const headerRowIndex = source.filled.findIndex((row) => {
+      const keys = row.map(normalizedKey);
+      return keys.some((key) => ["과목명", "교과목명", "교과목"].map(normalizedKey).includes(key)) && keys.some((key) => /^[123]학년$/.test(key));
+    });
+    if (headerRowIndex < 0) throw new Error("전학년 편제표에서 구분·과목명·학년 머리글을 찾지 못했습니다.");
+    const semesterRowIndex = [headerRowIndex + 1, headerRowIndex + 2].find((rowIndex) => source.filled[rowIndex]?.some((value) => /^[12]학기$/.test(normalizedKey(value)))) ?? -1;
+    if (semesterRowIndex < 0) throw new Error("전학년 편제표에서 1학기·2학기 머리글을 찾지 못했습니다.");
+
+    const headerKeys = source.filled[headerRowIndex].map(normalizedKey);
+    const sectionIndex = headerKeys.findIndex((key) => ["구분", "편성구분", "교육과정구분", "이수구분"].map(normalizedKey).includes(key));
+    const courseIndex = headerKeys.findIndex((key) => ["과목명", "교과목명", "교과목"].map(normalizedKey).includes(key));
+    const categoryIndex = headerKeys.findIndex((key) => ["교과군", "교과(군)", "교과", "과목군"].map(normalizedKey).includes(key));
+    const typeIndex = headerKeys.findIndex((key) => ["과목유형", "과목구분", "선택유형", "유형"].map(normalizedKey).includes(key));
+    const semesterColumns = [];
+    for (let column = 0; column < Math.max(source.filled[headerRowIndex].length, source.filled[semesterRowIndex].length); column += 1) {
+      const grade = Number(normalizedKey(source.filled[headerRowIndex]?.[column]).match(/^([123])학년$/)?.[1]);
+      const semester = Number(normalizedKey(source.filled[semesterRowIndex]?.[column]).match(/^([12])학기$/)?.[1]);
+      if ([1, 2, 3].includes(grade) && [1, 2].includes(semester)) semesterColumns.push({ column, grade, semester });
+    }
+    if (semesterColumns.length !== 6) throw new Error("전학년 편제표에서 3개 학년의 1·2학기 열을 모두 찾지 못했습니다.");
+
+    const dataStartRow = semesterRowIndex + 1;
+    const dataEndRow = source.filled.findIndex((row, index) => index >= dataStartRow && row.some((value) => normalizedKey(value).includes(normalizedKey("교과 이수 학점 소계"))));
+    const lastCourseRow = dataEndRow < 0 ? source.raw.length - 1 : dataEndRow - 1;
+    const gradeData = new Map([1, 2, 3].map((grade) => [grade, {
+      grade,
+      semesters: new Map([1, 2].map((semester) => [semester, { semester, common: [], electives: [], options: [] }]))
+    }]));
+    const courseMetadata = {};
+
+    semesterColumns.forEach(({ column, grade, semester }) => {
+      const target = gradeData.get(grade).semesters.get(semester);
+      const groups = source.merges.filter((merge) => merge.s.c === column && parseChoiceCount(source.raw[merge.s.r]?.[merge.s.c]) > 0)
+        .map((merge) => ({ startRow: merge.s.r, endRow: merge.e.r, choose: parseChoiceCount(source.raw[merge.s.r]?.[merge.s.c]) }));
+      for (let row = dataStartRow; row <= lastCourseRow; row += 1) {
+        const choose = parseChoiceCount(source.raw[row]?.[column]);
+        if (!choose || groups.some((group) => row >= group.startRow && row <= group.endRow)) continue;
+        groups.push({ startRow: row, endRow: row, choose });
+      }
+      const rowIsInChoiceGroup = (row) => groups.some((group) => row >= group.startRow && row <= group.endRow);
+      for (let row = dataStartRow; row <= lastCourseRow; row += 1) {
+        const section = sectionIndex < 0 ? "" : normalizedKey(source.filled[row]?.[sectionIndex]);
+        const courseName = compactText(source.raw[row]?.[courseIndex]);
+        const selectionSection = /학생.*선택|선택.*교육과정|수강.*선택/u.test(section);
+        const fixedSection = /학교.*지정|공통|필수/u.test(section);
+        const isFixedPlacement = courseName
+          && isPlainPlacementNumber(source.raw[row]?.[column])
+          && !rowIsInChoiceGroup(row)
+          && (fixedSection || !selectionSection);
+        if (isFixedPlacement) {
+          target.common.push(courseName);
+          courseMetadata[curriculumCourseAliasKey(courseName)] = uploadedCourseMetadataEntry(
+            categoryIndex < 0 ? "" : source.filled[row]?.[categoryIndex],
+            typeIndex < 0 ? "" : source.filled[row]?.[typeIndex]
+          );
+        }
+      }
+
+      groups.sort((a, b) => a.startRow - b.startRow).forEach((group) => {
+        const courses = uniqueCourseNames(Array.from({ length: group.endRow - group.startRow + 1 }, (_value, offset) => {
+          const row = group.startRow + offset;
+          const courseName = compactText(source.raw[row]?.[courseIndex]);
+          if (courseName && !/소계|합계/u.test(courseName)) {
+            courseMetadata[curriculumCourseAliasKey(courseName)] = uploadedCourseMetadataEntry(
+              categoryIndex < 0 ? "" : source.filled[row]?.[categoryIndex],
+              typeIndex < 0 ? "" : source.filled[row]?.[typeIndex]
+            );
+          }
+          return courseName;
+        }));
+        if (!courses.length) return;
+        if (group.choose > courses.length) throw new Error(`${grade}학년 ${semester}학기 선택군의 택 ${group.choose}보다 읽힌 과목 수(${courses.length})가 적습니다.`);
+        const choose = group.choose;
+        const optionNumber = target.options.length + 1;
+        target.options.push({ id: `semester-${semester}-option-${optionNumber}`, label: `옵션 ${optionNumber}`, choose, courses, semester });
+        target.electives.push(...courses);
+      });
+    });
+
+    const uploadedAt = new Date().toISOString();
+    const curricula = [...gradeData.values()].map((grade) => {
+      const semesters = [...grade.semesters.values()].map((semester) => ({
+        semester: semester.semester,
+        common: uniqueCourseNames(semester.common),
+        electives: uniqueCourseNames(semester.electives),
+        options: semester.options
+      }));
+      const currentGrade = {
+        grade: grade.grade,
+        semesters,
+        common: uniqueCourseNames(semesters.flatMap((semester) => semester.common)),
+        electives: uniqueCourseNames(semesters.flatMap((semester) => semester.electives)),
+        options: semesters.flatMap((semester) => semester.options)
+      };
+      const allCourseNames = [...currentGrade.common, ...currentGrade.electives];
+      return {
+        version: 5,
+        sourceFormat: "school-full-year",
+        sourceAcademicYear: academicYear,
+        sourceGrade: grade.grade,
+        sourceTitle: source.title,
+        sourceSheet: source.sheetName,
+        fileName: file.name,
+        schoolName,
+        region,
+        admissionYear: academicYear - grade.grade + 1,
+        grades: [currentGrade],
+        courseMetadata: Object.fromEntries(allCourseNames.map((course) => [curriculumCourseAliasKey(course), courseMetadata[curriculumCourseAliasKey(course)] || {}])),
+        courseCount: new Set(allCourseNames.map(curriculumCourseAliasKey)).size,
+        unlistedCourseCount: new Set(allCourseNames.filter((course) => !curriculumCourseReference(course)).map(curriculumCourseAliasKey)).size,
+        uploadedAt
+      };
+    });
+    if (curricula.some((curriculum) => !curriculum.courseCount)) throw new Error("전학년 편제표의 일부 학년에서 학교 지정·학생 선택 과목을 찾지 못했습니다.");
+    return {
+      version: 5,
+      sourceFormat: "school-full-year",
+      sourceTitle: source.title,
+      parseMode: source.strictTitle ? "structured-full-year" : "flexible-matrix",
+      parseWarnings: source.strictTitle ? [] : ["전학년 표 구조를 머리글과 셀 패턴으로 유연하게 분석했습니다. 저장 전에 과목 배치를 확인해 주세요."],
+      academicYear,
+      fileName: file.name,
+      schoolName,
+      region,
+      curricula,
+      courseCount: curricula.reduce((sum, curriculum) => sum + curriculum.courseCount, 0),
+      unlistedCourseCount: curricula.reduce((sum, curriculum) => sum + curriculum.unlistedCourseCount, 0),
+      uploadedAt
+    };
+  }
+
+  function flexibleHeaderIndex(row, aliases) {
+    const aliasKeys = aliases.map((value) => normalizedKey(value).replace(/[()·･・._/\\-]/g, ""));
+    return row.findIndex((value) => aliasKeys.includes(normalizedKey(value).replace(/[()·･・._/\\-]/g, "")));
+  }
+
+  function workbookIdentity(workbook) {
+    const cells = workbook.SheetNames.flatMap((sheetName) => sheetMatrix(workbook, sheetName).slice(0, 40).flat()).map(compactText).filter(Boolean);
+    const schoolName = cells.map((value) => value.match(/학교명\s*[:：]?\s*([^:：]{1,40}고등학교)/u)?.[1]?.trim()).find(Boolean)
+      || cells.find((value) => /^.+고등학교$/u.test(value))
+      || cells.map((value) => value.match(/([가-힣A-Za-z0-9()·･・]+고등학교)/u)?.[1]).find(Boolean)
+      || "";
+    const academicYear = Number(cells.map((value) => value.match(/(20\d{2})학년도/)?.[1]).find(Boolean));
+    const admissionYear = Number(cells.map((value, index) => {
+      if (!normalizedKey(value).includes(normalizedKey("입학년도"))) return "";
+      return value.match(/(20\d{2})/)?.[1] || cells[index + 1]?.match(/(20\d{2})/)?.[1] || "";
+    }).find(Boolean));
+    const embeddedRegion = SCHOOL_REGIONS.find((regionName) => cells.some((value) => normalizedKey(value).includes(normalizedKey(regionName)))) || "";
+    return { schoolName, academicYear, admissionYear, region: embeddedRegion || fullYearCurriculumRegion(schoolName) };
+  }
+
+  function parseFlexibleFlatCurriculumWorkbook(file, workbook) {
+    const identity = workbookIdentity(workbook);
+    const gradeData = new Map([1, 2, 3].map((grade) => [grade, {
+      grade,
+      semesters: new Map([1, 2].map((semester) => [semester, { semester, common: [], standalone: [], electives: [], optionMap: new Map() }]))
+    }]));
+    const courseMetadata = {};
+    const parsedSheets = [];
+    const warnings = [];
+
+    workbook.SheetNames.forEach((sheetName) => {
+      const { raw, filled } = sheetMatrixWithMergedValues(workbook, sheetName);
+      let bestHeader = null;
+      filled.slice(0, 60).forEach((row, rowIndex) => {
+        const courseIndex = flexibleHeaderIndex(row, ["과목명", "교과목명", "교과목"]);
+        const gradeIndex = flexibleHeaderIndex(row, ["학년", "개설학년", "대상학년"]);
+        const semesterIndex = flexibleHeaderIndex(row, ["학기", "개설학기"]);
+        if (courseIndex < 0 || gradeIndex < 0 || semesterIndex < 0) return;
+        const indices = {
+          rowIndex,
+          courseIndex,
+          gradeIndex,
+          semesterIndex,
+          categoryIndex: flexibleHeaderIndex(row, ["교과군", "교과(군)", "교과", "과목군"]),
+          typeIndex: flexibleHeaderIndex(row, ["과목유형", "과목 유형", "과목구분", "선택유형", "유형"]),
+          sectionIndex: flexibleHeaderIndex(row, ["구분", "편성구분", "교육과정구분", "이수구분"]),
+          optionIndex: flexibleHeaderIndex(row, ["옵션", "선택군", "선택그룹", "그룹", "선택목록"]),
+          chooseIndex: flexibleHeaderIndex(row, ["선택수", "선택 수", "택수", "택"])
+        };
+        const score = Object.values(indices).filter((value) => Number.isInteger(value) && value >= 0).length;
+        if (!bestHeader || score > bestHeader.score) bestHeader = { ...indices, score };
+      });
+      if (!bestHeader) return;
+      parsedSheets.push(sheetName);
+      const optionSequence = new Map();
+      for (let rowIndex = bestHeader.rowIndex + 1; rowIndex < filled.length; rowIndex += 1) {
+        const row = filled[rowIndex] || [];
+        const rawRow = raw[rowIndex] || [];
+        const grade = Number(compactText(row[bestHeader.gradeIndex]).match(/[123]/)?.[0]);
+        const semester = Number(compactText(row[bestHeader.semesterIndex]).match(/[12]/)?.[0]);
+        const courseNames = uniqueCourseNames([rawRow[bestHeader.courseIndex] || row[bestHeader.courseIndex]]);
+        if (![1, 2, 3].includes(grade) || ![1, 2].includes(semester) || !courseNames.length) continue;
+        const target = gradeData.get(grade).semesters.get(semester);
+        const category = bestHeader.categoryIndex < 0 ? "" : row[bestHeader.categoryIndex];
+        const type = bestHeader.typeIndex < 0 ? "" : row[bestHeader.typeIndex];
+        const section = bestHeader.sectionIndex < 0 ? "" : compactText(row[bestHeader.sectionIndex]);
+        const optionText = bestHeader.optionIndex < 0 ? "" : compactText(row[bestHeader.optionIndex]);
+        const chooseText = bestHeader.chooseIndex < 0 ? "" : compactText(row[bestHeader.chooseIndex]);
+        const choose = parseChoiceCount(chooseText) || (isPlainPlacementNumber(chooseText) ? Number(chooseText) : parseChoiceCount(optionText));
+        const fixed = uploadedCourseType(type) === "공통" || /학교\s*지정|공통|필수/u.test(section);
+        const hasOption = Boolean(optionText || choose);
+        courseNames.forEach((courseName) => {
+          courseMetadata[curriculumCourseAliasKey(courseName)] = uploadedCourseMetadataEntry(category, type);
+          if (fixed && !hasOption) target.common.push(courseName);
+          else if (hasOption) {
+            const baseLabel = compactText(optionText.replace(/택\s*\d+|\d+\s*(?:개|과목)?\s*선택/gu, "")) || "선택 옵션";
+            const sequenceKey = `${grade}-${semester}-${normalizedKey(baseLabel)}`;
+            if (!optionSequence.has(sequenceKey)) optionSequence.set(sequenceKey, optionSequence.size + 1);
+            const optionKey = `${sequenceKey}-${choose || 0}`;
+            if (!target.optionMap.has(optionKey)) target.optionMap.set(optionKey, {
+              id: `semester-${semester}-flex-${optionSequence.get(sequenceKey)}`,
+              label: baseLabel === "선택 옵션" ? `옵션 ${target.optionMap.size + 1}` : baseLabel,
+              choose: choose || 1,
+              courses: [],
+              semester
+            });
+            target.optionMap.get(optionKey).courses.push(courseName);
+          } else target.standalone.push(courseName);
+        });
+      }
+    });
+
+    if (!parsedSheets.length) return null;
+    const parsedGrades = [...gradeData.values()].map((grade) => {
+      const semesters = [...grade.semesters.values()].map((semester) => {
+        const options = [...semester.optionMap.values()].map((option) => ({ ...option, courses: uniqueCourseNames(option.courses) }));
+        const standalone = uniqueCourseNames(semester.standalone);
+        return {
+          semester: semester.semester,
+          common: uniqueCourseNames(semester.common),
+          standalone,
+          electives: uniqueCourseNames([...standalone, ...options.flatMap((option) => option.courses)]),
+          options
+        };
+      });
+      return {
+        grade: grade.grade,
+        semesters,
+        common: uniqueCourseNames(semesters.flatMap((semester) => semester.common)),
+        electives: uniqueCourseNames(semesters.flatMap((semester) => semester.electives)),
+        options: semesters.flatMap((semester) => semester.options)
+      };
+    }).filter((grade) => grade.common.length || grade.electives.length);
+    if (!parsedGrades.length) return null;
+    const gradeNumbers = new Set(parsedGrades.map((grade) => grade.grade));
+    if (![1, 2, 3].every((grade) => gradeNumbers.has(grade))) {
+      throw new Error("신입생 자료가 아닌 1·2·3학년 전학년 편제표를 업로드해 주세요. 현재 파일에서는 세 학년의 과목을 모두 찾지 못했습니다.");
+    }
+    if (!identity.academicYear && !identity.admissionYear) warnings.push("파일에서 기준 학년도를 찾지 못해 현재 연도를 사용했습니다. 입학년도를 확인해 주세요.");
+    warnings.push("머리글 의미와 셀 병합 패턴으로 유연하게 분석했습니다. 학교 지정 과목과 옵션별 선택 수를 저장 전에 확인해 주세요.");
+    const academicYear = identity.academicYear || new Date().getFullYear();
+    const uploadedAt = new Date().toISOString();
+    const makeCurriculum = (grades, admissionYear, sourceGrade = 0) => {
+      const allCourseNames = grades.flatMap((grade) => [...grade.common, ...grade.electives]);
+      return {
+        version: 6,
+        sourceFormat: "flexible-full-year",
+        sourceAcademicYear: academicYear,
+        sourceGrade,
+        sourceSheets: parsedSheets,
+        fileName: file.name,
+        schoolName: identity.schoolName,
+        region: identity.region,
+        admissionYear,
+        grades,
+        courseMetadata: Object.fromEntries(allCourseNames.map((course) => [curriculumCourseAliasKey(course), courseMetadata[curriculumCourseAliasKey(course)] || {}])),
+        courseCount: new Set(allCourseNames.map(curriculumCourseAliasKey)).size,
+        unlistedCourseCount: new Set(allCourseNames.filter((course) => !curriculumCourseReference(course)).map(curriculumCourseAliasKey)).size,
+        uploadedAt
+      };
+    };
+    const curricula = identity.admissionYear
+      ? [makeCurriculum(parsedGrades, identity.admissionYear)]
+      : parsedGrades.map((grade) => makeCurriculum([grade], academicYear - grade.grade + 1, grade.grade));
+    return {
+      version: 6,
+      sourceFormat: "flexible-full-year",
+      parseMode: "flexible-flat",
+      parseWarnings: warnings,
+      academicYear,
+      fileName: file.name,
+      schoolName: identity.schoolName,
+      region: identity.region,
+      curricula,
+      courseCount: curricula.reduce((sum, curriculum) => sum + curriculum.courseCount, 0),
+      unlistedCourseCount: curricula.reduce((sum, curriculum) => sum + curriculum.unlistedCourseCount, 0),
+      uploadedAt
+    };
+  }
+
   function uniqueCourseNames(values) {
     const result = [];
     const seen = new Set();
     values.forEach((value) => {
       parseMultiValue(value).forEach((course) => {
-        const key = normalizedCourseName(course);
+        const canonicalName = curriculumCourseReference(course)?.name || course.trim();
+        const key = curriculumCourseAliasKey(canonicalName);
         if (key && !seen.has(key)) {
           seen.add(key);
-          result.push(course.trim());
+          result.push(canonicalName);
         }
       });
     });
@@ -1358,14 +2964,21 @@
     if (!window.XLSX) throw new Error("엑셀 도구를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.");
     if (!/\.(xlsx|xls)$/i.test(file.name)) throw new Error(".xlsx 또는 .xls 파일만 업로드할 수 있습니다.");
     const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-    if (!workbook.SheetNames.includes("편제표")) throw new Error("'편제표' 시트를 찾을 수 없습니다. 표준 양식의 시트 이름을 바꾸지 말아 주세요.");
-    const matrix = sheetMatrix(workbook, "편제표");
-    if (matrix.length < 5) throw new Error("편제표 시트에 학교 정보와 과목 데이터가 없습니다.");
-    const headerRowIndex = matrix.findIndex((row) => {
+    const standardMatrix = workbook.SheetNames.includes("편제표") ? sheetMatrix(workbook, "편제표") : [];
+    const standardHeaderRowIndex = standardMatrix.findIndex((row) => {
       const cells = row.map(normalizedKey);
       return ["학년", "구분", "옵션", "선택수", "과목명"].every((header) => cells.includes(normalizedKey(header)));
     });
-    if (headerRowIndex < 0) throw new Error("편제표 시트에서 학년·구분·옵션·선택 수·과목명 머리글을 찾을 수 없습니다.");
+    if (standardHeaderRowIndex < 0) {
+      const fullYearCurriculum = parseSchoolFullYearCurriculumWorkbook(file, workbook);
+      if (fullYearCurriculum) return fullYearCurriculum;
+      const flexibleCurriculum = parseFlexibleFlatCurriculumWorkbook(file, workbook);
+      if (flexibleCurriculum) return flexibleCurriculum;
+      throw new Error("학년·학기·과목명·과목 유형·옵션·선택 수를 식별하지 못했습니다. 1·2·3학년 정보가 모두 있는 전학년 편제표인지 확인해 주세요.");
+    }
+    const matrix = standardMatrix;
+    if (matrix.length < 5) throw new Error("편제표 시트에 학교 정보와 과목 데이터가 없습니다.");
+    const headerRowIndex = standardHeaderRowIndex;
     const info = new Map();
     matrix.slice(0, headerRowIndex).forEach((row) => {
       row.forEach((cell, index) => {
@@ -1374,56 +2987,83 @@
       });
     });
     const schoolName = info.get(normalizedKey("학교명")) || "";
-    const region = info.get(normalizedKey("지역")) || "";
+    const parsedRegion = info.get(normalizedKey("지역")) || "";
+    const region = SCHOOL_REGIONS.includes(parsedRegion) ? parsedRegion : "";
     const admissionYear = Number(String(info.get(normalizedKey("입학년도")) || "").replace(/[^0-9]/g, ""));
     const headers = matrix[headerRowIndex].map((header) => normalizedKey(header));
     const columnIndex = (aliases) => headers.findIndex((header) => aliases.map(normalizedKey).includes(header));
     const gradeIndex = columnIndex(["학년"]);
+    const semesterIndex = columnIndex(["학기"]);
     const typeIndex = columnIndex(["구분", "과목 구분"]);
     const optionIndex = columnIndex(["옵션", "선택군"]);
     const chooseIndex = columnIndex(["선택 수", "선택수", "택"]);
     const courseIndex = columnIndex(["과목명", "교과목명", "교과목"]);
     const missing = [[gradeIndex, "학년"], [typeIndex, "구분"], [optionIndex, "옵션"], [chooseIndex, "선택 수"], [courseIndex, "과목명"]].filter(([index]) => index < 0).map(([, name]) => name);
     if (missing.length) throw new Error(`필수 열을 찾을 수 없습니다: ${missing.join(", ")}`);
-    if (!region) throw new Error("편제표 시트 위쪽의 지역을 입력해 주세요.");
-    if (!schoolName) throw new Error("편제표 시트 위쪽의 학교명을 입력해 주세요.");
-    if (!Number.isInteger(admissionYear) || admissionYear < 2022 || admissionYear > 2100) throw new Error("편제표 시트 위쪽의 입학년도를 2022~2100 사이 숫자로 입력해 주세요.");
+    if (![2026, 2025].includes(admissionYear)) throw new Error("편제표 시트 위쪽의 입학년도는 2026 또는 2025를 선택해 주세요.");
 
-    const gradeMap = new Map([1, 2, 3].map((grade) => [grade, { grade, common: [], electives: [], optionMap: new Map() }]));
+    const gradeMap = new Map([1, 2, 3].map((grade) => [grade, {
+      grade,
+      semesters: new Map([1, 2].map((semester) => [semester, {
+        semester,
+        common: grade === 1 ? [...FIRST_GRADE_COMMON_BY_SEMESTER[semester]] : [],
+        electives: [],
+        optionMap: new Map()
+      }]))
+    }]));
     const errors = [];
-    const commonRows = new Set();
+    const fixedRows = new Set();
     const optionRows = new Set();
     matrix.slice(headerRowIndex + 1).forEach((row, rowIndex) => {
       const courseNames = uniqueCourseNames([row[courseIndex]]);
       if (!courseNames.length) return;
       const excelRow = headerRowIndex + rowIndex + 2;
       const grade = Number(String(row[gradeIndex]).replace(/[^0-9]/g, ""));
+      const semester = semesterIndex < 0 ? 1 : Number(String(row[semesterIndex]).replace(/[^0-9]/g, ""));
       const rawType = compactText(row[typeIndex]);
-      const type = rawType.includes("공통") ? "공통" : rawType.includes("선택") ? "선택" : "";
+      const fixedType = rawType.includes("예술") ? "예술 추가"
+        : rawType.includes("학교") || rawType.includes("지정") ? "학교 지정"
+          : rawType.includes("공통") ? "공통" : "";
+      const type = fixedType ? "고정" : rawType.includes("선택") ? "선택" : "";
       const rawOption = compactText(row[optionIndex]);
       const optionMatch = rawOption.match(/^(?:옵션|선택군)?\s*(10|[1-9])$/);
       const optionLabel = optionMatch ? `옵션 ${Number(optionMatch[1])}` : "";
       const choose = Number(compactText(row[chooseIndex]));
       if (!gradeMap.has(grade)) errors.push(`${excelRow}행: 학년은 1, 2, 3 중 하나여야 합니다.`);
-      if (!type) errors.push(`${excelRow}행: 구분은 공통 또는 선택이어야 합니다.`);
+      if (![1, 2].includes(semester)) errors.push(`${excelRow}행: 학기는 1 또는 2여야 합니다.`);
+      if (!type) errors.push(`${excelRow}행: 구분은 공통(기본), 예술 추가, 학교 지정 또는 선택이어야 합니다.`);
       if (rawOption && !optionLabel) errors.push(`${excelRow}행: 옵션은 옵션 1부터 옵션 10까지만 사용할 수 있습니다.`);
       if (type === "선택" && !optionLabel) errors.push(`${excelRow}행: 선택 과목에는 옵션 1부터 옵션 10까지 중 하나를 입력해 주세요.`);
       if (optionLabel && (!Number.isInteger(choose) || choose < 1 || choose > 10)) errors.push(`${excelRow}행: 옵션 과목의 선택 수를 1~10 사이 숫자로 입력해 주세요.`);
-      if (!gradeMap.has(grade) || !type) return;
-      const target = gradeMap.get(grade);
-      if (type === "공통") {
-        if (commonRows.has(grade)) errors.push(`${excelRow}행: ${grade}학년 공통 과목은 한 행에 쉼표로 구분해 입력해 주세요.`);
-        commonRows.add(grade);
-        if (rawOption || row[chooseIndex] !== "") errors.push(`${excelRow}행: 공통 과목 행의 옵션과 선택 수는 비워 주세요.`);
+      if (fixedType === "예술 추가" && grade !== 1) errors.push(`${excelRow}행: 예술 추가 행은 1학년에서만 사용해 주세요.`);
+      if (!gradeMap.has(grade) || ![1, 2].includes(semester) || !type) return;
+      const target = gradeMap.get(grade).semesters.get(semester);
+      if (type === "고정") {
+        const fixedRowKey = `${grade}-${semester}-${fixedType}`;
+        if (fixedRows.has(fixedRowKey)) errors.push(`${excelRow}행: ${grade}학년 ${semester}학기 ${fixedType} 과목은 한 행에 쉼표로 구분해 입력해 주세요.`);
+        fixedRows.add(fixedRowKey);
+        if (rawOption || !["", "-"].includes(compactText(row[chooseIndex]))) errors.push(`${excelRow}행: ${fixedType} 행의 옵션은 비우고 선택 수는 '-'로 표시해 주세요.`);
+        if (fixedType === "공통" && grade === 1) {
+          const baseKeys = new Set(FIRST_GRADE_COMMON_BY_SEMESTER[semester].map(curriculumCourseAliasKey));
+          const extraBaseCourses = courseNames.filter((course) => !baseKeys.has(curriculumCourseAliasKey(course)));
+          if (extraBaseCourses.length) errors.push(`${excelRow}행: 1학년 기본 공통 행에는 과목을 추가하지 말고 '${extraBaseCourses.join(", ")}'은 예술 추가 행에 입력해 주세요.`);
+        }
+        if (fixedType === "예술 추가") {
+          const knownNonArtCourses = courseNames.filter((course) => {
+            const reference = curriculumCourseReference(course);
+            return reference && reference.category !== "예술";
+          });
+          if (knownNonArtCourses.length) errors.push(`${excelRow}행: 예술 추가 행에는 예술 교과만 입력할 수 있습니다: ${knownNonArtCourses.join(", ")}`);
+        }
         target.common.push(...courseNames);
       }
       else {
         target.electives.push(...courseNames);
         if (optionLabel) {
-          const optionRowKey = `${grade}-${optionLabel}`;
-          if (optionRows.has(optionRowKey)) errors.push(`${excelRow}행: ${grade}학년 ${optionLabel} 과목은 한 행에 쉼표로 구분해 입력해 주세요.`);
+          const optionRowKey = `${grade}-${semester}-${optionLabel}`;
+          if (optionRows.has(optionRowKey)) errors.push(`${excelRow}행: ${grade}학년 ${semester}학기 ${optionLabel} 과목은 한 행에 쉼표로 구분해 입력해 주세요.`);
           optionRows.add(optionRowKey);
-          if (!target.optionMap.has(optionLabel)) target.optionMap.set(optionLabel, { id: `option-${Number(optionMatch[1])}`, label: optionLabel, choose, courses: [] });
+          if (!target.optionMap.has(optionLabel)) target.optionMap.set(optionLabel, { id: `semester-${semester}-option-${Number(optionMatch[1])}`, label: optionLabel, choose, courses: [], semester });
           const option = target.optionMap.get(optionLabel);
           option.courses.push(...courseNames);
         }
@@ -1431,40 +3071,219 @@
     });
 
     const grades = [...gradeMap.values()].map((grade) => {
-      const options = [...grade.optionMap.values()].map((option) => ({ ...option, courses: uniqueCourseNames(option.courses) })).sort((a, b) => Number(a.id.replace("option-", "")) - Number(b.id.replace("option-", "")));
-      options.forEach((option) => {
-        if (option.choose > option.courses.length) errors.push(`${grade.grade}학년 ${option.label}: 선택 수(${option.choose})가 과목 수(${option.courses.length})보다 많습니다.`);
+      const semesters = [...grade.semesters.values()].map((semester) => {
+        const options = [...semester.optionMap.values()].map((option) => ({ ...option, courses: uniqueCourseNames(option.courses) })).sort((a, b) => Number(a.id.match(/option-(\d+)$/)?.[1] || 0) - Number(b.id.match(/option-(\d+)$/)?.[1] || 0));
+        options.forEach((option) => {
+          if (option.choose > option.courses.length) errors.push(`${grade.grade}학년 ${semester.semester}학기 ${option.label}: 선택 수(${option.choose})가 과목 수(${option.courses.length})보다 많습니다.`);
+        });
+        return { semester: semester.semester, common: uniqueCourseNames(semester.common), electives: uniqueCourseNames(semester.electives), options };
       });
-      return { grade: grade.grade, common: uniqueCourseNames(grade.common), electives: uniqueCourseNames(grade.electives), options };
+      return {
+        grade: grade.grade,
+        semesters,
+        common: uniqueCourseNames(semesters.flatMap((semester) => semester.common)),
+        electives: uniqueCourseNames(semesters.flatMap((semester) => semester.electives)),
+        options: semesters.flatMap((semester) => semester.options)
+      };
     });
-    const courseCount = new Set(grades.flatMap((grade) => [...grade.common, ...grade.electives]).map(normalizedCourseName)).size;
+    const allCourseNames = grades.flatMap((grade) => [...grade.common, ...grade.electives]);
+    const courseCount = new Set(allCourseNames.map(curriculumCourseAliasKey)).size;
+    const unlistedCourseCount = new Set(allCourseNames.filter((course) => !curriculumCourseReference(course)).map(curriculumCourseAliasKey)).size;
     if (!courseCount) errors.push("편제표에 입력된 과목이 없습니다.");
     if (errors.length) throw new Error(errors.slice(0, 6).join("\n"));
-    return { version: 2, fileName: file.name, schoolName, region, admissionYear, grades, courseCount, uploadedAt: new Date().toISOString() };
+    return { version: 4, fileName: file.name, schoolName, region, admissionYear, grades, courseCount, unlistedCourseCount, uploadedAt: new Date().toISOString() };
+  }
+
+  function pendingCurriculumItems() {
+    if (!state.pendingCurriculum) return [];
+    return Array.isArray(state.pendingCurriculum.curricula) ? state.pendingCurriculum.curricula : [state.pendingCurriculum];
+  }
+
+  function prepareCurriculumForEditing(curriculum) {
+    curriculum.grades = (Array.isArray(curriculum.grades) ? curriculum.grades : []).map((grade) => {
+      grade.semesters = (Array.isArray(grade.semesters) ? grade.semesters : []).map((semester) => {
+        semester.common = uniqueCourseNames(semester.common || []);
+        semester.options = (Array.isArray(semester.options) ? semester.options : []).map((option, optionIndex) => ({
+          ...option,
+          id: option.id || `semester-${semester.semester}-option-${optionIndex + 1}`,
+          label: compactText(option.label) || `옵션 ${optionIndex + 1}`,
+          choose: Number(option.choose) || 1,
+          semester: Number(semester.semester),
+          courses: uniqueCourseNames(option.courses || [])
+        }));
+        const optionKeys = new Set(semester.options.flatMap((option) => option.courses).map(curriculumCourseAliasKey));
+        if (!Array.isArray(semester.standalone)) {
+          semester.standalone = uniqueCourseNames(semester.electives || []).filter((course) => !optionKeys.has(curriculumCourseAliasKey(course)));
+        } else semester.standalone = uniqueCourseNames(semester.standalone);
+        semester.electives = uniqueCourseNames([...semester.standalone, ...semester.options.flatMap((option) => option.courses)]);
+        return semester;
+      }).sort((a, b) => a.semester - b.semester);
+      grade.common = uniqueCourseNames(grade.semesters.flatMap((semester) => semester.common));
+      grade.electives = uniqueCourseNames(grade.semesters.flatMap((semester) => semester.electives));
+      grade.options = grade.semesters.flatMap((semester) => semester.options);
+      return grade;
+    }).sort((a, b) => a.grade - b.grade);
+    const allCourseNames = curriculum.grades.flatMap((grade) => [...grade.common, ...grade.electives]);
+    curriculum.courseCount = new Set(allCourseNames.map(curriculumCourseAliasKey).filter(Boolean)).size;
+    curriculum.unlistedCourseCount = new Set(allCourseNames.filter((course) => !curriculumCourseReference(course)).map(curriculumCourseAliasKey)).size;
+    return curriculum;
+  }
+
+  function preparePendingCurriculumForEditing() {
+    const pending = state.pendingCurriculum;
+    if (!pending) return [];
+    const curricula = pendingCurriculumItems().map(prepareCurriculumForEditing);
+    if (Array.isArray(pending.curricula)) {
+      pending.curricula = curricula;
+      pending.courseCount = curricula.reduce((sum, curriculum) => sum + curriculum.courseCount, 0);
+      pending.unlistedCourseCount = curricula.reduce((sum, curriculum) => sum + curriculum.unlistedCourseCount, 0);
+      pending.schoolName = curricula[0]?.schoolName || pending.schoolName;
+      pending.region = curricula[0]?.region || pending.region;
+    }
+    return curricula;
+  }
+
+  function curriculumEditorContext(curriculumIndex, gradeNumber, semesterNumber) {
+    const curriculum = pendingCurriculumItems()[Number(curriculumIndex)];
+    const grade = curriculum?.grades.find((entry) => entry.grade === Number(gradeNumber));
+    const semester = grade?.semesters.find((entry) => entry.semester === Number(semesterNumber));
+    return curriculum && grade && semester ? { curriculum, grade, semester } : null;
+  }
+
+  function curriculumEditorCourseList(context, lane, optionIndex) {
+    if (!context) return null;
+    if (lane === "common") return context.semester.common;
+    if (lane === "standalone") return context.semester.standalone;
+    if (lane === "option") return context.semester.options[Number(optionIndex)]?.courses || null;
+    return null;
+  }
+
+  function curriculumEditorDataAttributes(curriculumIndex, grade, semester, lane, optionIndex = "") {
+    return `data-curriculum-index="${curriculumIndex}" data-curriculum-grade="${grade}" data-curriculum-semester="${semester}" data-curriculum-lane="${lane}"${optionIndex === "" ? "" : ` data-curriculum-option-index="${optionIndex}"`}`;
+  }
+
+  function curriculumEditorCourseMarkup(course, courseIndex, attributes, courseMetadata = {}) {
+    const reference = curriculumCourseReference(course);
+    const isUnlisted = !reference;
+    const metadata = courseMetadata[curriculumCourseAliasKey(course)] || {};
+    const referenceType = reference?.row ? courseBadge(reference.row)?.label : "";
+    const detail = [metadata.category || reference?.category, metadata.type || referenceType].filter(Boolean).join(" · ");
+    return `<div class="curriculum-editor-course ${isUnlisted ? "is-unlisted" : ""}" draggable="true" data-curriculum-course-drag data-course-index="${courseIndex}" ${attributes} title="드래그하여 다른 영역으로 이동">
+      <span class="curriculum-course-grip" aria-hidden="true">⠿</span>
+      <button type="button" data-edit-curriculum-course><strong>${escapeHtml(course)}</strong></button>
+      <button class="curriculum-course-meta" type="button" data-edit-curriculum-course-meta>${isUnlisted ? "고시 외 과목" : ""}${isUnlisted && detail ? " · " : ""}${escapeHtml(detail || (isUnlisted ? "" : "분류 정보 확인"))}</button>
+      <button class="curriculum-course-remove" type="button" data-remove-curriculum-course aria-label="${escapeHtml(course)} 삭제">×</button>
+    </div>`;
+  }
+
+  function curriculumEditorLaneMarkup({ curriculumIndex, grade, semester, lane, optionIndex = "", title, courses, addLabel = "과목 추가" }) {
+    const attributes = curriculumEditorDataAttributes(curriculumIndex, grade, semester, lane, optionIndex);
+    const courseMetadata = pendingCurriculumItems()[curriculumIndex]?.courseMetadata || {};
+    return `<section class="curriculum-editor-lane ${lane === "option" ? "is-option" : ""}">
+      ${title ? `<header><strong>${escapeHtml(title)}</strong><span>${courses.length}과목</span></header>` : ""}
+      <div class="curriculum-course-dropzone ${courses.length ? "" : "is-empty"}" data-curriculum-course-dropzone ${attributes}>
+        ${courses.length ? courses.map((course, courseIndex) => curriculumEditorCourseMarkup(course, courseIndex, attributes, courseMetadata)).join("") : "<p>과목을 이곳에 끌어 놓으세요.</p>"}
+      </div>
+      <button class="curriculum-add-course" type="button" data-add-curriculum-course ${attributes}>＋ ${escapeHtml(addLabel)}</button>
+    </section>`;
+  }
+
+  function curriculumEditorSemesterMarkup(curriculum, curriculumIndex, grade, semester) {
+    const fixedLabel = grade.grade === 1 ? "공통·학교 지정 과목" : "학교 지정 과목";
+    const commonLane = curriculumEditorLaneMarkup({
+      curriculumIndex,
+      grade: grade.grade,
+      semester: semester.semester,
+      lane: "common",
+      title: fixedLabel,
+      courses: semester.common
+    });
+    const standaloneLane = semester.standalone.length ? curriculumEditorLaneMarkup({
+      curriculumIndex,
+      grade: grade.grade,
+      semester: semester.semester,
+      lane: "standalone",
+      title: "개별 선택 과목",
+      courses: semester.standalone
+    }) : "";
+    const optionMarkup = semester.options.map((option, optionIndex) => {
+      const attributes = curriculumEditorDataAttributes(curriculumIndex, grade.grade, semester.semester, "option", optionIndex);
+      return `<article class="curriculum-option-editor">
+        <header>
+          <label><span>옵션명</span><input type="text" value="${escapeHtml(option.label)}" data-curriculum-option-label ${attributes}></label>
+          <label class="curriculum-choose-field"><span>선택 수</span><span class="curriculum-choose-input"><b>택</b><input type="number" min="1" max="${Math.max(1, option.courses.length)}" value="${option.choose}" inputmode="numeric" data-curriculum-option-choose ${attributes}></span></label>
+          <button type="button" data-remove-curriculum-option ${attributes} aria-label="${escapeHtml(option.label)} 삭제">옵션 삭제</button>
+        </header>
+        ${curriculumEditorLaneMarkup({ curriculumIndex, grade: grade.grade, semester: semester.semester, lane: "option", optionIndex, courses: option.courses, addLabel: "선택 과목 추가" })}
+      </article>`;
+    }).join("");
+    return `<article class="curriculum-semester-editor">
+      <header><div><small>${grade.grade}학년</small><h5>${semester.semester}학기</h5></div><span>학교 지정 ${semester.common.length} · 선택 옵션 ${semester.options.length}</span></header>
+      ${commonLane}
+      ${standaloneLane}
+      <div class="curriculum-options-editor">${optionMarkup || '<p class="curriculum-no-options">학생 선택 옵션이 없습니다.</p>'}</div>
+      <button class="curriculum-add-option" type="button" data-add-curriculum-option data-curriculum-index="${curriculumIndex}" data-curriculum-grade="${grade.grade}" data-curriculum-semester="${semester.semester}">＋ 선택 옵션 추가</button>
+    </article>`;
+  }
+
+  function validatePendingCurriculumEdits() {
+    const curricula = preparePendingCurriculumForEditing();
+    const errors = [];
+    const years = new Set();
+    curricula.forEach((curriculum) => {
+      if (!/^.+고등학교$/u.test(compactText(curriculum.schoolName))) errors.push("학교명은 '고등학교'로 끝나야 합니다.");
+      if (!SCHOOL_REGIONS.includes(curriculum.region)) errors.push("학교 지역을 선택해 주세요.");
+      if (!Number.isInteger(Number(curriculum.admissionYear)) || Number(curriculum.admissionYear) < 2000 || Number(curriculum.admissionYear) > 2100) errors.push("입학년도는 네 자리 숫자로 입력해 주세요.");
+      if (years.has(Number(curriculum.admissionYear))) errors.push("입학년도가 서로 중복됩니다.");
+      years.add(Number(curriculum.admissionYear));
+      if (!curriculum.courseCount) errors.push(`${curriculum.admissionYear || "해당"} 입학생 편제표에 과목이 없습니다.`);
+      curriculum.grades.forEach((grade) => grade.semesters.forEach((semester) => semester.options.forEach((option) => {
+        if (!compactText(option.label)) errors.push(`${grade.grade}학년 ${semester.semester}학기 옵션명이 비어 있습니다.`);
+        if (!option.courses.length) errors.push(`${grade.grade}학년 ${semester.semester}학기 ${option.label}에 과목이 없습니다.`);
+        if (!Number.isInteger(Number(option.choose)) || Number(option.choose) < 1 || Number(option.choose) > option.courses.length) {
+          errors.push(`${grade.grade}학년 ${semester.semester}학기 ${option.label}의 선택 수는 1~${option.courses.length || 1} 사이여야 합니다.`);
+        }
+      })));
+    });
+    if (errors.length) throw new Error([...new Set(errors)].slice(0, 5).join(" "));
+    return curricula;
   }
 
   function curriculumPreviewMarkup() {
     const pending = state.pendingCurriculum;
     if (!pending) return "";
+    const curricula = preparePendingCurriculumForEditing();
+    const isBatch = curricula.length > 1;
     const canPublish = Boolean(state.schoolUser && state.accessRole);
-    const publishLabel = state.curriculumBusy ? "Supabase에 저장 중" : state.accessRole === "admin" ? "새로 등록 · 기존 내용 수정" : "새 편제표 등록";
+    const publishLabel = state.curriculumBusy ? "Supabase에 저장 중"
+      : isBatch ? `${curricula.length}개 입학년도 편제표 등록 · 교체`
+        : "편제표 등록 · 교체";
     return `<section class="curriculum-upload-preview">
-      <header><div><small>UPLOAD PREVIEW</small><h3>${escapeHtml(pending.schoolName)} 편제표</h3></div><span>${pending.admissionYear}학년도 입학생</span></header>
-      <div class="curriculum-preview-grades">${pending.grades.map((grade) => `<div><strong>${grade.grade}학년</strong><span>공통 ${grade.common.length} · 선택 ${grade.electives.length} · 옵션 ${grade.options.length}</span></div>`).join("")}</div>
-      <p>${escapeHtml(pending.fileName)} · 중복 제외 총 ${pending.courseCount.toLocaleString("ko-KR")}개 교과</p>
+      <header><div><small>${isBatch ? "FULL-YEAR PARSE REVIEW" : "UPLOAD REVIEW"}</small><h3>파싱 결과 확인 및 수정</h3><p>과목명을 누르면 수정할 수 있고, 손잡이를 끌어 학기·옵션 사이 배치를 바꿀 수 있습니다.</p></div><span>${escapeHtml(pending.fileName)}</span></header>
+      <div class="curriculum-editor-school-fields">
+        <label><span>학교명</span><input type="text" value="${escapeHtml(curricula[0]?.schoolName || pending.schoolName)}" placeholder="예: ○○고등학교" data-curriculum-school-name></label>
+        <label><span>지역</span><select data-curriculum-region-edit><option value="">지역을 선택하세요</option>${SCHOOL_REGIONS.map((regionName) => `<option value="${escapeHtml(regionName)}" ${(curricula[0]?.region || pending.region) === regionName ? "selected" : ""}>${escapeHtml(regionName)}</option>`).join("")}</select></label>
+        <div><span>파싱 현황</span><strong>총 ${pending.courseCount.toLocaleString("ko-KR")}과목</strong><small>${pending.unlistedCourseCount ? `고시 외 ${pending.unlistedCourseCount.toLocaleString("ko-KR")}과목` : "모든 과목이 앱 DB와 연결됨"}</small></div>
+      </div>
+      ${Array.isArray(pending.parseWarnings) && pending.parseWarnings.length ? `<aside class="curriculum-parse-warning" role="status">${icon("warning")}<div><strong>유연 분석 결과를 확인하세요.</strong>${pending.parseWarnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div></aside>` : ""}
+      <div class="curriculum-editor-cohorts">${curricula.map((curriculum, curriculumIndex) => `<article class="curriculum-editor-cohort">
+        <header><div><small>${curriculum.sourceAcademicYear ? `${curriculum.sourceAcademicYear}학년도 원본${curriculum.sourceGrade ? ` · 당시 ${curriculum.sourceGrade}학년` : ""}` : "표준 연동 양식"}</small><h4><label><input type="number" min="2000" max="2100" value="${curriculum.admissionYear}" data-curriculum-admission-year data-curriculum-index="${curriculumIndex}"><span>년 입학생</span></label></h4></div><span>${curriculum.courseCount}과목${curriculum.unlistedCourseCount ? ` · 고시 외 ${curriculum.unlistedCourseCount}` : ""}</span></header>
+        <div class="curriculum-editor-grades">${curriculum.grades.map((grade) => `<section class="curriculum-grade-editor"><header><strong>${grade.grade}학년 편제</strong><span>${grade.common.length + grade.electives.length}과목 · 선택 옵션 ${grade.options.length}</span></header><div>${grade.semesters.map((semester) => curriculumEditorSemesterMarkup(curriculum, curriculumIndex, grade, semester)).join("")}</div></section>`).join("")}</div>
+      </article>`).join("")}</div>
+      <aside class="curriculum-editor-legend"><span><i></i> 앱 과목 안내와 연결</span><span class="is-unlisted"><i></i> 고시 외 과목 · 입력명 그대로 저장</span><small>드래그 이동과 직접 수정은 이 미리보기에만 적용되며, 아래 등록 버튼을 눌러야 저장됩니다.</small></aside>
       <div class="admin-button-row"><button class="primary-action" type="button" data-publish-curriculum ${state.curriculumBusy || !canPublish ? "disabled" : ""}>${publishLabel}</button><button class="text-action" type="button" data-clear-curriculum-preview>미리보기 닫기</button></div>
-      ${!canPublish ? '<small class="preview-help">담당 교사 또는 관리자로 권한을 확인하면 등록할 수 있습니다.</small>' : state.accessRole === "admin" ? '<small class="preview-help">관리자는 새 편제표를 등록하고 같은 학교·입학년도의 기존 내용을 수정할 수 있습니다.</small>' : '<small class="preview-help">담당 교사는 새 편제표만 등록할 수 있으며 기존 내용은 수정할 수 없습니다.</small>'}
+      ${!canPublish ? '<small class="preview-help">담당 교사 또는 관리자로 권한을 확인하면 등록할 수 있습니다.</small>' : '<small class="preview-help">같은 학교·입학년도의 편제표가 이미 있으면 이번에 검토한 새 내용으로 교체됩니다.</small>'}
     </section>`;
   }
 
   function schoolAuthMarkup() {
     if (!schoolStore?.isConfigured?.()) return `<div class="connection-empty">${icon("database")}<div><strong>Supabase 설정이 필요합니다.</strong><p><code>supabase-config.js</code>에 Project URL과 Publishable key를 입력하면 등록 권한 확인이 활성화됩니다.</p></div></div>`;
     if (!state.schoolUser || !state.accessRole) return `<div class="school-access-login">
-      <form class="school-login-form teacher-login-form" data-teacher-login-form><div><small>TEACHER ACCESS</small><h3>담당 교사 · 새 데이터 등록</h3><p>설정된 관리 비밀번호만 입력하세요.</p></div><label><span>관리 비밀번호</span><input type="password" name="password" autocomplete="current-password" required placeholder="관리 비밀번호"></label><button class="primary-action" type="submit">등록 권한 확인</button></form>
+      <form class="school-login-form teacher-login-form" data-teacher-login-form><div><small>TEACHER ACCESS</small><h3>담당 교사 · 데이터 등록</h3><p>설정된 관리 비밀번호만 입력하세요. 같은 학교·입학년도는 새 업로드로 교체됩니다.</p></div><label><span>관리 비밀번호</span><input type="password" name="password" autocomplete="current-password" required placeholder="관리 비밀번호"></label><button class="primary-action" type="submit">등록 권한 확인</button></form>
       <form class="school-login-form admin-login-form" data-admin-login-form><div><small>ADMIN ACCESS</small><h3>관리자 · 수정 및 삭제</h3><p>관리자 계정으로 로그인하세요.</p></div><label><span>관리자 이메일</span><input type="email" name="email" autocomplete="username" required placeholder="admin@example.com"></label><label><span>비밀번호</span><input type="password" name="password" autocomplete="current-password" required placeholder="비밀번호"></label><button class="secondary-action" type="submit">관리자 로그인</button></form>
     </div>`;
     const isAdmin = state.accessRole === "admin";
-    return `<div class="signed-school-user ${isAdmin ? "is-admin" : "is-teacher"}"><span>${icon("user")}</span><div><small>${isAdmin ? "ADMIN" : "TEACHER"}</small><strong>${isAdmin ? "관리자 권한으로 로그인됨" : "담당 교사 등록 권한 확인됨"}</strong><p>${isAdmin ? "기존 편제표를 수정·삭제하고 새 데이터를 등록할 수 있습니다." : "새 학교·새 입학년도 편제표만 등록할 수 있습니다."}</p></div><button class="text-action" type="button" data-school-signout>로그아웃</button></div>`;
+    return `<div class="signed-school-user ${isAdmin ? "is-admin" : "is-teacher"}"><span>${icon("user")}</span><div><small>${isAdmin ? "ADMIN" : "TEACHER"}</small><strong>${isAdmin ? "관리자 권한으로 로그인됨" : "담당 교사 등록 권한 확인됨"}</strong><p>${isAdmin ? "편제표를 등록·교체·삭제할 수 있습니다." : "편제표를 등록하고 같은 학교·입학년도 자료를 교체할 수 있습니다."}</p></div><button class="text-action" type="button" data-school-signout>로그아웃</button></div>`;
   }
 
   function renderAdmin() {
@@ -1473,22 +3292,27 @@
       ${pageHead("데이터 연동", "학교별 편제표 양식을 내려받아 작성하고 DB에 연결합니다.", state.schools.length, "연동 학교")}
       <div class="school-integration-layout">
         <section class="admin-card school-upload-card" aria-busy="${state.curriculumBusy}">
-          <div class="admin-section-head"><div><p class="section-kicker">SCHOOL CURRICULUM</p><h2>학교 편제표 등록</h2></div><span>.xlsx · .xls</span></div>
+          <div class="admin-section-head"><div><p class="section-kicker">SCHOOL CURRICULUM</p><h2>학교 편제표 등록</h2></div></div>
           ${schoolAuthMarkup()}
-          <div class="template-download-panel"><span>${icon("download")}</span><div><strong>학교 편제표 표준 양식 다운로드</strong><p>편제표 한 시트에 학교 정보와 학년별 공통·옵션 과목을 작성합니다.</p></div><button class="primary-action" type="button" data-download-curriculum-template>양식 다운로드</button></div>
+          <div class="template-download-panel"><span>${icon("download")}</span><div><strong>학교 편제표 표준 양식 다운로드</strong><p>1학년 기본 공통 과목은 자동 입력되어 있습니다. 예술 추가 과목과 2·3학년 학교 지정·선택 과목을 작성합니다.</p></div><button class="primary-action" type="button" data-download-curriculum-template>양식 다운로드</button></div>
+          <aside class="curriculum-format-notice" role="note">${icon("warning")}<p><strong>업로드 자료를 확인하세요.</strong><span>신입생 편제표가 아닌, <mark>전학년</mark> 편제표를 업로드 하세요.<br>학교별 셀 위치가 달라도 교과군·과목 유형·학년·학기·옵션·선택 수 머리글과 ‘택 N’ 표시를 찾아 분석합니다.</span></p></aside>
           <label class="upload-zone curriculum-upload-zone ${state.curriculumBusy ? "is-busy" : ""}">
             <input type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" data-curriculum-input ${state.curriculumBusy ? "disabled" : ""}>
             <span class="upload-icon">${icon("upload")}</span>
-            <strong>${state.curriculumBusy ? "편제표를 처리하고 있습니다" : "작성한 학교 편제표 업로드"}</strong>
-            <small>업로드 후 학년별 과목 수와 옵션 규칙을 먼저 검증합니다.</small>
+            <strong>${state.curriculumBusy ? "편제표를 처리하고 있습니다" : "표준 양식 또는 전학년 편제표 업로드"}</strong>
+            <small>파일을 먼저 분석한 뒤 학교명·지역·입학년도와 모든 과목 배치를 최종 확인하고 수정할 수 있습니다.</small>
           </label>
           ${state.curriculumImportMessage ? `<p class="import-message ${state.pendingCurriculum ? "" : "is-error"}" role="status">${escapeHtml(state.curriculumImportMessage)}</p>` : ""}
           ${curriculumPreviewMarkup()}
         </section>
         <aside class="admin-card connected-schools-card">
           <div class="admin-section-head"><div><p class="section-kicker">CONNECTED SCHOOLS</p><h2>현재 연동 학교</h2></div><span>${state.schools.length.toLocaleString("ko-KR")}곳</span></div>
-          <div class="connected-school-list">${state.schools.length ? state.schools.map((school, index) => `<button type="button" class="${state.selectedSchool?.id === school.id ? "is-selected" : ""}" data-school-id="${escapeHtml(school.id)}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.region || "지역 정보 없음")}</small></div>${icon("arrow")}</button>`).join("") : `<div class="connected-schools-empty">${icon("school")}<strong>연동된 학교가 없습니다.</strong><p>학교 편제표를 업로드하면 연동된 학교 목록에 자동으로 표시됩니다.</p></div>`}</div>
-          ${state.selectedSchool ? `<div class="active-school-summary"><small>현재 선택 학교</small><strong>${escapeHtml(state.selectedSchool.name)}</strong><span>${state.curriculum ? `${escapeHtml(state.curriculum.admissionYear || "-")}학년도 편제표 연동됨` : "공개된 편제표 없음"}</span>${state.accessRole === "admin" && state.curriculum?.id ? `<button class="danger-action" type="button" data-delete-curriculum data-curriculum-id="${escapeHtml(state.curriculum.id)}">현재 편제표 삭제</button>` : ""}</div>` : ""}
+          <div class="connected-school-list">${state.schools.length ? state.schools.map((school, index) => {
+            const selected = state.selectedSchool?.id === school.id;
+            const years = schoolAdmissionYears(school);
+            return `<button type="button" class="${selected ? "is-selected" : ""}" data-school-id="${escapeHtml(school.id)}"><span>${String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(school.name)}</strong><small>${escapeHtml(school.region || "지역 정보 없음")} · ${years.length ? `입학년도 ${years.join(", ")}` : "등록 편제표 없음"}</small></div>${icon("arrow")}</button>${selected ? schoolAdmissionYearOptionsMarkup(school) : ""}`;
+          }).join("") : `<div class="connected-schools-empty">${icon("school")}<strong>연동된 학교가 없습니다.</strong><p>학교 편제표를 업로드하면 연동된 학교 목록에 자동으로 표시됩니다.</p></div>`}</div>
+          ${state.selectedSchool ? `<div class="active-school-summary"><small>현재 선택 학교·입학년도</small><strong>${escapeHtml(state.selectedSchool.name)}</strong><span>${state.curriculum ? `${escapeHtml(state.curriculum.admissionYear || "-")}학년도 편제표 연동됨` : schoolAdmissionYears(state.selectedSchool).length ? "입학년도를 선택해 주세요." : "공개된 편제표 없음"}</span>${state.accessRole === "admin" && state.curriculum?.id ? `<button class="danger-action" type="button" data-delete-curriculum data-curriculum-id="${escapeHtml(state.curriculum.id)}">현재 편제표 삭제</button>` : ""}</div>` : ""}
         </aside>
       </div>`;
   }
@@ -1865,6 +3689,8 @@
   function openRecord(index) {
     const row = state.dataset.rows[index];
     if (!row) return;
+    state.dialogRecordIndex = index;
+    state.dialogDepartmentId = "";
     detailDialog.classList.remove("is-major-dialog", "is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog");
     state.dialogReturnToRecommend = false;
     const courseName = valueAt(row, COLUMN_ALIASES.courseName);
@@ -1883,6 +3709,7 @@
       const csat = valueAt(row, COLUMN_ALIASES.csat);
 
       detailContent.innerHTML = `
+        <div class="detail-print-row">${printActionMarkup("subject", index)}</div>
         <p class="dialog-kicker">COURSE GUIDE · ${escapeHtml(category || "과목 안내")}</p>
         <h2 id="record-dialog-title">${escapeHtml(courseName)}</h2>
         <div class="course-dialog-badges">${[courseType, series, courseClass, selectionType].filter(Boolean).map((value) => `<span>${escapeHtml(value)}</span>`).join("")}</div>
@@ -1901,17 +3728,333 @@
 
     const title = valueAt(row, COLUMN_ALIASES.department) || displayValue(row[state.dataset.columns[0]]) || "상세 정보";
     detailContent.innerHTML = `
+      <div class="detail-print-row">${printActionMarkup("subject", index)}</div>
       <p class="dialog-kicker">DATABASE RECORD</p>
       <h2 id="record-dialog-title">${escapeHtml(title)}</h2>
       <dl class="record-detail-list">${state.dataset.columns.map((column) => `<div><dt>${escapeHtml(column)}</dt><dd>${escapeHtml(displayValue(row[column])) || '<span class="empty-cell">정보 없음</span>'}</dd></div>`).join("")}</dl>`;
     if (!detailDialog.open) detailDialog.showModal();
   }
 
+  function printableCourseGroupsMarkup(subjects, options = {}) {
+    const normalized = (subjects || []).map((subject) => typeof subject === "string" ? { name: subject } : subject).filter((subject) => compactText(subject?.name));
+    const groups = groupedRecommendationSubjects(normalized);
+    return groups.length ? `<div class="platform-print-course-groups">${groups.map((group) => `<section><header><strong>${escapeHtml(group.category)}</strong><span>${group.entries.length}과목</span></header><div>${group.entries.map((subject) => {
+      const universityCount = Array.isArray(subject.universities) ? subject.universities.length : Number(subject.universityCount) || 0;
+      return `<span><b>${escapeHtml(subject.name)}</b>${options.showUniversities && universityCount ? `<small>${universityCount}개 대학</small>` : ""}</span>`;
+    }).join("")}</div></section>`).join("")}</div>` : '<p class="platform-print-empty">해당하는 과목이 없습니다.</p>';
+  }
+
+  function subjectPrintMarkup(index) {
+    const row = state.dataset.rows[index];
+    if (!row) return null;
+    const courseName = compactText(valueAt(row, COLUMN_ALIASES.courseName)) || compactText(valueAt(row, COLUMN_ALIASES.department)) || "과목 상세 정보";
+    const category = normalizeCourseGroup(valueAt(row, COLUMN_ALIASES.category));
+    const courseType = compactText(valueAt(row, COLUMN_ALIASES.courseType));
+    const courseClass = compactText(valueAt(row, COLUMN_ALIASES.courseClass));
+    const selectionType = compactText(valueAt(row, COLUMN_ALIASES.selectionType));
+    const description = compactText(valueAt(row, COLUMN_ALIASES.description));
+    const recommendation = compactText(valueAt(row, COLUMN_ALIASES.recommendation));
+    const topics = courseTopics(valueAt(row, COLUMN_ALIASES.mainContent));
+    const faqs = [valueAt(row, COLUMN_ALIASES.faq1), valueAt(row, COLUMN_ALIASES.faq2)].filter((value) => compactText(value)).map(faqParts);
+    const facts = [
+      ["교과군", category || "정보 없음"],
+      ["과목 유형", courseType || "정보 없음"],
+      ["과목 구분", courseClass || "정보 없음"],
+      ["성취도", compactText(valueAt(row, COLUMN_ALIASES.achievement)) || "정보 없음"],
+      ["석차등급", compactText(valueAt(row, COLUMN_ALIASES.rankGrade)) || "정보 없음"],
+      ["수능 출제", compactText(valueAt(row, COLUMN_ALIASES.csat)) || "정보 없음"]
+    ];
+    return {
+      title: courseName,
+      subtitle: `${category} · 2022 개정 교육과정 과목 안내`,
+      body: `<section class="platform-print-detail platform-print-subject"><div class="platform-print-title"><p>COURSE GUIDE</p><h1>${escapeHtml(courseName)}</h1><div>${[courseType, courseClass, selectionType].filter(Boolean).map((value) => `<span>${escapeHtml(value)}</span>`).join("")}</div></div><dl class="platform-print-facts">${facts.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl><div class="platform-print-detail-grid">${description ? `<section><h2>이 과목은 어떤 과목인가요?</h2><p>${escapeHtml(description)}</p></section>` : ""}${recommendation ? `<section><h2>이 과목을 누구에게 추천하나요?</h2><p>${escapeHtml(recommendation)}</p></section>` : ""}${topics.length ? `<section><h2>과목의 주요 내용</h2><ul>${topics.map((topic) => `<li>${escapeHtml(topic)}</li>`).join("")}</ul></section>` : ""}${faqs.length ? `<section><h2>더 알아보기</h2>${faqs.map((faq) => `<article><h3>${escapeHtml(faq.question)}</h3><p>${escapeHtml(faq.answer)}</p></article>`).join("")}</section>` : ""}</div></section>`
+    };
+  }
+
+  function departmentPrintMarkup(id) {
+    const department = departmentById(id);
+    if (!department) return null;
+    const books = [...(department.recommendedBooks || [])].sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "ko") || String(a.author || "").localeCompare(String(b.author || ""), "ko"));
+    const printedBooks = books.slice(0, 8);
+    const recommendedBooksMarkup = `<section class="platform-print-book-guide"><small>04 · RECOMMENDED BOOKS</small><div class="platform-print-book-heading"><h2>권장 도서</h2><em>${books.length}</em></div>${printedBooks.length ? `<div class="platform-print-book-list">${printedBooks.map((book) => `<div><strong>${escapeHtml(book.title)}</strong><span>${escapeHtml(book.author || "저자 정보 없음")}</span>${recommendedBookUniversityBadgesMarkup(book.universities, "platform-print-book-universities")}</div>`).join("")}</div>${books.length > printedBooks.length ? `<p class="platform-print-book-more">외 ${books.length - printedBooks.length}권은 화면에서 확인할 수 있습니다.</p>` : ""}` : '<p class="platform-print-empty">등록된 권장 도서가 없습니다.</p>'}</section>`;
+    return {
+      title: department.name,
+      subtitle: `${department.field} 분야 · 학과 안내`,
+      body: `<section class="platform-print-detail platform-print-department"><div class="platform-print-title"><p>${escapeHtml(department.field.toLocaleUpperCase("ko"))} FIELD · DEPARTMENT GUIDE</p><h1>${escapeHtml(department.name)}</h1></div><div class="platform-print-guide-grid">${department.guide?.overview ? `<section><small>01 · OVERVIEW</small><h2>학과 개요</h2><p>${escapeHtml(department.guide.overview)}</p></section>` : ""}${department.guide?.aptitude ? `<section><small>02 · APTITUDE</small><h2>흥미와 적성</h2><p>${escapeHtml(department.guide.aptitude)}</p></section>` : ""}${department.guide?.careers ? `<section><small>03 · CAREER</small><h2>졸업 후 진출 분야</h2><p>${escapeHtml(department.guide.careers)}</p></section>` : ""}${recommendedBooksMarkup}</div><section class="platform-print-course-section"><header><div><small>RELATED COURSES</small><h2>관련 과목</h2></div><em>${department.relatedSubjects.length}</em></header>${printableCourseGroupsMarkup(department.relatedSubjects)}</section>${department.reflectedSubjects.length ? `<section class="platform-print-course-section is-reflected"><header><div><small>ADMISSION REFLECTION</small><h2>반영 과목</h2></div><em>${department.reflectedSubjects.length}</em></header>${printableCourseGroupsMarkup(department.reflectedSubjects, { showUniversities: true })}</section>` : ""}${department.scienceRecommendedSubjects.length ? `<section class="platform-print-course-section is-science"><header><div><small>SCIENCE RECOMMENDATION</small><h2>과학 권장 과목</h2></div><em>${department.scienceRecommendedSubjects.length}</em></header>${printableCourseGroupsMarkup(department.scienceRecommendedSubjects, { showUniversities: true })}</section>` : ""}<p class="platform-print-note">권장 도서와 대학별 반영·권장 정보는 제공된 엑셀 DB를 기준으로 표시합니다.</p></section>`
+    };
+  }
+
+  function recommendationPrintMarkup() {
+    const groups = recommendFinalGroups();
+    const departments = selectedRecommendDepartments();
+    const total = new Set(groups.flatMap((group) => group.entries.map((entry) => entry.key))).size;
+    return {
+      title: "나만의 과목 추천 결과",
+      subtitle: `${state.recommendField || "관심 분야"} · 추천 ${total}과목`,
+      body: `<section class="platform-print-detail platform-print-recommendation"><div class="platform-print-title"><p>MY COURSE RECOMMENDATION</p><h1>나만의 과목 추천 결과</h1></div><div class="platform-print-choice-summary"><span><small>관심 분야</small><strong>${escapeHtml(state.recommendField || "선택 안 함")}</strong></span><span><small>관심 학과</small><strong>${escapeHtml(departments.map((department) => department.name).join(" · ") || "선택 안 함")}</strong></span><span><small>관심 키워드</small><strong>${state.recommendKeywords.length ? state.recommendKeywords.map((keyword) => `#${escapeHtml(keyword)}`).join(" ") : "입력하지 않음"}</strong></span></div><div class="platform-print-recommendation-groups">${groups.map((group, index) => `<section><header><span>${String(index + 1).padStart(2, "0")}</span><div><small>PRIORITY</small><h2>${escapeHtml(group.label)}</h2><p>${escapeHtml(group.description)}</p></div><em>${group.entries.length}</em></header>${printableCourseGroupsMarkup(group.entries)}</section>`).join("")}</div><aside class="platform-print-warning">${icon("warning")}<strong>과목 추천은 정답이 아닙니다. 꼭 담임 선생님과 검토하세요.</strong></aside></section>`
+    };
+  }
+
+  function ensurePlatformPrintRoot() {
+    let printRoot = document.querySelector("[data-platform-print-root]");
+    if (!printRoot) {
+      printRoot = document.createElement("div");
+      printRoot.className = "platform-print-root";
+      printRoot.dataset.platformPrintRoot = "";
+      document.body.append(printRoot);
+    }
+    return printRoot;
+  }
+
+  function platformPrintDocumentMarkup(documentData) {
+    return `<article class="platform-print-document"><header class="platform-print-brand"><div><span>${icon("school")}</span><strong>선택 과목 안내 플랫폼</strong></div><div><b>${escapeHtml(documentData.title)}</b><small>${escapeHtml(documentData.subtitle || "")}</small></div></header>${documentData.body}<footer class="platform-print-footer"><span>선택 과목 안내 플랫폼</span><small>${new Intl.DateTimeFormat("ko-KR", { dateStyle: "long" }).format(new Date())}</small></footer></article>`;
+  }
+
+  function platformExportFileName(title, extension) {
+    const safeTitle = compactText(title).replace(/[\\/:*?"<>|]/g, "-").replace(/\.+$/g, "").slice(0, 70) || "선택-과목-안내";
+    const now = new Date();
+    const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+    return `${safeTitle}-${date}.${extension}`;
+  }
+
+  function downloadPlatformBlob(blob, fileName) {
+    const blobUrl = URL.createObjectURL(blob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = blobUrl;
+    downloadLink.download = fileName;
+    document.body.append(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+  }
+
+  async function renderPlatformPrintCanvas(documentData) {
+    const printRoot = ensurePlatformPrintRoot();
+    printRoot.innerHTML = platformPrintDocumentMarkup(documentData);
+    document.body.classList.add("is-platform-image-capturing");
+    try {
+      if (document.fonts?.ready) {
+        await Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 800))]);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      const source = printRoot.querySelector(".platform-print-document");
+      const capture = await window.html2canvas(source, {
+        backgroundColor: "#ffffff",
+        scale: 1.25,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        imageTimeout: 8000
+      });
+      const output = document.createElement("canvas");
+      output.width = 1800;
+      output.height = 1273;
+      const context = output.getContext("2d");
+      if (!context || !capture.width || !capture.height) throw new Error("출력 화면을 구성하지 못했습니다.");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, output.width, output.height);
+      const padding = 42;
+      const scale = Math.min((output.width - padding * 2) / capture.width, (output.height - padding * 2) / capture.height);
+      const drawWidth = Math.max(1, Math.round(capture.width * scale));
+      const drawHeight = Math.max(1, Math.round(capture.height * scale));
+      const drawX = Math.round((output.width - drawWidth) / 2);
+      context.drawImage(capture, drawX, padding, drawWidth, drawHeight);
+      return output;
+    } finally {
+      document.body.classList.remove("is-platform-image-capturing");
+      printRoot.replaceChildren();
+    }
+  }
+
+  function singlePagePdfBlob(jpegBytes, imageWidth, imageHeight) {
+    const encoder = new TextEncoder();
+    const chunks = [];
+    const offsets = Array(6).fill(0);
+    let byteLength = 0;
+    const push = (value) => {
+      const bytes = typeof value === "string" ? encoder.encode(value) : value;
+      chunks.push(bytes);
+      byteLength += bytes.length;
+    };
+    const addObject = (number, value) => {
+      offsets[number] = byteLength;
+      push(`${number} 0 obj\n${value}\nendobj\n`);
+    };
+    push("%PDF-1.4\n%1234\n");
+    addObject(1, "<< /Type /Catalog /Pages 2 0 R >>");
+    addObject(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+    addObject(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 841.89 595.28] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>");
+    offsets[4] = byteLength;
+    push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imageWidth} /Height ${imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Interpolate true /Length ${jpegBytes.length} >>\nstream\n`);
+    push(jpegBytes);
+    push("\nendstream\nendobj\n");
+    const pageCommands = "q\n841.89 0 0 595.28 0 0 cm\n/Im0 Do\nQ";
+    addObject(5, `<< /Length ${encoder.encode(pageCommands).length} >>\nstream\n${pageCommands}\nendstream`);
+    const xrefOffset = byteLength;
+    push(`xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("")}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+    return new Blob(chunks, { type: "application/pdf" });
+  }
+
+  async function downloadPlatformPrintImage(documentData) {
+    if (!documentData?.body) {
+      showToast("저장할 정보를 찾지 못했습니다.");
+      return;
+    }
+    if (platformExportBusy) {
+      showToast("파일을 만들고 있습니다. 잠시만 기다려 주세요.");
+      return;
+    }
+    if (typeof window.html2canvas !== "function") {
+      showToast("이미지 저장 도구를 불러오지 못했습니다. 인터넷 연결 후 다시 시도해 주세요.", 4500);
+      return;
+    }
+    platformExportBusy = true;
+    showToast("현재 화면을 PNG 이미지로 만들고 있습니다.", 5000);
+    try {
+      const output = await renderPlatformPrintCanvas(documentData);
+      const blob = await new Promise((resolve) => output.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("PNG 변환에 실패했습니다.");
+      downloadPlatformBlob(blob, platformExportFileName(documentData.title, "png"));
+      showToast("PNG 이미지 파일을 저장했습니다.");
+    } catch (error) {
+      console.error("모바일 이미지 저장 실패:", error);
+      showToast("이미지 파일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.", 4500);
+    } finally {
+      platformExportBusy = false;
+    }
+  }
+
+  async function downloadPlatformPrintPdf(documentData) {
+    if (!documentData?.body) {
+      showToast("저장할 정보를 찾지 못했습니다.");
+      return;
+    }
+    if (platformExportBusy) {
+      showToast("파일을 만들고 있습니다. 잠시만 기다려 주세요.");
+      return;
+    }
+    if (typeof window.html2canvas !== "function") {
+      showToast("PDF 저장 도구를 불러오지 못했습니다. 인터넷 연결 후 다시 시도해 주세요.", 4500);
+      return;
+    }
+    platformExportBusy = true;
+    showToast("한 페이지 PDF 파일을 만들고 있습니다.", 5000);
+    try {
+      const output = await renderPlatformPrintCanvas(documentData);
+      const jpegBlob = await new Promise((resolve) => output.toBlob(resolve, "image/jpeg", 0.94));
+      if (!jpegBlob) throw new Error("PDF용 이미지 변환에 실패했습니다.");
+      const pdfBlob = singlePagePdfBlob(new Uint8Array(await jpegBlob.arrayBuffer()), output.width, output.height);
+      downloadPlatformBlob(pdfBlob, platformExportFileName(documentData.title, "pdf"));
+      showToast("PDF 파일을 저장했습니다.");
+    } catch (error) {
+      console.error("PDF 저장 실패:", error);
+      showToast("PDF 파일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.", 4500);
+    } finally {
+      platformExportBusy = false;
+    }
+  }
+
+  function fitPlatformPrintToSinglePage(printRoot) {
+    const printDocument = printRoot?.querySelector(".platform-print-document");
+    if (!printDocument) return;
+    const contentWidth = Math.max(1, Math.ceil(Math.max(printDocument.scrollWidth, printDocument.getBoundingClientRect().width)));
+    const contentHeight = Math.max(1, Math.ceil(Math.max(printDocument.scrollHeight, printDocument.getBoundingClientRect().height)));
+    const svgNamespace = "http://www.w3.org/2000/svg";
+    const xhtmlNamespace = "http://www.w3.org/1999/xhtml";
+    const sheet = document.createElementNS(svgNamespace, "svg");
+    sheet.classList.add("platform-print-sheet-svg");
+    sheet.setAttribute("viewBox", `0 0 ${contentWidth} ${contentHeight}`);
+    sheet.setAttribute("preserveAspectRatio", "xMinYMin meet");
+    sheet.setAttribute("role", "img");
+    sheet.setAttribute("aria-label", "한 페이지 인쇄 문서");
+    const foreignObject = document.createElementNS(svgNamespace, "foreignObject");
+    foreignObject.setAttribute("width", String(contentWidth));
+    foreignObject.setAttribute("height", String(contentHeight));
+    const canvas = document.createElement("div");
+    canvas.setAttribute("xmlns", xhtmlNamespace);
+    canvas.className = "platform-print-svg-canvas";
+    canvas.style.width = `${contentWidth}px`;
+    canvas.style.height = `${contentHeight}px`;
+    const clone = printDocument.cloneNode(true);
+    clone.classList.add("is-svg-clone");
+    clone.style.width = `${contentWidth}px`;
+    canvas.append(clone);
+    foreignObject.append(canvas);
+    sheet.append(foreignObject);
+    printRoot.replaceChildren(sheet);
+  }
+
+  function openPlatformPrint(documentData) {
+    if (!documentData?.body) {
+      showToast("인쇄할 정보를 찾지 못했습니다.");
+      return;
+    }
+    const printRoot = ensurePlatformPrintRoot();
+    const previousTitle = document.title;
+    printRoot.innerHTML = platformPrintDocumentMarkup(documentData);
+    document.title = `${documentData.title} - 선택 과목 안내 플랫폼`;
+    document.body.classList.add("is-platform-printing", "is-platform-print-measuring");
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      document.body.classList.remove("is-platform-printing", "is-platform-print-measuring");
+      document.title = previousTitle;
+    };
+    window.addEventListener("afterprint", finish, { once: true });
+    requestAnimationFrame(() => setTimeout(() => {
+      fitPlatformPrintToSinglePage(printRoot);
+      document.body.classList.remove("is-platform-print-measuring");
+      requestAnimationFrame(() => {
+        window.print();
+        setTimeout(finish, 60000);
+      });
+    }, 80));
+  }
+
+  function platformDocumentData(kind, id) {
+    let documentData = null;
+    if (kind === "subject") documentData = subjectPrintMarkup(Number(id));
+    else if (kind === "department") documentData = departmentPrintMarkup(id);
+    else if (kind === "recommendation") documentData = recommendationPrintMarkup();
+    else if (kind === "simulation") {
+      documentData = {
+        title: `${state.selectedSchool?.name || "학교"} 수강 과목표`,
+        subtitle: `${state.selectedAdmissionYear || state.curriculum?.admissionYear || "-"}학년도 입학생 기준`,
+        body: simulationFinalContentMarkup()
+      };
+    }
+    return documentData;
+  }
+
+  function printRequestedView(kind, id) {
+    return openPlatformPrint(platformDocumentData(kind, id));
+  }
+
+  function pdfRequestedView(kind, id) {
+    return downloadPlatformPrintPdf(platformDocumentData(kind, id));
+  }
+
+  function imageRequestedView(kind, id) {
+    return downloadPlatformPrintImage(platformDocumentData(kind, id));
+  }
+
+  document.addEventListener("click", (event) => {
+    const actionButton = event.target.closest("[data-print-view], [data-pdf-view], [data-image-view]");
+    if (!actionButton) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (actionButton.dataset.pdfView) pdfRequestedView(actionButton.dataset.pdfView, actionButton.dataset.printId || "");
+    else if (actionButton.dataset.imageView) imageRequestedView(actionButton.dataset.imageView, actionButton.dataset.printId || "");
+    else printRequestedView(actionButton.dataset.printView, actionButton.dataset.printId || "");
+  }, true);
+
   root.addEventListener("click", async (event) => {
     const departmentField = event.target.closest("[data-department-field]");
     if (departmentField) {
       state.departmentField = departmentField.dataset.departmentField;
       state.departmentSearch = "";
+      state.departmentCommonOpen = false;
       renderView();
       return;
     }
@@ -1919,7 +4062,14 @@
     if (event.target.closest("[data-department-back]")) {
       state.departmentField = "";
       state.departmentSearch = "";
+      state.departmentCommonOpen = false;
       renderView();
+      return;
+    }
+
+    const departmentCommonOpen = event.target.closest("[data-department-common-open]");
+    if (departmentCommonOpen) {
+      openDepartmentCommonDialog(departmentCommonOpen.dataset.departmentCommonOpen);
       return;
     }
 
@@ -1932,11 +4082,96 @@
     const recommendField = event.target.closest("[data-recommend-field]");
     if (recommendField) {
       const fieldName = recommendField.dataset.recommendField;
+      if (state.recommendField !== fieldName) {
+        state.recommendDepartmentIds = [];
+        state.recommendDepartmentSearch = "";
+        state.recommendKeywords = [];
+        state.recommendMaxStep = 1;
+      }
       state.recommendField = fieldName;
       state.recommendDepartmentId = "";
       state.recommendSection = "";
       state.comparisonOpen = false;
-      openRecommendFieldDialog(fieldName);
+      renderRecommend();
+      return;
+    }
+
+    const recommendDepartmentChoice = event.target.closest("[data-recommend-department-choice]");
+    if (recommendDepartmentChoice) {
+      const id = recommendDepartmentChoice.dataset.recommendDepartmentChoice;
+      const preserveDepartmentScroll = window.matchMedia("(max-width: 820px)").matches;
+      const departmentScrollTop = preserveDepartmentScroll
+        ? recommendDepartmentChoice.closest(".recommend-department-options")?.scrollTop || 0
+        : 0;
+      if (state.recommendDepartmentIds.includes(id)) {
+        state.recommendDepartmentIds = state.recommendDepartmentIds.filter((item) => item !== id);
+      } else if (state.recommendDepartmentIds.length >= 3) {
+        showToast("관심 학과는 최대 3개까지 선택할 수 있습니다.");
+        return;
+      } else {
+        state.recommendDepartmentIds = [...state.recommendDepartmentIds, id];
+      }
+      renderRecommend();
+      if (preserveDepartmentScroll) {
+        requestAnimationFrame(() => {
+          const renderedDepartmentOptions = root.querySelector(".recommend-department-options");
+          if (renderedDepartmentOptions) renderedDepartmentOptions.scrollTop = departmentScrollTop;
+        });
+      }
+      return;
+    }
+
+    const recommendKeywordRemove = event.target.closest("[data-recommend-keyword-remove]");
+    if (recommendKeywordRemove) {
+      const index = Number(recommendKeywordRemove.dataset.recommendKeywordRemove);
+      if (Number.isInteger(index) && index >= 0 && index < state.recommendKeywords.length) {
+        state.recommendKeywords = state.recommendKeywords.filter((_, keywordIndex) => keywordIndex !== index);
+        renderRecommend();
+        requestAnimationFrame(() => root.querySelector("[data-recommend-keyword-form] input")?.focus());
+      }
+      return;
+    }
+
+    const recommendGoStep = event.target.closest("[data-recommend-go-step]");
+    if (recommendGoStep && !recommendGoStep.disabled) {
+      const step = Number(recommendGoStep.dataset.recommendGoStep);
+      if (step >= 1 && step <= state.recommendMaxStep) {
+        state.recommendStep = step;
+        renderRecommend();
+      }
+      return;
+    }
+
+    if (event.target.closest("[data-recommend-prev]")) {
+      state.recommendStep = Math.max(1, state.recommendStep - 1);
+      renderRecommend();
+      return;
+    }
+
+    if (event.target.closest("[data-recommend-next]")) {
+      if (state.recommendStep === 1 && !state.recommendField) {
+        showToast("관심 분야를 먼저 선택해 주세요.");
+        return;
+      }
+      if (state.recommendStep === 2 && !state.recommendDepartmentIds.length) {
+        showToast("관심 학과를 하나 이상 선택해 주세요.");
+        return;
+      }
+      state.recommendStep = Math.min(5, state.recommendStep + 1);
+      state.recommendMaxStep = Math.max(state.recommendMaxStep, state.recommendStep);
+      renderRecommend();
+      return;
+    }
+
+    if (event.target.closest("[data-recommend-restart]")) {
+      state.recommendStep = 1;
+      state.recommendMaxStep = 1;
+      state.recommendField = "";
+      state.recommendDepartmentId = "";
+      state.recommendDepartmentIds = [];
+      state.recommendDepartmentSearch = "";
+      state.recommendKeywords = [];
+      renderRecommend();
       return;
     }
 
@@ -1961,14 +4196,35 @@
       return;
     }
 
+    const schoolAdmissionYear = event.target.closest("[data-school-admission-year]");
+    if (schoolAdmissionYear && schoolStore) {
+      schoolAdmissionYear.disabled = true;
+      try {
+        const result = await schoolStore.selectAdmissionYear(Number(schoolAdmissionYear.dataset.schoolAdmissionYear));
+        syncSchoolState(result);
+        syncSchoolSimulationSubjects(true);
+        state.subjectCategory = "전체";
+        state.subjectPage = 1;
+        render();
+        showToast(`${state.selectedSchool?.name || "학교"} ${state.selectedAdmissionYear}학년도 입학생 편제표를 연결했습니다.`);
+      } catch (error) {
+        schoolAdmissionYear.disabled = false;
+        showToast(error.message || "입학년도 편제표를 불러오지 못했습니다.", 4500);
+      }
+      return;
+    }
+
     const schoolCard = event.target.closest(".connected-school-list [data-school-id]");
     if (schoolCard && schoolStore) {
-      await schoolStore.selectSchool(schoolCard.dataset.schoolId);
-      syncSchoolState();
+      const result = await schoolStore.selectSchool(schoolCard.dataset.schoolId);
+      syncSchoolState(result);
+      syncSchoolSimulationSubjects(true);
       state.subjectCategory = "전체";
       state.subjectPage = 1;
       render();
-      showToast(`${state.selectedSchool?.name || "학교"} 편제표를 연결했습니다.`);
+      showToast(schoolAdmissionYears(state.selectedSchool).length
+        ? `${state.selectedSchool?.name || "학교"}의 입학년도를 선택해 주세요.`
+        : `${state.selectedSchool?.name || "학교"}에 등록된 편제표가 없습니다.`);
       return;
     }
 
@@ -1987,6 +4243,60 @@
       return;
     }
 
+    const simulationGradeButton = event.target.closest("[data-simulation-grade]");
+    if (simulationGradeButton && !simulationGradeButton.disabled) {
+      state.simulationResultOpen = false;
+      state.simulationGradeStep = Math.max(1, Math.min(3, Number(simulationGradeButton.dataset.simulationGrade) || 1));
+      renderSimulation();
+      root.focus({ preventScroll: true });
+      return;
+    }
+
+    if (event.target.closest("[data-simulation-prev-grade]")) {
+      state.simulationResultOpen = false;
+      state.simulationGradeStep = Math.max(1, state.simulationGradeStep - 1);
+      renderSimulation();
+      root.focus({ preventScroll: true });
+      return;
+    }
+
+    if (event.target.closest("[data-simulation-next-grade]")) {
+      const currentProgress = curriculumSelectionProgress().gradeProgress.find((grade) => grade.grade === state.simulationGradeStep);
+      if (!currentProgress?.complete) {
+        showToast(`${state.simulationGradeStep}학년의 선택 옵션을 먼저 완료해 주세요.`);
+        return;
+      }
+      state.simulationGradeStep = Math.min(3, state.simulationGradeStep + 1);
+      state.simulationMaxGradeStep = Math.max(state.simulationMaxGradeStep, state.simulationGradeStep);
+      renderSimulation();
+      root.focus({ preventScroll: true });
+      return;
+    }
+
+    if (event.target.closest("[data-show-simulation-result]")) {
+      const progress = curriculumSelectionProgress();
+      if (!progress.complete) {
+        showToast(`아직 ${progress.optionCount - progress.completedOptions}개 옵션의 선택이 남았습니다.`);
+        return;
+      }
+      if (!state.simulationResultUnlocked && state.simulationGradeStep !== 3) {
+        showToast("1학년부터 3학년까지 차례로 확인해 주세요.");
+        return;
+      }
+      state.simulationResultUnlocked = true;
+      state.simulationResultOpen = true;
+      renderSimulation();
+      root.focus({ preventScroll: true });
+      return;
+    }
+
+    if (event.target.closest("[data-edit-simulation]")) {
+      state.simulationResultOpen = false;
+      renderSimulation();
+      root.focus({ preventScroll: true });
+      return;
+    }
+
     const curriculumChoice = event.target.closest("[data-curriculum-choice]");
     if (curriculumChoice) {
       const selections = schoolSelectionMap();
@@ -2001,13 +4311,18 @@
         return;
       } else current.push(course);
       selections[key] = current;
+      state.simulationResultOpen = false;
       saveSchoolSelections();
       renderSimulation();
       return;
     }
 
     if (event.target.closest("[data-clear-school-simulation]")) {
-      if (state.selectedSchool) state.schoolSelections[state.selectedSchool.id] = {};
+      if (state.selectedSchool) {
+        const key = state.selectedAdmissionYear ? `${state.selectedSchool.id}:${state.selectedAdmissionYear}` : state.selectedSchool.id;
+        state.schoolSelections[key] = {};
+      }
+      state.simulationResultOpen = false;
       saveSchoolSelections();
       renderSimulation();
       showToast("이 학교의 과목 선택을 초기화했습니다.");
@@ -2017,12 +4332,18 @@
     const simulationSchoolOption = event.target.closest("[data-simulation-school-id]");
     if (simulationSchoolOption && schoolStore) {
       simulationSchoolOption.disabled = true;
-      await schoolStore.selectSchool(simulationSchoolOption.dataset.simulationSchoolId);
-      syncSchoolState();
+      const result = await schoolStore.selectSchool(simulationSchoolOption.dataset.simulationSchoolId);
+      syncSchoolState(result);
+      syncSchoolSimulationSubjects(true);
       state.subjectCategory = "전체";
       state.subjectPage = 1;
       render();
-      showToast(`${state.selectedSchool?.name || "학교"} 편제표를 연결했습니다.`);
+      const refreshedMenu = root.querySelector("[data-simulation-school-menu]");
+      if (refreshedMenu) refreshedMenu.hidden = false;
+      root.querySelector("[data-open-school-picker]")?.setAttribute("aria-expanded", "true");
+      showToast(schoolAdmissionYears(state.selectedSchool).length
+        ? `${state.selectedSchool?.name || "학교"}의 입학년도를 선택해 주세요.`
+        : `${state.selectedSchool?.name || "학교"}에 등록된 편제표가 없습니다.`);
       return;
     }
 
@@ -2039,7 +4360,129 @@
     }
 
     if (event.target.closest("[data-download-curriculum-template]")) {
-      downloadCurriculumTemplate();
+      await downloadCurriculumTemplate();
+      return;
+    }
+
+    const editCurriculumCourseMeta = event.target.closest("[data-edit-curriculum-course-meta]");
+    if (editCurriculumCourseMeta) {
+      const courseChip = editCurriculumCourseMeta.closest("[data-curriculum-course-drag]");
+      const context = curriculumEditorContext(courseChip?.dataset.curriculumIndex, courseChip?.dataset.curriculumGrade, courseChip?.dataset.curriculumSemester);
+      const courses = curriculumEditorCourseList(context, courseChip?.dataset.curriculumLane, courseChip?.dataset.curriculumOptionIndex);
+      const course = courses?.[Number(courseChip?.dataset.courseIndex)];
+      if (!course || !context) return;
+      const metadataKey = curriculumCourseAliasKey(course);
+      const currentMetadata = context.curriculum.courseMetadata?.[metadataKey] || {};
+      const category = prompt("교과군을 입력하세요. (예: 국어, 수학, 사회, 과학)", currentMetadata.category || curriculumCourseReference(course)?.category || "");
+      if (category === null) return;
+      const type = prompt("과목 유형을 입력하세요. (공통, 일반, 진로, 융합, 전문)", currentMetadata.type || "");
+      if (type === null) return;
+      const normalizedType = uploadedCourseType(type);
+      if (normalizedType && !["공통", "일반", "진로", "융합", "전문"].includes(normalizedType)) {
+        showToast("과목 유형은 공통·일반·진로·융합·전문 중에서 입력해 주세요.");
+        return;
+      }
+      if (!context.curriculum.courseMetadata) context.curriculum.courseMetadata = {};
+      context.curriculum.courseMetadata[metadataKey] = uploadedCourseMetadataEntry(category, normalizedType);
+      renderAdmin();
+      return;
+    }
+
+    const editCurriculumCourse = event.target.closest("[data-edit-curriculum-course]");
+    if (editCurriculumCourse) {
+      const courseChip = editCurriculumCourse.closest("[data-curriculum-course-drag]");
+      const context = curriculumEditorContext(courseChip?.dataset.curriculumIndex, courseChip?.dataset.curriculumGrade, courseChip?.dataset.curriculumSemester);
+      const courses = curriculumEditorCourseList(context, courseChip?.dataset.curriculumLane, courseChip?.dataset.curriculumOptionIndex);
+      const courseIndex = Number(courseChip?.dataset.courseIndex);
+      const currentName = courses?.[courseIndex];
+      if (!currentName) return;
+      const enteredName = prompt("과목명을 수정하세요.", currentName);
+      if (enteredName === null) return;
+      const nextName = compactText(enteredName);
+      if (!nextName) {
+        showToast("과목명을 입력해 주세요.");
+        return;
+      }
+      const canonicalName = curriculumCourseReference(nextName)?.name || nextName;
+      const duplicate = courses.some((course, index) => index !== courseIndex && curriculumCourseAliasKey(course) === curriculumCourseAliasKey(canonicalName));
+      if (duplicate) {
+        showToast("같은 영역에 이미 있는 과목입니다.");
+        return;
+      }
+      const previousMetadataKey = curriculumCourseAliasKey(currentName);
+      const nextMetadataKey = curriculumCourseAliasKey(canonicalName);
+      if (context.curriculum.courseMetadata?.[previousMetadataKey] && previousMetadataKey !== nextMetadataKey) {
+        context.curriculum.courseMetadata[nextMetadataKey] = context.curriculum.courseMetadata[previousMetadataKey];
+      }
+      courses[courseIndex] = canonicalName;
+      preparePendingCurriculumForEditing();
+      renderAdmin();
+      return;
+    }
+
+    const removeCurriculumCourse = event.target.closest("[data-remove-curriculum-course]");
+    if (removeCurriculumCourse) {
+      const courseChip = removeCurriculumCourse.closest("[data-curriculum-course-drag]");
+      const context = curriculumEditorContext(courseChip?.dataset.curriculumIndex, courseChip?.dataset.curriculumGrade, courseChip?.dataset.curriculumSemester);
+      const courses = curriculumEditorCourseList(context, courseChip?.dataset.curriculumLane, courseChip?.dataset.curriculumOptionIndex);
+      const courseIndex = Number(courseChip?.dataset.courseIndex);
+      if (!courses?.[courseIndex]) return;
+      courses.splice(courseIndex, 1);
+      preparePendingCurriculumForEditing();
+      renderAdmin();
+      return;
+    }
+
+    const addCurriculumCourse = event.target.closest("[data-add-curriculum-course]");
+    if (addCurriculumCourse) {
+      const context = curriculumEditorContext(addCurriculumCourse.dataset.curriculumIndex, addCurriculumCourse.dataset.curriculumGrade, addCurriculumCourse.dataset.curriculumSemester);
+      const courses = curriculumEditorCourseList(context, addCurriculumCourse.dataset.curriculumLane, addCurriculumCourse.dataset.curriculumOptionIndex);
+      if (!courses) return;
+      const enteredName = prompt("추가할 과목명을 입력하세요.", "");
+      if (enteredName === null) return;
+      const nextName = compactText(enteredName);
+      if (!nextName) {
+        showToast("과목명을 입력해 주세요.");
+        return;
+      }
+      const canonicalName = curriculumCourseReference(nextName)?.name || nextName;
+      if (courses.some((course) => curriculumCourseAliasKey(course) === curriculumCourseAliasKey(canonicalName))) {
+        showToast("같은 영역에 이미 있는 과목입니다.");
+        return;
+      }
+      courses.push(canonicalName);
+      preparePendingCurriculumForEditing();
+      renderAdmin();
+      return;
+    }
+
+    const addCurriculumOption = event.target.closest("[data-add-curriculum-option]");
+    if (addCurriculumOption) {
+      const context = curriculumEditorContext(addCurriculumOption.dataset.curriculumIndex, addCurriculumOption.dataset.curriculumGrade, addCurriculumOption.dataset.curriculumSemester);
+      if (!context) return;
+      const optionNumber = context.semester.options.length + 1;
+      context.semester.options.push({
+        id: `editor-${context.grade.grade}-${context.semester.semester}-${Date.now()}`,
+        label: `옵션 ${optionNumber}`,
+        choose: 1,
+        courses: [],
+        semester: context.semester.semester
+      });
+      preparePendingCurriculumForEditing();
+      renderAdmin();
+      return;
+    }
+
+    const removeCurriculumOption = event.target.closest("[data-remove-curriculum-option]");
+    if (removeCurriculumOption) {
+      const context = curriculumEditorContext(removeCurriculumOption.dataset.curriculumIndex, removeCurriculumOption.dataset.curriculumGrade, removeCurriculumOption.dataset.curriculumSemester);
+      const optionIndex = Number(removeCurriculumOption.dataset.curriculumOptionIndex);
+      const option = context?.semester.options[optionIndex];
+      if (!option) return;
+      if (option.courses.length && !confirm(`${option.label}과 그 안의 ${option.courses.length}개 과목을 미리보기에서 삭제할까요?`)) return;
+      context.semester.options.splice(optionIndex, 1);
+      preparePendingCurriculumForEditing();
+      renderAdmin();
       return;
     }
 
@@ -2052,14 +4495,34 @@
 
     if (event.target.closest("[data-publish-curriculum]")) {
       if (!state.pendingCurriculum || !schoolStore) return;
+      let pendingCurricula;
+      try {
+        pendingCurricula = [...validatePendingCurriculumEdits()].sort((a, b) => a.admissionYear - b.admissionYear);
+      } catch (error) {
+        state.curriculumImportMessage = `수정 내용을 확인해 주세요. ${error.message}`;
+        renderAdmin();
+        showToast("편제표 수정 내용에 확인이 필요합니다.", 4500);
+        return;
+      }
       state.curriculumBusy = true;
-      state.curriculumImportMessage = "Supabase에 학교 편제표를 저장하고 있습니다.";
+      state.curriculumImportMessage = pendingCurricula.length > 1
+        ? `Supabase에 ${pendingCurricula.length}개 입학년도 편제표를 저장하고 있습니다.`
+        : "Supabase에 학교 편제표를 저장하고 있습니다.";
       renderAdmin();
       try {
-        const result = await schoolStore.publishCurriculum(state.pendingCurriculum);
+        let result = null;
+        const actions = [];
+        for (const curriculum of pendingCurricula) {
+          result = await schoolStore.publishCurriculum(curriculum);
+          actions.push(result.action);
+        }
         syncSchoolState(result);
+        syncSchoolSimulationSubjects(true);
         state.pendingCurriculum = null;
-        const actionLabel = result.action === "updated" ? "수정" : "등록";
+        const updatedCount = actions.filter((action) => action === "updated").length;
+        const actionLabel = pendingCurricula.length > 1
+          ? `${pendingCurricula.length}개 입학년도 등록${updatedCount ? ` · ${updatedCount}개 수정` : ""}`
+          : result.action === "updated" ? "수정" : "등록";
         state.curriculumImportMessage = `${state.selectedSchool?.name || "학교"} 편제표를 ${actionLabel}했습니다.`;
         showToast(`학교 편제표가 ${actionLabel}되었습니다.`, 4000);
       } catch (error) {
@@ -2083,6 +4546,7 @@
       try {
         const result = await schoolStore?.deleteCurriculum(deleteCurriculumButton.dataset.curriculumId);
         syncSchoolState(result);
+        syncSchoolSimulationSubjects(true);
         renderAdmin();
         showToast("편제표를 삭제했습니다.", 4000);
       } catch (error) {
@@ -2198,6 +4662,7 @@
   });
 
   root.addEventListener("keydown", (event) => {
+    if (event.target.closest("[data-print-view], [data-pdf-view], [data-image-view]")) return;
     const card = event.target.closest(".course-record-card[data-record-index]");
     if (!card || (event.key !== "Enter" && event.key !== " ")) return;
     event.preventDefault();
@@ -2205,6 +4670,17 @@
   });
 
   root.addEventListener("input", (event) => {
+    if (event.target.matches("[data-recommend-department-search]")) {
+      const value = event.target.value;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        state.recommendDepartmentSearch = value;
+        renderRecommend();
+        const input = root.querySelector("[data-recommend-department-search]");
+        input?.focus();
+        input?.setSelectionRange(value.length, value.length);
+      }, 120);
+    }
     if (event.target.matches("[data-department-search]")) {
       const value = event.target.value;
       clearTimeout(searchTimer);
@@ -2243,6 +4719,27 @@
   });
 
   root.addEventListener("submit", async (event) => {
+    const keywordForm = event.target.closest("[data-recommend-keyword-form]");
+    if (keywordForm) {
+      event.preventDefault();
+      const value = compactText(new FormData(keywordForm).get("keyword"));
+      if (!value) {
+        showToast("관심 분야나 세부 진로 키워드를 입력해 주세요.");
+        return;
+      }
+      if (state.recommendKeywords.length >= 3) {
+        showToast("키워드는 최대 3개까지 입력할 수 있습니다.");
+        return;
+      }
+      if (state.recommendKeywords.some((keyword) => normalizedCourseName(keyword) === normalizedCourseName(value))) {
+        showToast("이미 입력한 키워드입니다.");
+        return;
+      }
+      state.recommendKeywords = [...state.recommendKeywords, value];
+      renderRecommend();
+      requestAnimationFrame(() => root.querySelector("[data-recommend-keyword-form] input:not(:disabled)")?.focus());
+      return;
+    }
     const teacherForm = event.target.closest("[data-teacher-login-form]");
     const adminForm = event.target.closest("[data-admin-login-form]");
     const form = teacherForm || adminForm;
@@ -2272,6 +4769,39 @@
   });
 
   root.addEventListener("change", async (event) => {
+    if (event.target.matches("[data-curriculum-school-name]")) {
+      const schoolName = compactText(event.target.value);
+      pendingCurriculumItems().forEach((curriculum) => { curriculum.schoolName = schoolName; });
+      if (state.pendingCurriculum) state.pendingCurriculum.schoolName = schoolName;
+      preparePendingCurriculumForEditing();
+      renderAdmin();
+      return;
+    }
+    if (event.target.matches("[data-curriculum-region-edit]")) {
+      const region = SCHOOL_REGIONS.includes(event.target.value) ? event.target.value : "";
+      pendingCurriculumItems().forEach((curriculum) => { curriculum.region = region; });
+      if (state.pendingCurriculum) state.pendingCurriculum.region = region;
+      preparePendingCurriculumForEditing();
+      renderAdmin();
+      return;
+    }
+    if (event.target.matches("[data-curriculum-admission-year]")) {
+      const curriculum = pendingCurriculumItems()[Number(event.target.dataset.curriculumIndex)];
+      if (curriculum) curriculum.admissionYear = Number(event.target.value);
+      preparePendingCurriculumForEditing();
+      renderAdmin();
+      return;
+    }
+    if (event.target.matches("[data-curriculum-option-label], [data-curriculum-option-choose]")) {
+      const context = curriculumEditorContext(event.target.dataset.curriculumIndex, event.target.dataset.curriculumGrade, event.target.dataset.curriculumSemester);
+      const option = context?.semester.options[Number(event.target.dataset.curriculumOptionIndex)];
+      if (!option) return;
+      if (event.target.matches("[data-curriculum-option-label]")) option.label = compactText(event.target.value);
+      else option.choose = Number(event.target.value);
+      preparePendingCurriculumForEditing();
+      renderAdmin();
+      return;
+    }
     if (event.target.matches("[data-curriculum-input]") && event.target.files?.[0]) {
       const file = event.target.files[0];
       state.curriculumBusy = true;
@@ -2280,13 +4810,23 @@
       renderAdmin();
       try {
         state.pendingCurriculum = await parseCurriculumFile(file);
-        state.curriculumImportMessage = `검증 완료: ${state.pendingCurriculum.courseCount.toLocaleString("ko-KR")}개 교과와 학년별 옵션을 확인했습니다.`;
+        preparePendingCurriculumForEditing();
+        const admissionCount = Array.isArray(state.pendingCurriculum.curricula) ? state.pendingCurriculum.curricula.length : 1;
+        state.curriculumImportMessage = admissionCount > 1
+          ? `자동 변환 완료: ${state.pendingCurriculum.academicYear}학년도 전학년 자료를 ${admissionCount}개 입학년도 편제표로 분리하고 ${state.pendingCurriculum.courseCount.toLocaleString("ko-KR")}개 교과를 확인했습니다.`
+          : `검증 완료: ${state.pendingCurriculum.courseCount.toLocaleString("ko-KR")}개 교과와 학년별 옵션을 확인했습니다.`;
         showToast("학교 편제표 검증이 완료되었습니다.");
       } catch (error) {
         console.error("학교 편제표 분석 실패:", error);
         state.pendingCurriculum = null;
-        state.curriculumImportMessage = `편제표를 사용할 수 없습니다. ${error.message || "양식 내용을 확인해 주세요."}`;
-        showToast("학교 편제표 검증에 실패했습니다.", 4500);
+        state.curriculumImportMessage = "";
+        const libraryUnavailable = !window.XLSX || /엑셀 도구를 불러오지 못했습니다/.test(error.message || "");
+        showCurriculumAlert(
+          libraryUnavailable ? "엑셀 분석 도구 연결 오류" : "편제표를 확인해 주세요",
+          libraryUnavailable
+            ? "업로드한 편제표의 문제가 아닙니다. 엑셀 분석 도구가 아직 로드되지 않았거나 외부 CDN 연결이 차단되었습니다. 인터넷 연결을 확인하고 페이지를 새로고침한 뒤 다시 업로드해 주세요."
+            : error.message || "지원하는 편제표 형식인지 확인한 뒤 다시 업로드해 주세요."
+        );
       } finally {
         state.curriculumBusy = false;
         renderAdmin();
@@ -2307,6 +4847,81 @@
       state.pendingImport.previewPage = 1;
       renderAdmin();
     }
+  });
+
+  root.addEventListener("dragstart", (event) => {
+    const courseChip = event.target.closest("[data-curriculum-course-drag]");
+    if (!courseChip) return;
+    curriculumDragPayload = {
+      curriculumIndex: Number(courseChip.dataset.curriculumIndex),
+      grade: Number(courseChip.dataset.curriculumGrade),
+      semester: Number(courseChip.dataset.curriculumSemester),
+      lane: courseChip.dataset.curriculumLane,
+      optionIndex: courseChip.dataset.curriculumOptionIndex === undefined ? "" : Number(courseChip.dataset.curriculumOptionIndex),
+      courseIndex: Number(courseChip.dataset.courseIndex)
+    };
+    courseChip.classList.add("is-dragging");
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", JSON.stringify(curriculumDragPayload));
+    }
+  });
+
+  root.addEventListener("dragover", (event) => {
+    const dropzone = event.target.closest("[data-curriculum-course-dropzone]");
+    if (!dropzone || !curriculumDragPayload) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    root.querySelectorAll(".curriculum-course-dropzone.is-drag-over").forEach((zone) => {
+      if (zone !== dropzone) zone.classList.remove("is-drag-over");
+    });
+    dropzone.classList.add("is-drag-over");
+  });
+
+  root.addEventListener("dragleave", (event) => {
+    const dropzone = event.target.closest("[data-curriculum-course-dropzone]");
+    if (dropzone && !dropzone.contains(event.relatedTarget)) dropzone.classList.remove("is-drag-over");
+  });
+
+  root.addEventListener("drop", (event) => {
+    const dropzone = event.target.closest("[data-curriculum-course-dropzone]");
+    if (!dropzone || !curriculumDragPayload) return;
+    event.preventDefault();
+    const sourceContext = curriculumEditorContext(curriculumDragPayload.curriculumIndex, curriculumDragPayload.grade, curriculumDragPayload.semester);
+    const sourceCourses = curriculumEditorCourseList(sourceContext, curriculumDragPayload.lane, curriculumDragPayload.optionIndex);
+    const targetContext = curriculumEditorContext(dropzone.dataset.curriculumIndex, dropzone.dataset.curriculumGrade, dropzone.dataset.curriculumSemester);
+    const targetCourses = curriculumEditorCourseList(targetContext, dropzone.dataset.curriculumLane, dropzone.dataset.curriculumOptionIndex);
+    const sourceIndex = curriculumDragPayload.courseIndex;
+    const course = sourceCourses?.[sourceIndex];
+    if (!course || !targetCourses) return;
+    const sameList = sourceCourses === targetCourses;
+    if (!sameList && targetCourses.some((targetCourse) => curriculumCourseAliasKey(targetCourse) === curriculumCourseAliasKey(course))) {
+      showToast("이동할 영역에 같은 과목이 이미 있습니다.");
+      return;
+    }
+    const targetChip = event.target.closest("[data-curriculum-course-drag]");
+    let targetIndex = targetChip && targetChip.closest("[data-curriculum-course-dropzone]") === dropzone
+      ? Number(targetChip.dataset.courseIndex)
+      : targetCourses.length;
+    sourceCourses.splice(sourceIndex, 1);
+    if (sameList && sourceIndex < targetIndex) targetIndex -= 1;
+    targetCourses.splice(Math.max(0, targetIndex), 0, course);
+    if (sourceContext.curriculum !== targetContext.curriculum) {
+      const metadataKey = curriculumCourseAliasKey(course);
+      const metadata = sourceContext.curriculum.courseMetadata?.[metadataKey];
+      if (metadata) {
+        if (!targetContext.curriculum.courseMetadata) targetContext.curriculum.courseMetadata = {};
+        targetContext.curriculum.courseMetadata[metadataKey] = metadata;
+      }
+    }
+    curriculumDragPayload = null;
+    preparePendingCurriculumForEditing();
+    renderAdmin();
+  });
+
+  root.addEventListener("dragend", () => {
+    curriculumDragPayload = null;
+    root.querySelectorAll(".curriculum-editor-course.is-dragging, .curriculum-course-dropzone.is-drag-over").forEach((element) => element.classList.remove("is-dragging", "is-drag-over"));
   });
 
   ["dragenter", "dragover"].forEach((type) => root.addEventListener(type, (event) => {
@@ -2442,16 +5057,39 @@
       trigger.setAttribute("aria-expanded", String(willOpen));
       return;
     }
+    const schoolYearOption = event.target.closest(".header-school-picker [data-school-admission-year]");
+    if (schoolYearOption && schoolStore) {
+      schoolYearOption.disabled = true;
+      try {
+        const result = await schoolStore.selectAdmissionYear(Number(schoolYearOption.dataset.schoolAdmissionYear));
+        syncSchoolState(result);
+        syncSchoolSimulationSubjects(true);
+        state.subjectCategory = "전체";
+        state.subjectPage = 1;
+        render();
+        if (menu) menu.hidden = true;
+        picker?.querySelector("[data-school-trigger]")?.setAttribute("aria-expanded", "false");
+        showToast(`${state.selectedSchool?.name || "학교"} ${state.selectedAdmissionYear}학년도 입학생 편제표를 연결했습니다.`);
+      } catch (error) {
+        schoolYearOption.disabled = false;
+        showToast(error.message || "입학년도 편제표를 불러오지 못했습니다.", 4500);
+      }
+      return;
+    }
     const schoolOption = event.target.closest(".header-school-picker [data-school-id]");
     if (schoolOption && schoolStore) {
       schoolOption.disabled = true;
-      await schoolStore.selectSchool(schoolOption.dataset.schoolId);
-      syncSchoolState();
+      const result = await schoolStore.selectSchool(schoolOption.dataset.schoolId);
+      syncSchoolState(result);
+      syncSchoolSimulationSubjects(true);
       state.subjectCategory = "전체";
       state.subjectPage = 1;
       render();
-      if (menu) menu.hidden = true;
-      showToast(`${state.selectedSchool?.name || "학교"} 편제표를 연결했습니다.`);
+      if (menu) menu.hidden = false;
+      picker?.querySelector("[data-school-trigger]")?.setAttribute("aria-expanded", "true");
+      showToast(schoolAdmissionYears(state.selectedSchool).length
+        ? `${state.selectedSchool?.name || "학교"}의 입학년도를 선택해 주세요.`
+        : `${state.selectedSchool?.name || "학교"}에 등록된 편제표가 없습니다.`);
       return;
     }
     if (picker && !picker.contains(event.target) && menu) {
@@ -2481,7 +5119,7 @@
   detailDialog.addEventListener("close", () => {
     const closedRecommendFlow = detailDialog.classList.contains("is-recommend-field-dialog") || state.dialogReturnToRecommend;
     const closedComparison = detailDialog.classList.contains("is-comparison-picker-dialog") || detailDialog.classList.contains("is-comparison-result-dialog");
-    detailDialog.classList.remove("is-major-dialog", "is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog");
+    detailDialog.classList.remove("is-major-dialog", "is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog", "is-department-common-dialog");
     if (closedComparison) {
       state.comparisonOpen = false;
       state.comparisonIds = [];
@@ -2490,12 +5128,37 @@
     state.dialogDepartmentId = "";
     state.dialogSubjectKind = "";
     state.dialogSubjectName = "";
+    state.dialogRecordIndex = -1;
     state.dialogReturnToRecommend = false;
     if (closedRecommendFlow && state.tab === "recommend") {
       state.recommendField = "";
       state.recommendDepartmentId = "";
       state.recommendSection = "";
       renderRecommend();
+    }
+  });
+
+  recommendNoticeDialog?.addEventListener("cancel", (event) => {
+    event.preventDefault();
+  });
+
+  recommendNoticeDialog?.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-recommend-notice-confirm]")) return;
+    state.recommendStep = 1;
+    state.recommendMaxStep = 1;
+    state.recommendField = "";
+    state.recommendDepartmentId = "";
+    state.recommendDepartmentIds = [];
+    state.recommendDepartmentSearch = "";
+    state.recommendKeywords = [];
+    recommendNoticeDialog.close();
+    renderRecommend();
+    requestAnimationFrame(() => root.querySelector("[data-recommend-field]")?.focus({ preventScroll: true }));
+  });
+
+  curriculumAlertDialog?.addEventListener("click", (event) => {
+    if (event.target === curriculumAlertDialog || event.target.closest("[data-curriculum-alert-close]")) {
+      curriculumAlertDialog.close();
     }
   });
 
@@ -2514,6 +5177,11 @@
     resetDatabase,
     downloadCurriculumTemplate,
     parseCurriculumFile,
+    normalizeCurriculumCourseNames: uniqueCourseNames,
+    getCurriculumGrades: curriculumGrades,
+    renderRecommend,
+    recommendKeywordResults,
+    recommendFinalGroups,
     getState: () => state
   };
 
@@ -2521,14 +5189,12 @@
     if (schoolStore) syncSchoolState(await schoolStore.init());
     await loadDatabase();
     await loadDepartmentDatabase();
+    syncSchoolSimulationSubjects(false);
   } catch (error) {
     console.error("앱 초기화 실패:", error);
     state.notices = ["데이터베이스를 시작하지 못했습니다. 페이지를 새로고침해 주세요."];
   }
   render();
-  if (state.tab === "recommend" && fieldByName(state.recommendField)) {
-    openRecommendFieldDialog(state.recommendField);
-  }
   const initialDepartmentDetail = pageParams.get("detail");
   if (initialDepartmentDetail && departmentById(initialDepartmentDetail)) {
     state.dialogSubjectKind = pageParams.get("subjectKind") || "";
@@ -2537,5 +5203,8 @@
     if (state.dialogSubjectName) requestAnimationFrame(() => detailContent.querySelector(".university-reveal")?.scrollIntoView({ block: "nearest" }));
   }
   if (!initialDepartmentDetail && state.comparisonOpen && state.comparisonIds.length === 2) openComparisonResult();
+  if (state.tab === "recommend" && recommendNoticeDialog && !recommendNoticeDialog.open) {
+    requestAnimationFrame(() => recommendNoticeDialog.showModal());
+  }
   state.notices.forEach((message) => showToast(message, 4500));
 })();

@@ -161,6 +161,7 @@
           careers: String(department.guide?.careers || "").trim()
         },
         relatedSubjects: Array.isArray(department.relatedSubjects) ? department.relatedSubjects.map(String).map((value) => value.trim()).filter(Boolean) : [],
+        recommendedBooks: normalizeRecommendedBooks(department.recommendedBooks),
         reflectedSubjects: normalizeSubjectUniversities(department.reflectedSubjects),
         scienceRecommendedSubjects: normalizeSubjectUniversities(department.scienceRecommendedSubjects)
       }))
@@ -191,6 +192,16 @@
       name: String(subject.name).trim(),
       universities: Array.isArray(subject.universities) ? subject.universities.map(String).map((value) => value.trim()).filter(Boolean) : []
     }));
+  }
+
+  function normalizeRecommendedBooks(books) {
+    if (!Array.isArray(books)) return [];
+    return books.filter((book) => book && typeof book === "object" && book.title).map((book) => ({
+      title: String(book.title).trim(),
+      author: String(book.author || "").trim(),
+      universities: [...new Set(Array.isArray(book.universities) ? book.universities.map(String).map((value) => value.trim()).filter(Boolean) : [])]
+        .sort((a, b) => a.localeCompare(b, "ko"))
+    })).sort((a, b) => a.title.localeCompare(b.title, "ko") || a.author.localeCompare(b.author, "ko"));
   }
 
   async function fetchDefaultDatabase({ cacheBust = false } = {}) {

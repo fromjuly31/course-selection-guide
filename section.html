@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#071720">
-  <title>학과·선택과목 조회 · 과목 선택 안내 플랫폼</title>
+  <title>학과·선택과목 조회 · 선택 과목 안내 플랫폼</title>
   <meta name="description" content="학교별 편제표와 연동되는 과목 선택 안내 플랫폼">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="app.css">
@@ -19,11 +19,11 @@
       </a>
       <div class="header-school-picker" data-school-picker>
         <button type="button" data-school-trigger aria-expanded="false">
-          <i></i><span><small>현재 학교</small><strong data-school-picker-label>학교 선택</strong></span>
+          <i></i><span><small>현재 학교 · 입학년도</small><strong data-school-picker-label>학교 선택</strong></span>
           <svg class="icon" aria-hidden="true"><use href="icons.svg#arrow"></use></svg>
         </button>
         <div class="header-school-menu" data-school-menu hidden>
-          <p>연동된 학교</p>
+          <p>학교 선택 후 입학년도를 선택하세요</p>
           <div data-school-options><span class="school-menu-empty">학교 목록을 불러오는 중입니다.</span></div>
         </div>
       </div>
@@ -40,6 +40,27 @@
     <div data-record-dialog-content></div>
   </dialog>
 
+  <dialog class="recommend-notice-dialog" id="recommend-notice-dialog" aria-labelledby="recommend-notice-title" aria-describedby="recommend-notice-description">
+    <div class="recommend-notice-symbol" aria-hidden="true"><svg class="icon"><use href="icons.svg#warning"></use></svg></div>
+    <p class="recommend-notice-kicker">BEFORE YOU START</p>
+    <h2 id="recommend-notice-title">꼭 확인하세요!</h2>
+    <div class="recommend-notice-message" id="recommend-notice-description">
+      <strong>과목 추천의 결과는 참고용입니다.</strong>
+      <p>100% 신뢰하지 말고 반드시 최종 검토하세요.</p>
+      <p>과목 선택의 책임은 본인에게 있습니다.</p>
+    </div>
+    <button class="recommend-notice-confirm" type="button" data-recommend-notice-confirm>확인했습니다</button>
+  </dialog>
+
+  <dialog class="curriculum-alert-dialog" id="curriculum-alert-dialog" aria-labelledby="curriculum-alert-title" aria-describedby="curriculum-alert-message">
+    <button class="curriculum-alert-close" type="button" data-curriculum-alert-close aria-label="닫기">×</button>
+    <div class="curriculum-alert-symbol" aria-hidden="true"><svg class="icon"><use href="icons.svg#warning"></use></svg></div>
+    <p class="curriculum-alert-kicker">DATA IMPORT NOTICE</p>
+    <h2 id="curriculum-alert-title">편제표를 확인해 주세요</h2>
+    <p class="curriculum-alert-message" id="curriculum-alert-message"></p>
+    <button class="curriculum-alert-confirm" type="button" data-curriculum-alert-close>확인</button>
+  </dialog>
+
   <div class="app-toast" role="status" aria-live="polite" data-app-toast></div>
 
   <nav class="bottom-nav app-bottom-nav" aria-label="주요 메뉴">
@@ -51,7 +72,9 @@
     <a class="nav-item" href="section.html?tab=admin" data-tab="admin"><svg class="icon" aria-hidden="true"><use href="icons.svg#settings"></use></svg><span>데이터 연동</span></a>
   </nav>
 
-  <script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="supabase-config.js"></script>
   <script src="school-data.js"></script>
   <script src="app-data.js"></script>

@@ -30,6 +30,9 @@
   <symbol id="help" viewBox="0 0 24 24">
     <circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4"/><path d="M12 18h.01"/>
   </symbol>
+  <symbol id="warning" viewBox="0 0 24 24">
+    <path d="M10.3 3.8 2.2 18a2 2 0 0 0 1.73 3h16.14a2 2 0 0 0 1.73-3L13.7 3.8a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>
+  </symbol>
   <symbol id="check" viewBox="0 0 24 24">
     <path d="m5 12 4 4L19 6"/>
   </symbol>
@@ -56,6 +59,12 @@
   </symbol>
   <symbol id="download" viewBox="0 0 24 24">
     <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>
+  </symbol>
+  <symbol id="print" viewBox="0 0 24 24">
+    <path d="M7 8V3h10v5"/><path d="M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/><path d="M17 11h.01"/>
+  </symbol>
+  <symbol id="lock" viewBox="0 0 24 24">
+    <rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/>
   </symbol>
   <symbol id="message" viewBox="0 0 24 24">
     <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M8 9h8M8 13h5"/>
