@@ -624,7 +624,7 @@
       if (link.dataset.tab === state.tab) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     });
-    const titles = { subjects: "과목 안내", departments: "학과 안내", recommend: "과목 추천", simulation: "시뮬레이션", admin: "데이터 연동" };
+    const titles = { subjects: "과목 안내", departments: "학과 안내", recommend: "과목 추천", simulation: "모의 수강신청", admin: "데이터 연동" };
     document.title = `${titles[state.tab]} · 선택 과목 안내 플랫폼`;
   }
 
@@ -1091,7 +1091,7 @@
       <section class="record-grid" aria-live="polite">
         ${subjects.length ? subjects.map((item) => {
           const selected = state.simulationSubjects.includes(item.name);
-          return `<article class="record-card subject-guide-card"><div class="record-card-top"><span class="record-category">${escapeHtml([...item.roles].join(" · "))}</span><span class="record-university">관련 학과 ${item.departments.size}</span></div><h2>${escapeHtml(item.name)}</h2><p>${escapeHtml([...item.categories].slice(0, 4).join(" · ") || "계열 정보 없음")} 계열의 ${item.departments.size.toLocaleString("ko-KR")}개 학과에서 확인할 수 있습니다.</p><div class="record-tags">${[...item.departments].slice(0, 5).map((department) => `<span>${escapeHtml(department)}</span>`).join("")}</div><button class="record-detail-button" type="button" data-simulation-add="${escapeHtml(item.name)}">${selected ? "시뮬레이션에서 빼기" : "시뮬레이션에 추가"} ${icon("arrow")}</button></article>`;
+          return `<article class="record-card subject-guide-card"><div class="record-card-top"><span class="record-category">${escapeHtml([...item.roles].join(" · "))}</span><span class="record-university">관련 학과 ${item.departments.size}</span></div><h2>${escapeHtml(item.name)}</h2><p>${escapeHtml([...item.categories].slice(0, 4).join(" · ") || "계열 정보 없음")} 계열의 ${item.departments.size.toLocaleString("ko-KR")}개 학과에서 확인할 수 있습니다.</p><div class="record-tags">${[...item.departments].slice(0, 5).map((department) => `<span>${escapeHtml(department)}</span>`).join("")}</div><button class="record-detail-button" type="button" data-simulation-add="${escapeHtml(item.name)}">${selected ? "모의 수강신청에서 빼기" : "모의 수강신청에 추가"} ${icon("arrow")}</button></article>`;
         }).join("") : `<div class="empty-state"><span class="empty-icon">${icon("book")}</span><h2>검색 결과가 없습니다.</h2><p>다른 과목명이나 계열을 검색해 보세요.</p></div>`}
       </section>`;
   }
@@ -2402,14 +2402,14 @@
       state.simulationHistoryOpen = true;
       root.innerHTML = `
         ${renderNotices()}
-        ${pageHead("과목 선택 시뮬레이션", "학교와 입학년도를 선택한 뒤, 기이수 과목부터 앞으로 선택할 과목까지 차례로 구성합니다.", 0, "연동 옵션")}
-        <div class="empty-state school-required-state"><span class="empty-icon">${icon("school")}</span><h2>${state.selectedSchool ? schoolAdmissionYears(state.selectedSchool).length ? "입학년도를 선택해 주세요." : "이 학교에 공개된 편제표가 없습니다." : "먼저 학교를 선택해 주세요."}</h2><p>${state.selectedSchool ? schoolAdmissionYears(state.selectedSchool).length ? "학교에 등록된 입학년도 중 하나를 선택하면 해당 학생의 편제표가 연동됩니다." : "학교 담당자가 데이터 연동 탭에서 편제표를 업로드하면 시뮬레이션이 활성화됩니다." : "아래의 버튼을 누르면 연동된 학교 목록을 확인할 수 있습니다."}</p>${simulationSchoolPickerMarkup()}</div>`;
+        ${pageHead("모의 수강신청", "학교와 입학년도를 선택한 뒤, 기이수 과목부터 앞으로 선택할 과목까지 차례로 구성합니다.", 0, "연동 옵션")}
+        <div class="empty-state school-required-state"><span class="empty-icon">${icon("school")}</span><h2>${state.selectedSchool ? schoolAdmissionYears(state.selectedSchool).length ? "입학년도를 선택해 주세요." : "이 학교에 공개된 편제표가 없습니다." : "먼저 학교를 선택해 주세요."}</h2><p>${state.selectedSchool ? schoolAdmissionYears(state.selectedSchool).length ? "학교에 등록된 입학년도 중 하나를 선택하면 해당 학생의 편제표가 연동됩니다." : "학교 담당자가 데이터 연동 탭에서 편제표를 업로드하면 모의 수강신청이 활성화됩니다." : "아래의 버튼을 누르면 연동된 학교 목록을 확인할 수 있습니다."}</p>${simulationSchoolPickerMarkup()}</div>`;
       return;
     }
 
     const grades = curriculumGrades();
     if (!grades.length) {
-      root.innerHTML = `${renderNotices()}${pageHead("과목 선택 시뮬레이션", "이 입학년도에 앞으로 선택할 학년 편제가 없습니다.", 0, "연동 과목")}<div class="empty-state"><span class="empty-icon">${icon("warning")}</span><h2>미래 학년 편제를 확인해 주세요.</h2><p>관리자가 2026년 입학생은 2·3학년, 2025년 입학생은 3학년 편제를 등록해야 합니다.</p></div>`;
+      root.innerHTML = `${renderNotices()}${pageHead("모의 수강신청", "이 입학년도에 앞으로 선택할 학년 편제가 없습니다.", 0, "연동 과목")}<div class="empty-state"><span class="empty-icon">${icon("warning")}</span><h2>미래 학년 편제를 확인해 주세요.</h2><p>관리자가 2026년 입학생은 2·3학년, 2025년 입학생은 3학년 편제를 등록해야 합니다.</p></div>`;
       return;
     }
     const progress = curriculumSelectionProgress(grades);
@@ -2422,7 +2422,7 @@
       state.simulationResultOpen = false;
       root.innerHTML = `
         ${renderNotices()}
-        ${pageHead("과목 선택 시뮬레이션", `${state.selectedSchool.name} ${state.curriculum.admissionYear || ""}년 입학생 · 먼저 지금까지 들었던 과목을 선택합니다.`, completedCount, "기이수 과목")}
+        ${pageHead("모의 수강신청", `${state.selectedSchool.name} ${state.curriculum.admissionYear || ""}년 입학생 · 먼저 지금까지 들었던 과목을 선택합니다.`, completedCount, "기이수 과목")}
         ${simulationGradeProgressMarkup(progress)}
         ${simulationHistorySelectionMarkup()}`;
       return;
@@ -2448,7 +2448,7 @@
 
     root.innerHTML = `
       ${renderNotices()}
-      ${pageHead("과목 선택 시뮬레이션", `${state.selectedSchool.name} ${state.curriculum.admissionYear || ""}년 입학생 편제표에서 앞으로 들을 과목을 선택합니다.`, progress.selectedCount, "미래 선택")}
+      ${pageHead("모의 수강신청", `${state.selectedSchool.name} ${state.curriculum.admissionYear || ""}년 입학생 편제표에서 앞으로 들을 과목을 선택합니다.`, progress.selectedCount, "미래 선택")}
       ${simulationGradeProgressMarkup(progress)}
       <section class="simulation-overview">
         <div><p class="section-kicker">GRADE ${String(activeGrade.grade).padStart(2, "0")} · SCHOOL CURRICULUM</p><h2>${activeGrade.grade}학년 과목 확인</h2><span>${escapeHtml(state.selectedSchool.name)} · ${escapeHtml(state.curriculum.admissionYear || "-")}학년도 입학생 · ${semesterStatus}</span></div>
@@ -4075,7 +4075,7 @@
         <nav class="curriculum-preview-grade-pages" aria-label="학년별 편제 페이지">${gradeTabs}</nav>
         <div class="curriculum-editor-grades"><section class="curriculum-grade-editor"><header><strong>${activeGrade.grade}학년 편제</strong><span data-curriculum-grade-editor-summary>${activeGrade.common.length + activeGrade.electives.length}과목 · 선택 옵션 ${activeGrade.options.length}</span></header><div>${activeGrade.semesters.map((semester) => curriculumEditorSemesterMarkup(activeCurriculum, state.curriculumPreviewIndex, activeGrade, semester)).join("")}</div></section></div>
       </article></div>
-      <aside class="curriculum-editor-legend"><span><i></i> 앱 과목 안내와 연결</span><span class="is-unlisted"><i></i> 고시 외 과목 · 입력명 그대로 저장</span><small>작성 중인 내용은 임시저장할 수 있으며, 등록·교체를 눌러야 학생 시뮬레이션에 공개됩니다.</small></aside>
+      <aside class="curriculum-editor-legend"><span><i></i> 앱 과목 안내와 연결</span><span class="is-unlisted"><i></i> 고시 외 과목 · 입력명 그대로 저장</span><small>작성 중인 내용은 임시저장할 수 있으며, 등록·교체를 눌러야 학생 모의 수강신청에 공개됩니다.</small></aside>
       ${isAdminEdit ? "" : `<p class="curriculum-draft-status" data-curriculum-draft-status>${escapeHtml(draftStatus)}</p>`}
       <div class="admin-button-row"><button class="primary-action" type="button" data-publish-curriculum ${state.curriculumBusy || !canPublish ? "disabled" : ""}>${publishLabel}</button>${isAdminEdit ? "" : `<button class="secondary-action" type="button" data-save-curriculum-draft ${state.curriculumBusy || !canPublish ? "disabled" : ""}>임시저장</button>`}<button class="text-action" type="button" data-clear-curriculum-preview>취소</button></div>
       ${!canPublish ? '<small class="preview-help">등록 비밀번호를 확인하면 편제표 등록과 임시저장을 사용할 수 있습니다.</small>' : '<small class="preview-help">같은 지역·학교명으로 다시 인증하면 마지막 임시저장본을 자동으로 불러옵니다.</small>'}
@@ -5734,7 +5734,7 @@
       state.settings.simulationSubjects = state.simulationSubjects;
       store.saveSettings(state.settings);
       renderSubjects();
-      showToast(wasSelected ? "시뮬레이션에서 과목을 제거했습니다." : "시뮬레이션에 과목을 추가했습니다.");
+      showToast(wasSelected ? "모의 수강신청에서 과목을 제거했습니다." : "모의 수강신청에 과목을 추가했습니다.");
       return;
     }
 
