@@ -45,6 +45,7 @@ const detailContent = elementStub();
 const curriculumAlertDialog = elementStub();
 const curriculumAlertTitle = elementStub();
 const curriculumAlertMessage = elementStub();
+const toast = elementStub();
 const body = elementStub();
 
 global.location = { search: "?tab=admin", href: "http://localhost/section.html?tab=admin" };
@@ -65,7 +66,8 @@ global.document = {
       "[data-record-dialog-content]": detailContent,
       "#curriculum-alert-dialog": curriculumAlertDialog,
       "#curriculum-alert-title": curriculumAlertTitle,
-      "#curriculum-alert-message": curriculumAlertMessage
+      "#curriculum-alert-message": curriculumAlertMessage,
+      "[data-app-toast]": toast
     })[selector] || null;
   },
   querySelectorAll() { return []; },
@@ -183,6 +185,7 @@ async function main() {
   assert.match(draftInstallSql, /notify pgrst, 'reload schema'/);
   assert.match(schoolStoreSource, /async function loadCurriculumDraft/);
   assert.match(schoolStoreSource, /async function saveCurriculumDraft/);
+  assert.match(schoolStoreSource, /async function loadCurriculumForCopy/);
   assert.match(schoolStoreSource, /saveLocalCurriculumDraft/);
   assert.match(schoolStoreSource, /isMissingCurriculumDraftTableError\(error\).*saveLocalCurriculumDraft/s);
   assert.match(appSource, /function refreshSubjectSearchInPlace/);
@@ -267,6 +270,9 @@ async function main() {
   const batchResult = window.DatabaseApp.combineFreshmanCurriculumImports(batchFiles, batchImports);
   assert.deepEqual(batchResult.curricula.map((curriculum) => curriculum.admissionYear), [2026, 2025, 2024]);
   assert.equal(batchResult.sourceFileNames.length, 3);
+  const singleYearResult = window.DatabaseApp.combineFreshmanCurriculumImports([batchFiles[0]], [batchImports[0]]);
+  assert.deepEqual(singleYearResult.curricula.map((curriculum) => curriculum.admissionYear), [2026]);
+  assert.equal(singleYearResult.sourceFileNames.length, 1);
   assert.equal(
     window.DatabaseApp.localizedAccessError(new Error("Invalid login credentials"), "admin"),
     "관리자 이메일 또는 비밀번호가 올바르지 않습니다. 입력한 정보를 다시 확인해 주세요."
@@ -330,6 +336,9 @@ async function main() {
   assert.doesNotMatch(root.innerHTML, /<header><div>[\s\S]*?<\/div><span>직접 작성<\/span><\/header>/);
   assert.match(root.innerHTML, /data-curriculum-semester-editor/);
   assert.match(root.innerHTML, /data-save-curriculum-draft/);
+  assert.ok(root.innerHTML.indexOf("curriculum-region-field") < root.innerHTML.indexOf("data-curriculum-school-name"));
+  assert.match(root.innerHTML, /school-name-affix[\s\S]*?<b>고등학교<\/b>/);
+  assert.match(root.innerHTML, /다른 입학년도 편제 불러오기/);
 
   state.pendingCurriculum = null;
   state.schoolUser = null;
@@ -356,13 +365,16 @@ async function main() {
   assert.doesNotMatch(root.innerHTML, /data-auth-curriculum-file/);
   assert.match(root.innerHTML, /비밀번호 확인 후 다음/);
   state.schoolAuthStep = 2;
+  state.schoolAuthSchoolName = "테스트고등학교";
   window.DatabaseApp.renderAdmin();
   assert.match(root.innerHTML, /data-teacher-school-form/);
   assert.match(root.innerHTML, /지역과 학교명 입력/);
   assert.ok(root.innerHTML.indexOf("data-school-auth-region-toggle") < root.innerHTML.indexOf('name="schoolName"'));
   assert.match(root.innerHTML, /data-school-auth-region-option/);
   assert.match(root.innerHTML, /name="schoolName"/);
+  assert.match(root.innerHTML, /name="schoolName" value="테스트"/);
   assert.match(root.innerHTML, /name="region"/);
+  assert.match(root.innerHTML, /school-name-affix[\s\S]*?<b>고등학교<\/b>/);
   assert.doesNotMatch(root.innerHTML, /name="password"/);
   assert.match(root.innerHTML, /마지막 임시저장본을 먼저 불러옵니다/);
   state.schoolAuthStep = 3;
@@ -371,7 +383,8 @@ async function main() {
   assert.match(root.innerHTML, /신입생 편제표 선택/);
   assert.match(root.innerHTML, /data-auth-curriculum-file/);
   assert.match(root.innerHTML, /multiple/);
-  assert.match(root.innerHTML, /편제표 3개 분석 시작/);
+  assert.match(root.innerHTML, /선택한 편제표 분석 시작/);
+  assert.match(root.innerHTML, /신입생 편제표 1~3개/);
   state.schoolAuthDialogMode = "";
   state.schoolAuthStep = 1;
   state.pendingCurriculumAction = "";
@@ -379,6 +392,53 @@ async function main() {
   const blank = window.DatabaseApp.createBlankCurriculumImport();
   assert.deepEqual(blank.curricula[0].grades.map((grade) => grade.grade), [1, 2, 3]);
   assert.deepEqual(blank.curricula[1].grades.map((grade) => grade.grade), [1, 2, 3]);
+  assert.equal(window.DatabaseApp.schoolNamePrefix("우리고등학교"), "우리");
+  assert.equal(window.DatabaseApp.completeSchoolName("우리"), "우리고등학교");
+  assert.equal(window.DatabaseApp.completeSchoolName("우리고등학교"), "우리고등학교");
+
+  const copiedCurriculum = JSON.parse(JSON.stringify(blank.curricula[1]));
+  const copiedAdmissionYear = copiedCurriculum.admissionYear;
+  assert.equal(window.DatabaseApp.copyCurriculumStructure(copiedCurriculum, result.curricula[0]), true);
+  assert.equal(copiedCurriculum.admissionYear, copiedAdmissionYear);
+  assert.deepEqual(copiedCurriculum.grades, result.curricula[0].grades);
+
+  state.pendingCurriculum = blank;
+  curriculumAlertDialog.close();
+  await root.dispatchTestEvent("click", {
+    target: {
+      closest(selector) { return selector === "[data-publish-curriculum]" ? this : null; },
+      matches() { return false; }
+    }
+  });
+  assert.equal(curriculumAlertDialog.open, true);
+  assert.equal(curriculumAlertTitle.textContent, "등록 전 확인할 항목이 있습니다");
+  assert.match(curriculumAlertMessage.textContent, /2026년 입학생 편제표에 과목이 없습니다/);
+  assert.doesNotMatch(curriculumAlertMessage.textContent, /2025년 입학생 편제표에 과목이 없습니다/);
+  curriculumAlertDialog.close();
+
+  window.DatabaseApp.copyCurriculumStructure(blank.curricula[0], result.curricula[0]);
+  state.curriculumPreviewIndex = 1;
+  state.schoolUser = { id: "teacher-test" };
+  state.accessRole = "teacher";
+  window.DatabaseApp.renderAdmin();
+  assert.match(root.innerHTML, /value="pending:0">2026년 입학생 · 현재 작성 중/);
+  assert.match(root.innerHTML, /현재 열린 2025년 입학생 편제표 한 건만 등록됩니다/);
+  const curriculumCopySelect = { value: "pending:0", selectedOptions: [{ textContent: "2026년 입학생 · 현재 작성 중" }] };
+  const curriculumCopyTools = { querySelector() { return curriculumCopySelect; } };
+  const curriculumCopyButton = {
+    dataset: { curriculumIndex: "1" },
+    disabled: false,
+    textContent: "편제 불러오기",
+    closest(selector) {
+      if (selector === "[data-copy-curriculum-year]") return this;
+      if (selector === ".curriculum-copy-tools") return curriculumCopyTools;
+      return null;
+    },
+    matches() { return false; }
+  };
+  await root.dispatchTestEvent("click", { target: curriculumCopyButton, preventDefault() {} });
+  assert.deepEqual(blank.curricula[1].grades, blank.curricula[0].grades);
+  assert.equal(blank.curricula[1].admissionYear, 2025);
 
   state.pendingCurriculum = result;
   state.curriculumCoursePicker = {
@@ -394,6 +454,30 @@ async function main() {
   assert.match(root.innerHTML, /curriculum-course-picker-overlay/);
   assert.match(root.innerHTML, /과목을 한꺼번에 선택하세요/);
   assert.match(root.innerHTML, /기술·가정/);
+  assert.doesNotMatch(root.innerHTML, /data-curriculum-custom-course-form/);
+
+  state.curriculumCoursePicker.lane = "standalone";
+  state.curriculumCoursePicker.title = "개별 선택 과목";
+  window.DatabaseApp.renderAdmin();
+  assert.match(root.innerHTML, /data-curriculum-custom-course-form/);
+  assert.match(root.innerHTML, /고시 외 과목.*분류됩니다/);
+
+  const customCourseInput = { value: "학교자율탐구", focus() {}, select() {} };
+  const customCourseForm = {
+    querySelector(selector) { return selector === "input[name='customCourse']" ? customCourseInput : null; },
+    closest(selector) { return selector === "[data-curriculum-custom-course-form]" ? this : null; }
+  };
+  await root.dispatchTestEvent("submit", { target: customCourseForm, preventDefault() {} });
+  assert.deepEqual(state.curriculumCoursePicker.customCourses, ["학교자율탐구"]);
+  assert.equal(state.curriculumCoursePickerCategory, "고시 외 과목");
+
+  const confirmCustomCourse = {
+    closest(selector) { return selector === "[data-confirm-curriculum-course-picker]" ? this : null; },
+    matches() { return false; }
+  };
+  await root.dispatchTestEvent("click", { target: confirmCustomCourse, preventDefault() {} });
+  assert.ok(result.curricula[0].grades[1].semesters[0].standalone.includes("학교자율탐구"));
+  assert.ok(Object.values(result.curricula[0].courseMetadata).some((metadata) => metadata.category === "고시 외 과목"));
 
   state.curriculumCoursePicker = null;
   state.selectedSchool = { id: "test-school", name: "테스트고등학교", region: "강원특별자치도" };

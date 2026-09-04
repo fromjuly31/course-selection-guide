@@ -177,6 +177,34 @@
     return curriculum;
   }
 
+  async function loadCurriculumForCopy(input = {}) {
+    await init();
+    const year = Number(input.admissionYear);
+    if (!SUPPORTED_ADMISSION_YEARS.includes(year)) throw new Error("불러올 입학년도를 확인해 주세요.");
+    let school = schools.find((item) => item.id === String(input.schoolId || "").trim()) || null;
+    if (!school && input.schoolName && input.region) {
+      const { name, region } = validateSchoolIdentity(input);
+      school = schools.find((item) => comparable(item.name) === comparable(name) && comparable(item.region) === comparable(region)) || null;
+    }
+    if (!school) throw new Error("해당 학교의 저장된 편제표를 찾을 수 없습니다.");
+    if (!client) {
+      const stored = (school.curricula || []).find((item) => Number(item.admissionYear) === year)
+        || (Number(school.curriculum?.admissionYear ?? school.curriculum?.admission_year) === year ? school.curriculum : null);
+      return stored ? JSON.parse(JSON.stringify(stored)) : null;
+    }
+    const { data, error } = await client
+      .from("curricula")
+      .select("id, school_id, admission_year, data, updated_at")
+      .eq("school_id", school.id)
+      .eq("admission_year", year)
+      .eq("is_published", true)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.data && typeof data.data === "object"
+      ? { ...JSON.parse(JSON.stringify(data.data)), id: data.id, schoolId: data.school_id, admissionYear: data.admission_year, updatedAt: data.updated_at }
+      : null;
+  }
+
   async function restoreSelection() {
     const params = new URLSearchParams(location.search);
     const selectedId = params.get("school") || localStorage.getItem(SELECTED_SCHOOL_KEY) || "";
@@ -602,6 +630,7 @@
     getSnapshot: snapshot,
     selectSchool,
     selectAdmissionYear,
+    loadCurriculumForCopy,
     signInTeacher,
     signInAdmin,
     signOut,

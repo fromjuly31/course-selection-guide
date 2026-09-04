@@ -433,19 +433,23 @@
       if (context === "teacher") return "등록 비밀번호를 확인하지 못했습니다. 비밀번호를 다시 확인해 주세요.";
       if (context === "admin") return "관리자 로그인을 확인하지 못했습니다. 이메일, 비밀번호와 관리자 권한을 다시 확인해 주세요.";
       if (context === "school") return "학교 정보를 확인하지 못했습니다. 지역과 학교명을 다시 확인해 주세요.";
-      if (context === "upload") return "업로드 파일을 확인하지 못했습니다. 파일 3개와 파일 형식을 다시 확인해 주세요.";
+      if (context === "upload") return "업로드 파일을 확인하지 못했습니다. 입학년도별 파일 1~3개와 파일 형식을 다시 확인해 주세요.";
       if (context === "draft") return "임시저장하지 못했습니다. 연결 상태와 등록 권한을 확인해 주세요.";
       return "요청을 처리하지 못했습니다. 입력 내용과 연결 상태를 확인한 뒤 다시 시도해 주세요.";
     }
     return message || "입력 내용과 권한을 확인한 뒤 다시 시도해 주세요.";
   }
 
-  function showCurriculumAlert(title, message, kicker = "데이터 확인 안내") {
+  function showCurriculumAlert(title, message, kicker = "데이터 확인 안내", variant = "warning") {
     if (!curriculumAlertDialog || !curriculumAlertTitle || !curriculumAlertMessage) return;
+    const isSuccess = variant === "success";
     const kickerNode = curriculumAlertDialog.querySelector(".curriculum-alert-kicker");
+    const symbolUse = curriculumAlertDialog.querySelector(".curriculum-alert-symbol use");
+    curriculumAlertDialog.classList.toggle("is-success", isSuccess);
     if (kickerNode) kickerNode.textContent = kicker;
+    if (symbolUse) symbolUse.setAttribute("href", `icons.svg#${isSuccess ? "check" : "warning"}`);
     curriculumAlertTitle.textContent = compactText(title) || "편제표를 확인해 주세요";
-    curriculumAlertMessage.textContent = compactText(message) || "편제표 내용을 확인한 뒤 다시 시도해 주세요.";
+    curriculumAlertMessage.textContent = displayValue(message).split(/\r?\n/).map(compactText).filter(Boolean).join("\n") || "편제표 내용을 확인한 뒤 다시 시도해 주세요.";
     if (curriculumAlertDialog.open) curriculumAlertDialog.close();
     curriculumAlertDialog.showModal();
     requestAnimationFrame(() => curriculumAlertDialog.querySelector(".curriculum-alert-confirm")?.focus({ preventScroll: true }));
@@ -453,6 +457,16 @@
 
   function compactText(value) {
     return displayValue(value).replace(/\s+/g, " ").trim();
+  }
+
+  function schoolNamePrefix(value) {
+    const schoolName = compactText(value);
+    return schoolName.endsWith("고등학교") ? schoolName.slice(0, -"고등학교".length).trim() : schoolName;
+  }
+
+  function completeSchoolName(value) {
+    const prefix = schoolNamePrefix(value);
+    return prefix ? `${prefix}고등학교` : "";
   }
 
   function normalizeCourseGroup(value) {
@@ -3445,6 +3459,44 @@
     return Array.isArray(state.pendingCurriculum.curricula) ? state.pendingCurriculum.curricula : [state.pendingCurriculum];
   }
 
+  function linkedSchoolForCurriculum(curriculum) {
+    const schoolName = normalizedKey(curriculum?.schoolName);
+    const region = normalizedKey(curriculum?.region);
+    if (!schoolName || !region) return null;
+    return state.schools.find((school) => normalizedKey(school.name) === schoolName && normalizedKey(school.region) === region) || null;
+  }
+
+  function curriculumCopySources(curricula, targetIndex) {
+    const target = curricula[targetIndex];
+    if (!target) return [];
+    const targetYear = Number(target.admissionYear);
+    const sources = [];
+    const includedYears = new Set();
+    curricula.forEach((curriculum, curriculumIndex) => {
+      const admissionYear = Number(curriculum.admissionYear);
+      if (curriculumIndex === targetIndex || admissionYear === targetYear || !curriculum.courseCount) return;
+      sources.push({ value: `pending:${curriculumIndex}`, admissionYear, label: `${admissionYear}년 입학생 · 현재 작성 중` });
+      includedYears.add(admissionYear);
+    });
+    const school = linkedSchoolForCurriculum(target);
+    (school?.admissionYears || []).forEach((admissionYearValue) => {
+      const admissionYear = Number(admissionYearValue);
+      if (admissionYear === targetYear || includedYears.has(admissionYear)) return;
+      sources.push({ value: `published:${admissionYear}`, admissionYear, label: `${admissionYear}년 입학생 · 저장됨` });
+      includedYears.add(admissionYear);
+    });
+    return sources.sort((a, b) => b.admissionYear - a.admissionYear);
+  }
+
+  function copyCurriculumStructure(target, source) {
+    if (!target || !source || !Array.isArray(source.grades)) return false;
+    target.grades = JSON.parse(JSON.stringify(source.grades));
+    target.courseMetadata = JSON.parse(JSON.stringify(source.courseMetadata || {}));
+    target.copiedFromAdmissionYear = Number(source.admissionYear) || null;
+    target.copiedAt = new Date().toISOString();
+    return true;
+  }
+
   function curriculumCourseGroupIndex(course, courseMetadata = {}) {
     const metadata = courseMetadata[curriculumCourseAliasKey(course)] || {};
     const reference = curriculumCourseReference(course);
@@ -3681,8 +3733,6 @@
     const years = curricula.map((curriculum) => Number(curriculum.admissionYear));
     const duplicateYears = years.filter((year, index) => years.indexOf(year) !== index);
     if (duplicateYears.length) throw new Error(`${[...new Set(duplicateYears)].join("·")}학년도 신입생 파일이 중복되었습니다.`);
-    const missingYears = UPLOAD_ADMISSION_YEARS.filter((year) => !years.includes(year));
-    if (missingYears.length) throw new Error(`${missingYears.join("·")}학년도 신입생 편제표가 빠졌습니다. 1·2·3학년 해당 파일 3개를 한꺼번에 선택해 주세요.`);
     curricula.forEach((curriculum) => {
       const gradeNumbers = new Set((curriculum.grades || []).map((grade) => Number(grade.grade)));
       if (![1, 2, 3].every((grade) => gradeNumbers.has(grade))) throw new Error(`${curriculum.admissionYear}학년도 신입생 파일에서 1·2·3학년 편제를 모두 찾지 못했습니다.`);
@@ -3703,7 +3753,7 @@
       version: 8,
       sourceFormat: "freshman-three-file-batch",
       parseMode: "freshman-three-file-batch",
-      parseWarnings: [`${sorted.map((curriculum) => curriculum.admissionYear).join("·")}학년도 신입생 3개년 편제표를 각각 읽어 현재 1·2·3학년 자료로 묶었습니다.`],
+      parseWarnings: [`${sorted.map((curriculum) => curriculum.admissionYear).join("·")}학년도 입학생의 3개년 편제표를 각각 읽었습니다.`],
       academicYear: currentAcademicYear(),
       fileName: `${files.length}개 신입생 편제표`,
       sourceFileNames: files.map((file) => file.name),
@@ -3718,8 +3768,8 @@
 
   async function reviewCurriculumFiles(fileList) {
     const files = Array.from(fileList || []);
-    if (files.length !== 3) {
-      showCurriculumAlert("신입생 편제표 3개를 선택해 주세요", "현재 1·2·3학년에 해당하는 2026·2025·2024학년도 신입생 3개년 편제표를 한꺼번에 선택해야 합니다.");
+    if (!files.length || files.length > 3) {
+      showCurriculumAlert("편제표 파일을 1~3개 선택해 주세요", "등록할 입학년도의 신입생 3개년 편제표만 선택하면 됩니다. 서로 다른 입학년도의 파일은 최대 3개까지 함께 분석할 수 있습니다.");
       resetCurriculumDraftState();
       await releaseTeacherCurriculumAccess();
       renderAdmin();
@@ -3731,15 +3781,15 @@
     state.curriculumPreviewGradeIndex = 0;
     state.curriculumRegionPickerOpen = false;
     state.curriculumCoursePicker = null;
-    state.curriculumImportMessage = "신입생 편제표 3개를 읽고 입학년도별로 검증하고 있습니다.";
+    state.curriculumImportMessage = `신입생 편제표 ${files.length}개를 입학년도별로 검증하고 있습니다.`;
     renderAdmin();
     try {
       const parsedImports = await Promise.all(files.map((file) => parseCurriculumFile(file)));
       state.pendingCurriculum = applyPendingCurriculumIdentity(combineFreshmanCurriculumImports(files, parsedImports));
       resetCurriculumDraftState({ clearIdentity: false });
       preparePendingCurriculumForEditing();
-      state.curriculumImportMessage = `검증 완료: 신입생 편제표 3개에서 ${state.pendingCurriculum.courseCount.toLocaleString("ko-KR")}개 교과와 학년별 옵션을 확인했습니다.`;
-      showToast("신입생 편제표 3개의 검증이 완료되었습니다.");
+      state.curriculumImportMessage = `검증 완료: 신입생 편제표 ${files.length}개에서 ${state.pendingCurriculum.courseCount.toLocaleString("ko-KR")}개 교과와 학년별 옵션을 확인했습니다.`;
+      showToast(`신입생 편제표 ${files.length}개의 검증이 완료되었습니다.`);
     } catch (error) {
       console.error("학교 편제표 분석 실패:", error);
       state.pendingCurriculum = null;
@@ -3799,6 +3849,17 @@
         type: uploadedCourseType(metadata.type) || "기타"
       });
     });
+    (picker?.customCourses || []).forEach((course) => {
+      const name = compactText(course);
+      const key = curriculumCourseAliasKey(name);
+      if (!key || byKey.has(key)) return;
+      byKey.set(key, {
+        key,
+        name,
+        category: "고시 외 과목",
+        type: "기타"
+      });
+    });
     return [...byKey.values()].sort((a, b) => courseGroupOrderIndex(a.category) - courseGroupOrderIndex(b.category)
       || a.category.localeCompare(b.category, "ko")
       || a.name.localeCompare(b.name, "ko"));
@@ -3826,10 +3887,17 @@
       }).join("");
       return `<article class="curriculum-picker-category"><header><h4>${escapeHtml(category)}</h4><span>${courses.length}과목</span></header>${typeMarkup}</article>`;
     }).join("");
+    const customCourseMarkup = picker.lane === "standalone" || picker.lane === "option"
+      ? `<form class="curriculum-picker-custom-course" data-curriculum-custom-course-form>
+          <div><strong>목록에 없는 과목</strong><small>직접 입력하면 ‘고시 외 과목’으로 분류됩니다.</small></div>
+          <div><input type="text" name="customCourse" placeholder="과목명을 직접 입력하세요" autocomplete="off" aria-label="목록에 없는 과목명"><button type="submit">직접 추가</button></div>
+        </form>`
+      : "";
     return `<div class="curriculum-course-picker-overlay" data-curriculum-course-picker-overlay>
-      <section class="curriculum-course-picker" role="dialog" aria-modal="true" aria-labelledby="curriculum-course-picker-title">
+      <section class="curriculum-course-picker ${customCourseMarkup ? "has-custom-course-entry" : ""}" role="dialog" aria-modal="true" aria-labelledby="curriculum-course-picker-title">
         <header><div><small>MULTI COURSE SELECT</small><h3 id="curriculum-course-picker-title">과목을 한꺼번에 선택하세요</h3><p>${picker.grade}학년 ${picker.semester}학기 · ${escapeHtml(picker.title)}</p></div><button type="button" data-cancel-curriculum-course-picker aria-label="과목 선택 닫기">×</button></header>
         <label class="curriculum-picker-search"><span>${icon("search")}</span><input type="search" value="${escapeHtml(state.curriculumCoursePickerSearch)}" placeholder="과목명 검색" data-curriculum-course-picker-search></label>
+        ${customCourseMarkup}
         <nav class="curriculum-picker-categories" aria-label="교과군 선택">${categories.map((category) => `<button type="button" class="${state.curriculumCoursePickerCategory === category ? "is-selected" : ""}" data-curriculum-course-picker-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`).join("")}</nav>
         <div class="curriculum-picker-results">${categoryMarkup || '<p class="curriculum-picker-empty">조건에 맞는 과목이 없습니다.</p>'}</div>
         <footer><span><strong>${selected.size}</strong>과목 선택됨</span><div><button type="button" class="text-action" data-cancel-curriculum-course-picker>취소</button><button type="button" class="primary-action" data-confirm-curriculum-course-picker>이 영역 선택 완료</button></div></footer>
@@ -3846,7 +3914,9 @@
     const isUnlisted = !reference;
     const metadata = courseMetadata[curriculumCourseAliasKey(course)] || {};
     const referenceType = reference?.row ? courseBadge(reference.row)?.label : "";
-    const detail = [metadata.category || reference?.category, metadata.type || referenceType].filter(Boolean).join(" · ");
+    const detail = [metadata.category || reference?.category, metadata.type || referenceType]
+      .filter((value) => value && !(isUnlisted && value === "고시 외 과목"))
+      .join(" · ");
     return `<div class="curriculum-editor-course ${isUnlisted ? "is-unlisted" : ""}" draggable="true" data-curriculum-course-drag data-course-index="${courseIndex}" ${attributes} title="드래그하여 다른 영역으로 이동">
       <span class="curriculum-course-grip" aria-hidden="true">⠿</span>
       <button type="button" data-edit-curriculum-course><strong>${escapeHtml(course)}</strong></button>
@@ -3866,6 +3936,18 @@
     </section>`;
   }
 
+  function curriculumOptionEditorMarkup(curriculumIndex, grade, semester, option, optionIndex) {
+    const attributes = curriculumEditorDataAttributes(curriculumIndex, grade, semester, "option", optionIndex);
+    return `<article class="curriculum-option-editor">
+      <header>
+        <label><span>옵션명</span><input type="text" value="${escapeHtml(option.label)}" data-curriculum-option-label ${attributes}></label>
+        <label class="curriculum-choose-field"><span>선택 수</span><span class="curriculum-choose-input"><b>택</b><input type="number" min="1" max="${Math.max(1, option.courses.length)}" value="${option.choose}" inputmode="numeric" data-curriculum-option-choose ${attributes}></span></label>
+        <button type="button" data-remove-curriculum-option ${attributes} aria-label="${escapeHtml(option.label)} 삭제">옵션 삭제</button>
+      </header>
+      ${curriculumEditorLaneMarkup({ curriculumIndex, grade, semester, lane: "option", optionIndex, courses: option.courses, addLabel: "선택 과목 추가" })}
+    </article>`;
+  }
+
   function curriculumEditorSemesterMarkup(curriculum, curriculumIndex, grade, semester) {
     const commonLane = curriculumEditorLaneMarkup({
       curriculumIndex,
@@ -3875,31 +3957,31 @@
       title: "공통·학교 지정과목",
       courses: semester.common
     });
-    const standaloneLane = semester.standalone.length ? curriculumEditorLaneMarkup({
+    const standaloneLane = curriculumEditorLaneMarkup({
       curriculumIndex,
       grade: grade.grade,
       semester: semester.semester,
       lane: "standalone",
       title: "개별 선택 과목",
-      courses: semester.standalone
-    }) : "";
-    const optionMarkup = semester.options.map((option, optionIndex) => {
-      const attributes = curriculumEditorDataAttributes(curriculumIndex, grade.grade, semester.semester, "option", optionIndex);
-      return `<article class="curriculum-option-editor">
-        <header>
-          <label><span>옵션명</span><input type="text" value="${escapeHtml(option.label)}" data-curriculum-option-label ${attributes}></label>
-          <label class="curriculum-choose-field"><span>선택 수</span><span class="curriculum-choose-input"><b>택</b><input type="number" min="1" max="${Math.max(1, option.courses.length)}" value="${option.choose}" inputmode="numeric" data-curriculum-option-choose ${attributes}></span></label>
-          <button type="button" data-remove-curriculum-option ${attributes} aria-label="${escapeHtml(option.label)} 삭제">옵션 삭제</button>
-        </header>
-        ${curriculumEditorLaneMarkup({ curriculumIndex, grade: grade.grade, semester: semester.semester, lane: "option", optionIndex, courses: option.courses, addLabel: "선택 과목 추가" })}
-      </article>`;
-    }).join("");
+      courses: semester.standalone,
+      addLabel: "선택 과목 추가"
+    });
+    const optionMarkup = semester.options.map((option, optionIndex) => curriculumOptionEditorMarkup(
+      curriculumIndex,
+      grade.grade,
+      semester.semester,
+      option,
+      optionIndex
+    )).join("");
     return `<article class="curriculum-semester-editor" data-curriculum-semester-editor data-curriculum-index="${curriculumIndex}" data-curriculum-grade="${grade.grade}" data-curriculum-semester="${semester.semester}">
-      <header><div><small>${grade.grade}학년</small><h5>${semester.semester}학기</h5></div><span>공통·학교 지정 ${semester.common.length} · 선택 옵션 ${semester.options.length}</span></header>
+      <header><div><small>${grade.grade}학년</small><h5>${semester.semester}학기</h5></div><span data-curriculum-semester-summary>공통·학교 지정 ${semester.common.length} · 선택 옵션 ${semester.options.length}</span></header>
       ${commonLane}
-      ${standaloneLane}
-      <div class="curriculum-options-editor">${optionMarkup || '<p class="curriculum-no-options">학생 선택 옵션이 없습니다.</p>'}</div>
-      <button class="curriculum-add-option" type="button" data-add-curriculum-option data-curriculum-index="${curriculumIndex}" data-curriculum-grade="${grade.grade}" data-curriculum-semester="${semester.semester}">＋ 선택 옵션 추가</button>
+      <section class="curriculum-elective-section">
+        <header class="curriculum-elective-heading"><div><small>STUDENT ELECTIVES</small><strong>선택 과목</strong></div><span data-curriculum-elective-summary>개별 ${semester.standalone.length}과목 · 옵션 ${semester.options.length}개</span></header>
+        ${standaloneLane}
+        <div class="curriculum-options-editor">${optionMarkup || '<p class="curriculum-no-options">학생 선택 옵션이 없습니다.</p>'}</div>
+        <button class="curriculum-add-option" type="button" data-add-curriculum-option data-curriculum-index="${curriculumIndex}" data-curriculum-grade="${grade.grade}" data-curriculum-semester="${semester.semester}">＋ 선택 옵션 추가</button>
+      </section>
     </article>`;
   }
 
@@ -3916,7 +3998,9 @@
     curricula.forEach((curriculum, curriculumIndex) => {
       const pageSummary = root.querySelector(`[data-curriculum-preview-page="${curriculumIndex}"] [data-curriculum-page-summary]`);
       const gradeLabel = curriculum.grades.map((grade) => grade.grade).join("·");
-      if (pageSummary) pageSummary.textContent = gradeLabel ? `${gradeLabel}학년 선택 편제` : "선택 학년 없음";
+      const published = linkedSchoolForCurriculum(curriculum)?.admissionYears?.map(Number).includes(Number(curriculum.admissionYear));
+      const editStatus = curriculum.courseCount ? `${gradeLabel}학년 편제 작성됨` : "아직 작성하지 않음";
+      if (pageSummary) pageSummary.textContent = `${editStatus}${published ? " · 저장됨" : ""}`;
     });
     const activeCurriculum = curricula[state.curriculumPreviewIndex];
     const activeGrade = activeCurriculum?.grades[state.curriculumPreviewGradeIndex];
@@ -4015,27 +4099,31 @@
     return true;
   }
 
-  function validatePendingCurriculumEdits() {
-    const curricula = preparePendingCurriculumForEditing();
+  function validatePendingCurriculumEdits(curriculumIndexes = null) {
+    const allCurricula = preparePendingCurriculumForEditing();
+    const requestedIndexes = Array.isArray(curriculumIndexes) ? new Set(curriculumIndexes.map(Number)) : null;
+    const curricula = requestedIndexes ? allCurricula.filter((_curriculum, index) => requestedIndexes.has(index)) : allCurricula;
     const errors = [];
     const years = new Set();
+    if (!curricula.length) errors.push("등록할 입학년도 편제표를 찾지 못했습니다.");
     curricula.forEach((curriculum) => {
-      if (!/^.+고등학교$/u.test(compactText(curriculum.schoolName))) errors.push("학교명은 '고등학교'로 끝나야 합니다.");
+      if (!schoolNamePrefix(curriculum.schoolName) || !compactText(curriculum.schoolName).endsWith("고등학교")) errors.push("학교명의 앞부분을 입력해 주세요.");
       if (!SCHOOL_REGIONS.includes(curriculum.region)) errors.push("학교 지역을 선택해 주세요.");
       const allowedYears = curriculum.sourceFormat === "manual" ? SUPPORTED_ADMISSION_YEARS : UPLOAD_ADMISSION_YEARS;
       if (!allowedYears.includes(Number(curriculum.admissionYear))) errors.push(`입학년도는 ${allowedYears.join("·")}년만 사용할 수 있습니다.`);
+      if (allCurricula.filter((entry) => Number(entry.admissionYear) === Number(curriculum.admissionYear)).length > 1) errors.push(`${curriculum.admissionYear}년 입학생 편제표가 편집 화면에 중복되어 있습니다.`);
       if (years.has(Number(curriculum.admissionYear))) errors.push("입학년도가 서로 중복됩니다.");
       years.add(Number(curriculum.admissionYear));
-      if (!curriculum.courseCount) errors.push(`${curriculum.admissionYear || "해당"} 입학생 편제표에 과목이 없습니다.`);
+      if (!curriculum.courseCount) errors.push(`${curriculum.admissionYear || "해당"}년 입학생 편제표에 과목이 없습니다. 상단의 해당 입학년도 탭을 확인해 주세요.`);
       curriculum.grades.forEach((grade) => grade.semesters.forEach((semester) => semester.options.forEach((option) => {
         if (!compactText(option.label)) errors.push(`${grade.grade}학년 ${semester.semester}학기 옵션명이 비어 있습니다.`);
-        if (!option.courses.length) errors.push(`${grade.grade}학년 ${semester.semester}학기 ${option.label}에 과목이 없습니다.`);
+        if (!option.courses.length) errors.push(`${curriculum.admissionYear}년 입학생 · ${grade.grade}학년 ${semester.semester}학기 · ${option.label}에 과목이 없습니다. 사용하지 않는 옵션이면 ‘옵션 삭제’를 눌러 주세요.`);
         if (!Number.isInteger(Number(option.choose)) || Number(option.choose) < 1 || Number(option.choose) > option.courses.length) {
-          errors.push(`${grade.grade}학년 ${semester.semester}학기 ${option.label}의 선택 수는 1~${option.courses.length || 1} 사이여야 합니다.`);
+          errors.push(`${curriculum.admissionYear}년 입학생 · ${grade.grade}학년 ${semester.semester}학기 · ${option.label}의 선택 수는 1~${option.courses.length || 1} 사이여야 합니다.`);
         }
       })));
     });
-    if (errors.length) throw new Error([...new Set(errors)].slice(0, 5).join(" "));
+    if (errors.length) throw new Error([...new Set(errors)].slice(0, 5).map((error) => `• ${error}`).join("\n"));
     return curricula;
   }
 
@@ -4049,6 +4137,14 @@
     state.curriculumPreviewGradeIndex = Math.max(0, Math.min(activeCurriculum.grades.length - 1, Number(state.curriculumPreviewGradeIndex) || 0));
     const activeGrade = activeCurriculum.grades[state.curriculumPreviewGradeIndex];
     const selectedRegion = activeCurriculum?.region || pending.region || "";
+    const linkedSchool = linkedSchoolForCurriculum(activeCurriculum);
+    const publishedAdmissionYears = new Set((linkedSchool?.admissionYears || []).map(Number));
+    const copySources = curriculumCopySources(curricula, state.curriculumPreviewIndex);
+    const copySourceOptions = copySources.map((source) => `<option value="${escapeHtml(source.value)}">${escapeHtml(source.label)}</option>`).join("");
+    const copyTools = `<aside class="curriculum-copy-tools">
+      <div><strong>다른 입학년도 편제 불러오기</strong><small>선택한 입학년도의 1·2·3학년 전체 편제를 현재 ${activeCurriculum.admissionYear}년 입학생 편제로 복사합니다.</small></div>
+      <div><select data-curriculum-copy-source aria-label="복사할 입학년도" ${copySources.length && !state.curriculumBusy ? "" : "disabled"}>${copySourceOptions || '<option value="">불러올 다른 입학년도 없음</option>'}</select><button type="button" data-copy-curriculum-year data-curriculum-index="${state.curriculumPreviewIndex}" ${copySources.length && !state.curriculumBusy ? "" : "disabled"}>편제 불러오기</button></div>
+    </aside>`;
     const canPublish = Boolean(state.schoolUser && state.accessRole);
     const isAdminEdit = activeCurriculum?.sourceFormat === "admin-edit" || pending?.sourceFormat === "admin-edit";
     const isManual = activeCurriculum?.sourceFormat === "manual" || pending?.sourceFormat === "manual";
@@ -4058,11 +4154,12 @@
       : "아직 임시저장하지 않았습니다.";
     const publishLabel = state.curriculumBusy ? "Supabase에 저장 중"
       : isAdminEdit ? "편제표 수정"
-        : isBatch ? `${curricula.length}개 입학년도 편제표 등록 · 교체`
-          : "편제표 등록 · 교체";
+        : "편제표 등록 · 교체";
     const pageTabs = curricula.map((curriculum, curriculumIndex) => {
       const gradeLabel = curriculum.grades.map((grade) => grade.grade).join("·");
-      return `<button type="button" class="${curriculumIndex === state.curriculumPreviewIndex ? "is-selected" : ""}" data-curriculum-preview-page="${curriculumIndex}" aria-pressed="${curriculumIndex === state.curriculumPreviewIndex}"><strong>${curriculum.admissionYear}년 입학생</strong><span data-curriculum-page-summary>${gradeLabel ? `${gradeLabel}학년 선택 편제` : "선택 학년 없음"}</span></button>`;
+      const editStatus = curriculum.courseCount ? `${gradeLabel}학년 편제 작성됨` : "아직 작성하지 않음";
+      const publishStatus = publishedAdmissionYears.has(Number(curriculum.admissionYear)) ? " · 저장됨" : "";
+      return `<button type="button" class="${curriculumIndex === state.curriculumPreviewIndex ? "is-selected" : ""}" data-curriculum-preview-page="${curriculumIndex}" aria-pressed="${curriculumIndex === state.curriculumPreviewIndex}"><strong>${curriculum.admissionYear}년 입학생</strong><span data-curriculum-page-summary>${editStatus}${publishStatus}</span></button>`;
     }).join("");
     const regionOptions = SCHOOL_REGIONS.map((regionName) => `<button type="button" class="${selectedRegion === regionName ? "is-selected" : ""}" data-curriculum-region-option="${escapeHtml(regionName)}" role="option" aria-selected="${selectedRegion === regionName}">${selectedRegion === regionName ? icon("check") : ""}<span>${escapeHtml(regionName)}</span></button>`).join("");
     const gradeTabs = activeCurriculum.grades.map((grade, gradeIndex) => `<button type="button" class="${gradeIndex === state.curriculumPreviewGradeIndex ? "is-selected" : ""}" data-curriculum-preview-grade="${gradeIndex}" aria-pressed="${gradeIndex === state.curriculumPreviewGradeIndex}"><span>${grade.grade}</span><strong>${grade.grade}학년</strong><small data-curriculum-grade-summary>${grade.common.length + grade.electives.length}과목 · 옵션 ${grade.options.length}</small></button>`).join("");
@@ -4072,20 +4169,21 @@
       <header><div><small>${isAdminEdit ? "ADMIN CURRICULUM EDIT" : isManual ? "CURRICULUM EDITOR" : isBatch ? "FRESHMAN FILES REVIEW" : "UPLOAD REVIEW"}</small><h3 id="curriculum-preview-title">편제표 확인 및 수정</h3><p>공통·학교 지정과목과 선택 옵션을 입학년도·학년·학기별로 확인하세요.</p></div>${isManual ? "" : `<span>${escapeHtml(pending.fileName)}</span>`}</header>
       <nav class="curriculum-preview-pages" aria-label="파싱된 입학년도">${pageTabs}</nav>
       <div class="curriculum-editor-school-fields">
-        <label><span>학교명</span><input type="text" value="${escapeHtml(curricula[0]?.schoolName || pending.schoolName)}" placeholder="예: ○○고등학교" data-curriculum-school-name ${isAdminEdit ? "readonly aria-readonly=\"true\"" : ""}></label>
         <div class="curriculum-region-field"><span>지역</span><div class="curriculum-region-picker"><button type="button" data-curriculum-region-toggle aria-haspopup="listbox" aria-expanded="${state.curriculumRegionPickerOpen}" ${isAdminEdit ? "disabled" : ""}><span>${escapeHtml(selectedRegion || "지역을 선택하세요")}</span>${icon("arrow")}</button><div class="curriculum-region-options" role="listbox" ${state.curriculumRegionPickerOpen ? "" : "hidden"}>${regionOptions}</div></div></div>
+        <label><span>학교명</span><div class="school-name-affix"><input type="text" value="${escapeHtml(schoolNamePrefix(curricula[0]?.schoolName || pending.schoolName))}" placeholder="예: 우리" aria-label="학교명 앞부분" data-curriculum-school-name ${isAdminEdit ? "readonly aria-readonly=\"true\"" : ""}><b>고등학교</b></div></label>
         <div><span>${isManual ? "작성 현황" : isAdminEdit ? "등록 현황" : "파싱 현황"}</span><strong data-curriculum-total-summary>총 ${pending.courseCount.toLocaleString("ko-KR")}과목</strong><small data-curriculum-unlisted-summary>${pending.unlistedCourseCount ? `고시 외 ${pending.unlistedCourseCount.toLocaleString("ko-KR")}과목` : "모든 과목이 앱 DB와 연결됨"}</small></div>
       </div>
       ${!isManual && Array.isArray(pending.parseWarnings) && pending.parseWarnings.length ? `<aside class="curriculum-parse-warning" role="status">${icon("warning")}<div><strong>유연 분석 결과를 확인하세요.</strong>${pending.parseWarnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div></aside>` : ""}
       <div class="curriculum-editor-cohorts"><article class="curriculum-editor-cohort">
         <header><div><small>${isManual ? "1·2·3학년 전체 편제 입력" : `${activeCurriculum.admissionYear}학년도 신입생 3개년 · 1·2·3학년 전체 편제`}</small><h4><label><input type="number" min="${isManual ? 2025 : 2024}" max="2026" value="${activeCurriculum.admissionYear}" data-curriculum-admission-year data-curriculum-index="${state.curriculumPreviewIndex}" ${isAdminEdit ? "readonly aria-readonly=\"true\"" : ""}><span>년 입학생</span></label></h4></div><span data-curriculum-cohort-summary>${activeCurriculum.courseCount}과목${activeCurriculum.unlistedCourseCount ? ` · 고시 외 ${activeCurriculum.unlistedCourseCount}` : ""}</span></header>
+        ${copyTools}
         <nav class="curriculum-preview-grade-pages" aria-label="학년별 편제 페이지">${gradeTabs}</nav>
         <div class="curriculum-editor-grades"><section class="curriculum-grade-editor"><header><strong>${activeGrade.grade}학년 편제</strong><span data-curriculum-grade-editor-summary>${activeGrade.common.length + activeGrade.electives.length}과목 · 선택 옵션 ${activeGrade.options.length}</span></header><div>${activeGrade.semesters.map((semester) => curriculumEditorSemesterMarkup(activeCurriculum, state.curriculumPreviewIndex, activeGrade, semester)).join("")}</div></section></div>
       </article></div>
       <aside class="curriculum-editor-legend"><span><i></i> 앱 과목 안내와 연결</span><span class="is-unlisted"><i></i> 고시 외 과목 · 입력명 그대로 저장</span><small>작성 중인 내용은 임시저장할 수 있으며, 등록·교체를 눌러야 학생 모의 수강신청에 공개됩니다.</small></aside>
       ${isAdminEdit ? "" : `<p class="curriculum-draft-status" data-curriculum-draft-status>${escapeHtml(draftStatus)}</p>`}
       <div class="admin-button-row"><button class="primary-action" type="button" data-publish-curriculum ${state.curriculumBusy || !canPublish ? "disabled" : ""}>${publishLabel}</button>${isAdminEdit ? "" : `<button class="secondary-action" type="button" data-save-curriculum-draft ${state.curriculumBusy || !canPublish ? "disabled" : ""}>임시저장</button>`}<button class="text-action" type="button" data-clear-curriculum-preview>취소</button></div>
-      ${!canPublish ? '<small class="preview-help">등록 비밀번호를 확인하면 편제표 등록과 임시저장을 사용할 수 있습니다.</small>' : '<small class="preview-help">같은 지역·학교명으로 다시 인증하면 마지막 임시저장본을 자동으로 불러옵니다.</small>'}
+      ${!canPublish ? '<small class="preview-help">등록 비밀번호를 확인하면 편제표 등록과 임시저장을 사용할 수 있습니다.</small>' : `<small class="preview-help">현재 열린 ${activeCurriculum.admissionYear}년 입학생 편제표 한 건만 등록됩니다. 다른 입학년도는 해당 탭에서 별도로 등록하세요.</small>`}
       </section>
       ${curriculumCoursePickerMarkup()}
     </div>`;
@@ -4111,13 +4209,13 @@
     </form>`;
     const teacherIdentityForm = `<form class="school-auth-form" data-teacher-school-form>
       <div class="school-auth-region-field"><span>지역</span><button type="button" data-school-auth-region-toggle aria-haspopup="listbox" aria-expanded="${state.schoolAuthRegionOpen}"><span>${escapeHtml(state.schoolAuthRegion || "지역을 선택하세요")}</span>${icon("arrow")}</button><input type="hidden" name="region" value="${escapeHtml(state.schoolAuthRegion)}"><div class="school-auth-region-options" role="listbox" ${state.schoolAuthRegionOpen ? "" : "hidden"}>${authRegionOptions}</div></div>
-      <label><span>학교명</span><input type="text" name="schoolName" value="${escapeHtml(state.schoolAuthSchoolName)}" autocomplete="organization" required placeholder="예: ○○고등학교"></label>
+      <label><span>학교명</span><div class="school-name-affix"><input type="text" name="schoolName" value="${escapeHtml(schoolNamePrefix(state.schoolAuthSchoolName))}" autocomplete="organization" required placeholder="예: 우리" aria-label="학교명 앞부분"><b>고등학교</b></div></label>
       <p class="school-auth-draft-help">동일한 지역·학교명으로 저장한 작업이 있으면 마지막 임시저장본을 먼저 불러옵니다.</p>
       <button class="primary-action" type="submit">학교 확인 후 ${actionLabel} 계속</button>
     </form>`;
     const teacherUploadForm = `<form class="school-auth-form" data-teacher-upload-form>
-      <label class="school-auth-file"><span>신입생 편제표 3개</span><input type="file" multiple accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" data-auth-curriculum-file required><small>2026·2025·2024학년도 신입생 3개년 편제표를 한꺼번에 선택하세요.</small></label>
-      <button class="primary-action" type="submit">편제표 3개 분석 시작</button>
+      <label class="school-auth-file"><span>신입생 편제표 1~3개</span><input type="file" multiple accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" data-auth-curriculum-file required><small>등록할 입학년도의 3개년 편제표만 선택하세요. 여러 입학년도 파일도 함께 선택할 수 있습니다.</small></label>
+      <button class="primary-action" type="submit">선택한 편제표 분석 시작</button>
     </form>`;
     const content = !configured
       ? `<div class="school-auth-unavailable">${icon("database")}<strong>Supabase 설정이 필요합니다.</strong><p><code>supabase-config.js</code>에 Project URL과 Publishable key를 먼저 입력해 주세요.</p></div>`
@@ -4127,7 +4225,7 @@
     return `<div class="school-auth-overlay" data-school-auth-overlay>
       <section class="school-auth-dialog" data-school-auth-dialog role="dialog" aria-modal="true" aria-labelledby="school-auth-title">
         <button class="school-auth-close" type="button" data-close-school-auth-dialog aria-label="로그인 창 닫기">×</button>
-        <header><span>${icon(isAdmin ? "user" : teacherUploadStep ? "upload" : "database")}</span><div><small>${isAdmin ? "ADMIN ACCESS" : teacherUploadStep ? "FRESHMAN FILES · 03" : teacherIdentityStep ? "SCHOOL INFORMATION · 02" : "PASSWORD · 01"}</small><h3 id="school-auth-title">${isAdmin ? "관리자 로그인" : teacherUploadStep ? "신입생 편제표 선택" : teacherIdentityStep ? "지역과 학교명 입력" : "등록 비밀번호 확인"}</h3><p>${isAdmin ? "연동 학교의 편제표를 열어 수정하거나 삭제할 수 있습니다." : teacherUploadStep ? "현재 1·2·3학년에 해당하는 파일 3개를 선택해 주세요." : teacherIdentityStep ? "임시저장본을 찾을 지역과 학교명을 입력해 주세요." : "먼저 설정한 등록 비밀번호를 입력해 주세요."}</p></div></header>
+        <header><span>${icon(isAdmin ? "user" : teacherUploadStep ? "upload" : "database")}</span><div><small>${isAdmin ? "ADMIN ACCESS" : teacherUploadStep ? "FRESHMAN FILES · 01—03" : teacherIdentityStep ? "SCHOOL INFORMATION · 02" : "PASSWORD · 01"}</small><h3 id="school-auth-title">${isAdmin ? "관리자 로그인" : teacherUploadStep ? "신입생 편제표 선택" : teacherIdentityStep ? "지역과 학교명 입력" : "등록 비밀번호 확인"}</h3><p>${isAdmin ? "연동 학교의 편제표를 열어 수정하거나 삭제할 수 있습니다." : teacherUploadStep ? "등록할 입학년도의 3개년 편제표를 1~3개 선택해 주세요." : teacherIdentityStep ? "임시저장본을 찾을 지역과 학교명을 입력해 주세요." : "먼저 설정한 등록 비밀번호를 입력해 주세요."}</p></div></header>
         ${content}
       </section>
     </div>`;
@@ -4147,7 +4245,7 @@
             <button class="upload-zone curriculum-upload-zone ${state.curriculumBusy ? "is-busy" : ""}" type="button" data-request-curriculum-upload ${state.curriculumBusy ? "disabled" : ""}>
               <span class="upload-icon">${icon("upload")}</span>
               <strong>${state.curriculumBusy ? "편제표를 처리하고 있습니다" : "신입생 편제표 업로드"}</strong>
-              <small>1·2·3학년 해당 파일 3개를 한꺼번에 분석합니다.</small>
+              <small>등록할 입학년도의 3개년 편제표를 1~3개 분석합니다.</small>
             </button>
           </div>
           <aside class="curriculum-format-notice" role="note">${icon("warning")}<p><strong>업로드 자료를 확인하세요.</strong><span><mark>전학년 편제표가 아닌 신입생 편제표를 업로드하세요.</mark><br>학교별 셀 위치가 달라도 교과군·과목 유형·학년·학기·옵션·선택 수 머리글과 ‘택 N’ 표시를 찾아 분석합니다.</span></p></aside>
@@ -5376,6 +5474,52 @@
       return;
     }
 
+    const copyCurriculumYearButton = event.target.closest("[data-copy-curriculum-year]");
+    if (copyCurriculumYearButton) {
+      const targetIndex = Number(copyCurriculumYearButton.dataset.curriculumIndex);
+      const targetCurriculum = pendingCurriculumItems()[targetIndex];
+      const copyTools = copyCurriculumYearButton.closest(".curriculum-copy-tools");
+      const sourceSelect = copyTools?.querySelector("[data-curriculum-copy-source]");
+      const [sourceKind, sourceValue] = String(sourceSelect?.value || "").split(":");
+      if (!targetCurriculum || !sourceKind || !sourceValue) {
+        showToast("불러올 입학년도 편제표를 선택해 주세요.");
+        return;
+      }
+      const sourceLabel = sourceSelect.selectedOptions?.[0]?.textContent || `${sourceValue}년 입학생`;
+      if (targetCurriculum.courseCount && !confirm(`${sourceLabel}의 1·2·3학년 편제로 현재 ${targetCurriculum.admissionYear}년 입학생 편제를 교체할까요?`)) return;
+      const originalText = copyCurriculumYearButton.textContent;
+      copyCurriculumYearButton.disabled = true;
+      copyCurriculumYearButton.textContent = "불러오는 중";
+      try {
+        let sourceCurriculum = null;
+        if (sourceKind === "pending") sourceCurriculum = pendingCurriculumItems()[Number(sourceValue)] || null;
+        else if (sourceKind === "published") {
+          if (!schoolStore?.loadCurriculumForCopy) throw new Error("저장된 편제표 불러오기 기능을 사용할 수 없습니다.");
+          const linkedSchool = linkedSchoolForCurriculum(targetCurriculum);
+          sourceCurriculum = await schoolStore.loadCurriculumForCopy({
+            schoolId: linkedSchool?.id,
+            schoolName: targetCurriculum.schoolName,
+            region: targetCurriculum.region,
+            admissionYear: Number(sourceValue)
+          });
+        }
+        if (!sourceCurriculum || !copyCurriculumStructure(targetCurriculum, sourceCurriculum)) {
+          throw new Error(`${sourceValue}년 입학생의 저장된 3개년 편제를 찾지 못했습니다.`);
+        }
+        preparePendingCurriculumForEditing();
+        state.curriculumImportMessage = `${sourceValue}년 입학생의 3개년 편제를 ${targetCurriculum.admissionYear}년 입학생 편제로 복사했습니다.`;
+        refreshCurriculumPreviewSelectionInPlace({ pageChanged: true });
+        showToast(state.curriculumImportMessage, 4200);
+        requestAnimationFrame(() => root.querySelector(`[data-copy-curriculum-year][data-curriculum-index="${targetIndex}"]`)?.focus({ preventScroll: true }));
+      } catch (error) {
+        console.error("다른 입학년도 편제 불러오기 실패:", error);
+        showCurriculumAlert("편제표를 불러오지 못했습니다", localizedAccessError(error, "publish"), "입학년도 편제 복사 오류");
+        copyCurriculumYearButton.disabled = false;
+        copyCurriculumYearButton.textContent = originalText;
+      }
+      return;
+    }
+
     const editCurriculumCourseMeta = event.target.closest("[data-edit-curriculum-course-meta]");
     if (editCurriculumCourseMeta) {
       const courseChip = editCurriculumCourseMeta.closest("[data-curriculum-course-drag]");
@@ -5455,7 +5599,8 @@
         lane: addCurriculumCourse.dataset.curriculumLane,
         optionIndex: addCurriculumCourse.dataset.curriculumOptionIndex || "",
         title: addCurriculumCourse.dataset.curriculumPickerTitle || "과목 영역",
-        selectedKeys: courses.map(curriculumCourseAliasKey).filter(Boolean)
+        selectedKeys: courses.map(curriculumCourseAliasKey).filter(Boolean),
+        customCourses: []
       };
       state.curriculumCoursePickerSearch = "";
       state.curriculumCoursePickerCategory = "전체";
@@ -5483,7 +5628,10 @@
     const curriculumPickerCategory = event.target.closest("[data-curriculum-course-picker-category]");
     if (curriculumPickerCategory && state.curriculumCoursePicker) {
       state.curriculumCoursePickerCategory = curriculumPickerCategory.dataset.curriculumCoursePickerCategory || "전체";
-      refreshCurriculumCoursePickerInPlace();
+      root.querySelectorAll("[data-curriculum-picker-category]").forEach((button) => {
+        button.classList.toggle("is-selected", button.dataset.curriculumCoursePickerCategory === state.curriculumCoursePickerCategory);
+      });
+      refreshCurriculumCoursePickerInPlace({ resultsOnly: true });
       return;
     }
 
@@ -5494,6 +5642,14 @@
       if (!courses) return;
       const selected = new Set(picker.selectedKeys || []);
       const selectedNames = curriculumCoursePickerCatalog().filter((course) => selected.has(course.key)).map((course) => course.name);
+      const customCourseKeys = new Set((picker.customCourses || []).map(curriculumCourseAliasKey).filter(Boolean));
+      const selectedCustomCourses = selectedNames.filter((course) => customCourseKeys.has(curriculumCourseAliasKey(course)));
+      if (selectedCustomCourses.length) {
+        if (!context.curriculum.courseMetadata) context.curriculum.courseMetadata = {};
+        selectedCustomCourses.forEach((course) => {
+          context.curriculum.courseMetadata[curriculumCourseAliasKey(course)] = { category: "고시 외 과목" };
+        });
+      }
       courses.splice(0, courses.length, ...uniqueCourseNames(selectedNames));
       closeCurriculumCoursePickerInPlace();
       refreshCurriculumSemesterEditor(picker.curriculumIndex, picker.grade, picker.semester);
@@ -5510,14 +5666,37 @@
       const context = curriculumEditorContext(addCurriculumOption.dataset.curriculumIndex, addCurriculumOption.dataset.curriculumGrade, addCurriculumOption.dataset.curriculumSemester);
       if (!context) return;
       const optionNumber = context.semester.options.length + 1;
-      context.semester.options.push({
+      const option = {
         id: `editor-${context.grade.grade}-${context.semester.semester}-${Date.now()}`,
         label: `옵션 ${optionNumber}`,
         choose: 1,
         courses: [],
         semester: context.semester.semester
+      };
+      const semesterEditor = addCurriculumOption.closest("[data-curriculum-semester-editor]");
+      const optionsEditor = semesterEditor?.querySelector(".curriculum-options-editor");
+      const optionElement = curriculumMarkupElement(curriculumOptionEditorMarkup(
+        Number(addCurriculumOption.dataset.curriculumIndex),
+        context.grade.grade,
+        context.semester.semester,
+        option,
+        optionNumber - 1
+      ));
+      if (!semesterEditor || !optionsEditor || !optionElement) return;
+      context.semester.options.push(option);
+      optionsEditor.querySelector(".curriculum-no-options")?.remove();
+      optionsEditor.append(optionElement);
+      refreshCurriculumEditorSummaries();
+      const semesterSummary = semesterEditor.querySelector("[data-curriculum-semester-summary]");
+      const electiveSummary = semesterEditor.querySelector("[data-curriculum-elective-summary]");
+      if (semesterSummary) semesterSummary.textContent = `공통·학교 지정 ${context.semester.common.length} · 선택 옵션 ${context.semester.options.length}`;
+      if (electiveSummary) electiveSummary.textContent = `개별 ${context.semester.standalone.length}과목 · 옵션 ${context.semester.options.length}개`;
+      requestAnimationFrame(() => {
+        optionElement.scrollIntoView({ block: "nearest" });
+        const optionInput = optionElement.querySelector("[data-curriculum-option-label]");
+        optionInput?.focus({ preventScroll: true });
+        optionInput?.select();
       });
-      refreshCurriculumSemesterEditor(addCurriculumOption.dataset.curriculumIndex, addCurriculumOption.dataset.curriculumGrade, addCurriculumOption.dataset.curriculumSemester);
       return;
     }
 
@@ -5580,7 +5759,13 @@
         const status = root.querySelector("[data-curriculum-draft-status]");
         const storageLabel = savedDraft.storage === "local" ? "이 브라우저에 임시저장" : "마지막 임시저장";
         if (status) status.textContent = `${storageLabel} ${Number.isNaN(savedDate.getTime()) ? "완료" : savedDate.toLocaleString("ko-KR")}`;
-        showToast(savedDraft.storage === "local" ? "현재 편제표를 이 브라우저에 임시저장했습니다." : "현재 편제표를 임시저장했습니다.", 4000);
+        const savedAt = Number.isNaN(savedDate.getTime()) ? "" : ` 저장 시각은 ${savedDate.toLocaleString("ko-KR")}입니다.`;
+        showCurriculumAlert(
+          "임시저장 완료",
+          `${savedDraft.storage === "local" ? "현재 편제표를 이 브라우저에 임시저장했습니다." : "현재 편제표를 안전하게 임시저장했습니다."}${savedAt}`,
+          "저장 완료",
+          "success"
+        );
       } catch (error) {
         console.error("편제표 임시저장 실패:", error);
         showCurriculumAlert("임시저장하지 못했습니다", localizedAccessError(error, "draft"), "임시저장 오류");
@@ -5592,63 +5777,52 @@
       return;
     }
 
-    if (event.target.closest("[data-publish-curriculum]")) {
+    const publishCurriculumButton = event.target.closest("[data-publish-curriculum]");
+    if (publishCurriculumButton) {
       if (!state.pendingCurriculum || !schoolStore) return;
       let pendingCurricula;
       try {
-        pendingCurricula = [...validatePendingCurriculumEdits()].sort((a, b) => a.admissionYear - b.admissionYear);
+        pendingCurricula = validatePendingCurriculumEdits([state.curriculumPreviewIndex]);
       } catch (error) {
-        state.curriculumImportMessage = `수정 내용을 확인해 주세요. ${error.message}`;
-        renderAdmin();
-        showToast("편제표 수정 내용에 확인이 필요합니다.", 4500);
+        const validationMessage = error.message || "학교명, 지역, 입학년도와 각 선택 옵션을 확인해 주세요.";
+        state.curriculumImportMessage = `수정 내용을 확인해 주세요. ${validationMessage}`;
+        showCurriculumAlert("등록 전 확인할 항목이 있습니다", validationMessage, "편제표 등록 확인");
         return;
       }
+      const publishingCurriculum = pendingCurricula[0];
       state.curriculumBusy = true;
-      state.curriculumImportMessage = pendingCurricula.length > 1
-        ? `Supabase에 ${pendingCurricula.length}개 입학년도 편제표를 저장하고 있습니다.`
-        : "Supabase에 학교 편제표를 저장하고 있습니다.";
-      renderAdmin();
-      const draftIdentity = {
-        id: state.curriculumDraftId,
-        schoolName: pendingCurricula[0]?.schoolName,
-        region: pendingCurricula[0]?.region
-      };
+      state.curriculumImportMessage = `Supabase에 ${publishingCurriculum.admissionYear}년 입학생 편제표를 저장하고 있습니다.`;
+      const originalPublishText = publishCurriculumButton.textContent;
+      const draftButton = root.querySelector("[data-save-curriculum-draft]");
+      publishCurriculumButton.disabled = true;
+      publishCurriculumButton.textContent = "Supabase에 저장 중";
+      if (draftButton) draftButton.disabled = true;
       try {
-        let result = null;
-        const actions = [];
-        for (const curriculum of pendingCurricula) {
-          result = await schoolStore.publishCurriculum(curriculum);
-          actions.push(result.action);
-        }
+        const result = await schoolStore.publishCurriculum(publishingCurriculum);
         syncSchoolState(result);
         syncSchoolSimulationSubjects(true);
-        let draftCleanupFailed = false;
-        try {
-          await schoolStore.deleteCurriculumDraft?.(draftIdentity);
-        } catch (draftError) {
-          draftCleanupFailed = true;
-          console.warn("등록 완료 후 임시저장본 삭제 실패:", draftError);
-        }
-        state.pendingCurriculum = null;
-        state.curriculumPreviewIndex = 0;
-        state.curriculumPreviewGradeIndex = 0;
-        state.curriculumRegionPickerOpen = false;
-        state.curriculumCoursePicker = null;
-        const updatedCount = actions.filter((action) => action === "updated").length;
-        const actionLabel = pendingCurricula.length > 1
-          ? `${pendingCurricula.length}개 입학년도 등록${updatedCount ? ` · ${updatedCount}개 수정` : ""}`
-          : result.action === "updated" ? "수정" : "등록";
-        state.curriculumImportMessage = `${state.selectedSchool?.name || "학교"} 편제표를 ${actionLabel}했습니다.${draftCleanupFailed ? " 임시저장본 정리는 관리자에게 확인해 주세요." : ""}`;
-        resetCurriculumDraftState();
-        await releaseTeacherCurriculumAccess();
-        showToast(`학교 편제표가 ${actionLabel}되었습니다.`, 4000);
+        const actionLabel = result.action === "updated" ? "교체" : "등록";
+        state.curriculumImportMessage = `${state.selectedSchool?.name || "학교"} ${publishingCurriculum.admissionYear}년 입학생 편제표를 ${actionLabel}했습니다.`;
+        state.curriculumBusy = false;
+        refreshCurriculumPreviewSelectionInPlace({ pageChanged: true });
+        showCurriculumAlert(
+          `${publishingCurriculum.admissionYear}년 입학생 편제표 ${actionLabel} 완료`,
+          `현재 입학년도 한 건을 저장했습니다. 다른 입학년도도 저장하려면 해당 탭을 선택한 뒤 ‘편제표 등록 · 교체’를 눌러 주세요.`,
+          "편제표 저장 완료",
+          "success"
+        );
       } catch (error) {
         console.error("학교 편제표 공개 실패:", error);
-        state.curriculumImportMessage = `저장하지 못했습니다. ${error.message || "권한과 연결 상태를 확인해 주세요."}`;
-        showToast("학교 편제표를 저장하지 못했습니다.", 4500);
+        const publishErrorMessage = localizedAccessError(error, "publish");
+        state.curriculumImportMessage = `저장하지 못했습니다. ${publishErrorMessage}`;
+        showCurriculumAlert("편제표를 저장하지 못했습니다", publishErrorMessage, "편제표 저장 오류");
       } finally {
         state.curriculumBusy = false;
-        renderAdmin();
+        if (publishCurriculumButton.isConnected) {
+          publishCurriculumButton.disabled = false;
+          publishCurriculumButton.textContent = originalPublishText;
+        }
+        if (draftButton?.isConnected) draftButton.disabled = false;
         updateChrome();
       }
       return;
@@ -5873,6 +6047,48 @@
   });
 
   root.addEventListener("submit", async (event) => {
+    const customCourseForm = event.target.closest("[data-curriculum-custom-course-form]");
+    if (customCourseForm) {
+      event.preventDefault();
+      const picker = state.curriculumCoursePicker;
+      const input = customCourseForm.querySelector("input[name='customCourse']");
+      const enteredName = compactText(input?.value);
+      if (!picker || !input || !enteredName) {
+        showToast("직접 추가할 과목명을 입력해 주세요.");
+        input?.focus();
+        return;
+      }
+      const reference = curriculumCourseReference(enteredName);
+      const courseName = reference?.name || enteredName;
+      const courseKey = curriculumCourseAliasKey(courseName);
+      if (!courseKey) {
+        showToast("과목명을 확인해 주세요.");
+        input.focus();
+        input.select();
+        return;
+      }
+      const selected = new Set(picker.selectedKeys || []);
+      if (selected.has(courseKey)) {
+        showToast("이미 선택한 과목입니다.");
+        input.focus();
+        input.select();
+        return;
+      }
+      selected.add(courseKey);
+      picker.selectedKeys = [...selected];
+      if (!reference) picker.customCourses = uniqueCourseNames([...(picker.customCourses || []), courseName]);
+      input.value = "";
+      if (!reference) {
+        state.curriculumCoursePickerSearch = "";
+        state.curriculumCoursePickerCategory = "고시 외 과목";
+        const searchInput = root.querySelector("[data-curriculum-course-picker-search]");
+        if (searchInput) searchInput.value = "";
+      }
+      refreshCurriculumCoursePickerInPlace();
+      input.focus({ preventScroll: true });
+      showToast(reference ? `${courseName} 과목을 선택했습니다.` : `${courseName}을(를) 고시 외 과목으로 추가했습니다.`);
+      return;
+    }
     const keywordForm = event.target.closest("[data-recommend-keyword-form]");
     if (keywordForm) {
       event.preventDefault();
@@ -5919,11 +6135,11 @@
       }
       if (teacherSchoolForm) {
         const pendingAction = state.pendingCurriculumAction;
-        const schoolName = compactText(formData.get("schoolName"));
+        const schoolName = completeSchoolName(formData.get("schoolName"));
         const region = compactText(formData.get("region"));
         state.schoolAuthSchoolName = schoolName;
         state.schoolAuthRegion = region;
-        if (!/^.+고등학교$/u.test(schoolName)) throw new Error("학교명은 '고등학교'로 끝나는 정식 명칭을 입력해 주세요.");
+        if (!schoolNamePrefix(schoolName)) throw new Error("학교명의 앞부분을 입력해 주세요.");
         if (!SCHOOL_REGIONS.includes(region)) throw new Error("지역을 선택해 주세요.");
         const identity = { schoolName, region };
         const draft = await schoolStore.loadCurriculumDraft?.(identity);
@@ -5948,7 +6164,7 @@
       }
       if (teacherUploadForm) {
         const curriculumFiles = form.querySelector("[data-auth-curriculum-file]")?.files;
-        if (!curriculumFiles?.length) throw new Error("신입생 편제표 3개를 선택해 주세요.");
+        if (!curriculumFiles?.length || curriculumFiles.length > 3) throw new Error("신입생 편제표를 1~3개 선택해 주세요.");
         closeSchoolAuthDialog();
         renderAdmin();
         await reviewCurriculumFiles(curriculumFiles);
@@ -5976,11 +6192,11 @@
 
   root.addEventListener("change", async (event) => {
     if (event.target.matches("[data-curriculum-school-name]")) {
-      const schoolName = compactText(event.target.value);
+      const schoolName = completeSchoolName(event.target.value);
       pendingCurriculumItems().forEach((curriculum) => { curriculum.schoolName = schoolName; });
       if (state.pendingCurriculum) state.pendingCurriculum.schoolName = schoolName;
       preparePendingCurriculumForEditing();
-      event.target.value = schoolName;
+      event.target.value = schoolNamePrefix(schoolName);
       return;
     }
     if (event.target.matches("[data-curriculum-region-edit]")) {
@@ -6402,8 +6618,11 @@
     parseCurriculumFile,
     combineFreshmanCurriculumImports,
     localizedAccessError,
+    schoolNamePrefix,
+    completeSchoolName,
     sortCurriculumCoursesByGroup,
     courseGroupOrderIndex,
+    copyCurriculumStructure,
     normalizeCurriculumCourseNames: uniqueCourseNames,
     getCurriculumGrades: curriculumGrades,
     departmentCommonDisclosureMarkup,
