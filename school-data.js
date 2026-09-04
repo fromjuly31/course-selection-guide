@@ -25,6 +25,16 @@
   let connection = configured ? "connecting" : "local";
   let message = configured ? "Supabase 연결을 확인하고 있습니다." : "Supabase 설정값을 입력하면 온라인 연동이 시작됩니다.";
 
+  function selectionStorage() {
+    return window.sessionStorage;
+  }
+
+  function clearLegacySelection() {
+    // 기존 버전이 localStorage에 남긴 자동 연동 값은 더 이상 사용하지 않는다.
+    localStorage.removeItem(SELECTED_SCHOOL_KEY);
+    localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+  }
+
   function loadSupabaseLibrary() {
     if (window.supabase?.createClient) return Promise.resolve();
     return new Promise((resolve, reject) => {
@@ -207,17 +217,25 @@
 
   async function restoreSelection() {
     const params = new URLSearchParams(location.search);
-    const selectedId = params.get("school") || localStorage.getItem(SELECTED_SCHOOL_KEY) || "";
-    const savedYear = Number(params.get("admissionYear") || params.get("year") || localStorage.getItem(SELECTED_ADMISSION_YEAR_KEY));
+    clearLegacySelection();
+    const storage = selectionStorage();
+    const selectedId = params.get("school") || storage.getItem(SELECTED_SCHOOL_KEY) || "";
+    const savedYear = Number(params.get("admissionYear") || params.get("year") || storage.getItem(SELECTED_ADMISSION_YEAR_KEY));
     selectedSchool = schools.find((school) => school.id === selectedId || school.slug === selectedId) || null;
-    if (!selectedSchool && selectedId) localStorage.removeItem(SELECTED_SCHOOL_KEY);
+    if (!selectedSchool && selectedId) storage.removeItem(SELECTED_SCHOOL_KEY);
     if (selectedSchool) {
-      localStorage.setItem(SELECTED_SCHOOL_KEY, selectedSchool.id);
+      storage.setItem(SELECTED_SCHOOL_KEY, selectedSchool.id);
       if (selectedSchool.admissionYears.includes(savedYear)) {
         curriculum = await loadCurriculum(selectedSchool.id, savedYear);
         selectedAdmissionYear = curriculum ? savedYear : null;
       }
-      if (!selectedAdmissionYear) localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+      if (selectedAdmissionYear) storage.setItem(SELECTED_ADMISSION_YEAR_KEY, String(selectedAdmissionYear));
+      else {
+        selectedSchool = null;
+        curriculum = null;
+        storage.removeItem(SELECTED_SCHOOL_KEY);
+        storage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+      }
     }
   }
 
@@ -282,21 +300,23 @@
 
   async function selectSchool(schoolId) {
     await init();
+    const storage = selectionStorage();
     selectedSchool = schools.find((school) => school.id === schoolId || school.slug === schoolId) || null;
     selectedAdmissionYear = null;
     curriculum = null;
     if (selectedSchool) {
-      localStorage.setItem(SELECTED_SCHOOL_KEY, selectedSchool.id);
+      storage.setItem(SELECTED_SCHOOL_KEY, selectedSchool.id);
     } else {
-      localStorage.removeItem(SELECTED_SCHOOL_KEY);
+      storage.removeItem(SELECTED_SCHOOL_KEY);
     }
-    localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+    storage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
     emitChange("selection");
     return snapshot();
   }
 
   async function selectAdmissionYear(admissionYear) {
     await init();
+    const storage = selectionStorage();
     if (!selectedSchool) throw new Error("학교를 먼저 선택해 주세요.");
     const year = Number(admissionYear);
     if (!Number.isInteger(year) || !selectedSchool.admissionYears.includes(year)) {
@@ -306,13 +326,44 @@
       curriculum = await loadCurriculum(selectedSchool.id, year);
       if (!curriculum) throw new Error(`${year}학년도 편제표를 찾을 수 없습니다.`);
       selectedAdmissionYear = year;
-      localStorage.setItem(SELECTED_ADMISSION_YEAR_KEY, String(year));
+      storage.setItem(SELECTED_ADMISSION_YEAR_KEY, String(year));
       emitChange("admission-year");
       return snapshot();
     } catch (error) {
       curriculum = null;
       selectedAdmissionYear = null;
-      localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+      storage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+      throw error;
+    }
+  }
+
+  async function selectSchoolAdmissionYear(schoolId, admissionYear) {
+    await init();
+    const nextSchool = schools.find((school) => school.id === schoolId || school.slug === schoolId) || null;
+    const year = Number(admissionYear);
+    if (!nextSchool) throw new Error("선택한 학교를 찾을 수 없습니다.");
+    if (!Number.isInteger(year) || !nextSchool.admissionYears.includes(year)) {
+      throw new Error("선택한 학교에 등록된 입학년도가 아닙니다.");
+    }
+
+    const previousSchool = selectedSchool;
+    const previousAdmissionYear = selectedAdmissionYear;
+    const previousCurriculum = curriculum;
+    try {
+      const nextCurriculum = await loadCurriculum(nextSchool.id, year);
+      if (!nextCurriculum) throw new Error(`${year}학년도 편제표를 찾을 수 없습니다.`);
+      selectedSchool = nextSchool;
+      selectedAdmissionYear = year;
+      curriculum = nextCurriculum;
+      const storage = selectionStorage();
+      storage.setItem(SELECTED_SCHOOL_KEY, nextSchool.id);
+      storage.setItem(SELECTED_ADMISSION_YEAR_KEY, String(year));
+      emitChange("school-admission-year");
+      return snapshot();
+    } catch (error) {
+      selectedSchool = previousSchool;
+      selectedAdmissionYear = previousAdmissionYear;
+      curriculum = previousCurriculum;
       throw error;
     }
   }
@@ -577,8 +628,8 @@
     await loadSchools();
     selectedSchool = schools.find((item) => item.id === school.id) || school;
     selectedAdmissionYear = admissionYear;
-    localStorage.setItem(SELECTED_SCHOOL_KEY, school.id);
-    localStorage.setItem(SELECTED_ADMISSION_YEAR_KEY, String(admissionYear));
+    selectionStorage().setItem(SELECTED_SCHOOL_KEY, school.id);
+    selectionStorage().setItem(SELECTED_ADMISSION_YEAR_KEY, String(admissionYear));
     await loadCurriculum(school.id, admissionYear);
     emitChange("publish");
     return { ...snapshot(), action };
@@ -597,7 +648,7 @@
     selectedSchool = schools.find((school) => school.id === schoolId) || null;
     selectedAdmissionYear = null;
     curriculum = null;
-    localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+    selectionStorage().removeItem(SELECTED_ADMISSION_YEAR_KEY);
     emitChange("delete");
     return snapshot();
   }
@@ -616,8 +667,8 @@
       selectedSchool = null;
       selectedAdmissionYear = null;
       curriculum = null;
-      localStorage.removeItem(SELECTED_SCHOOL_KEY);
-      localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+      selectionStorage().removeItem(SELECTED_SCHOOL_KEY);
+      selectionStorage().removeItem(SELECTED_ADMISSION_YEAR_KEY);
     } else if (selectedSchool) {
       selectedSchool = schools.find((school) => school.id === selectedSchool.id) || null;
     }
@@ -630,6 +681,7 @@
     getSnapshot: snapshot,
     selectSchool,
     selectAdmissionYear,
+    selectSchoolAdmissionYear,
     loadCurriculumForCopy,
     signInTeacher,
     signInAdmin,

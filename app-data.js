@@ -10,6 +10,7 @@
   const SETTINGS_KEY = "course-guide:settings:v2";
   const DEFAULT_DATABASE_URL = "./data/database.json";
   const DEPARTMENT_DATABASE_URL = "./data/departments.json";
+  const STATIC_DATA_VERSION = "20260905-2";
   const INDEXED_DB_OPEN_TIMEOUT = 2500;
   const DATA_FETCH_TIMEOUT = 8000;
 
@@ -238,7 +239,7 @@
   }
 
   async function fetchDefaultDatabase({ cacheBust = false } = {}) {
-    const suffix = cacheBust ? `?v=${Date.now()}` : "";
+    const suffix = `?v=${cacheBust ? Date.now() : STATIC_DATA_VERSION}`;
     const response = await fetchWithTimeout(`${DEFAULT_DATABASE_URL}${suffix}`, { cache: cacheBust ? "no-store" : "default" });
     if (!response.ok) throw new Error(`기본 DB 요청 실패 (HTTP ${response.status})`);
     const parsed = await response.json();
@@ -253,7 +254,7 @@
   }
 
   async function loadDepartmentDatabase({ cacheBust = false } = {}) {
-    const suffix = cacheBust ? `?v=${Date.now()}` : "";
+    const suffix = `?v=${cacheBust ? Date.now() : STATIC_DATA_VERSION}`;
     const response = await fetchWithTimeout(`${DEPARTMENT_DATABASE_URL}${suffix}`, { cache: cacheBust ? "no-store" : "default" });
     if (!response.ok) throw new Error(`학과 DB 요청 실패 (HTTP ${response.status})`);
     const database = normalizeDepartmentDatabase(await response.json());

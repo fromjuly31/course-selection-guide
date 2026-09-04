@@ -2348,15 +2348,24 @@
   line-height: 1.25;
 }
 
-.simulation-final-course-group li a,
+.simulation-final-course-group li button,
 .simulation-final-course-group li > span {
   color: inherit;
   font: inherit;
   text-decoration: none;
 }
 
-.simulation-final-course-group li a:hover,
-.simulation-final-course-group li a:focus-visible {
+.simulation-final-course-group li button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.simulation-final-course-group li button:hover,
+.simulation-final-course-group li button:focus-visible {
   color: var(--primary);
   text-decoration: underline;
 }
@@ -2407,7 +2416,7 @@ body.is-platform-print-measuring .platform-print-root {
   top: 0;
   left: -300vw;
   display: block;
-  width: 287mm;
+  width: 293mm;
   visibility: hidden;
   pointer-events: none;
 }
@@ -2418,7 +2427,7 @@ body.is-platform-image-capturing .platform-print-root {
   top: 0;
   left: -12000px;
   display: block;
-  width: 287mm;
+  width: 293mm;
   height: auto;
   max-height: none;
   visibility: visible;
@@ -2565,7 +2574,7 @@ body.is-platform-image-capturing .platform-print-root {
 
 @page {
   size: A4 landscape;
-  margin: 5mm;
+  margin: 2mm;
 }
 
 @media print {
@@ -2588,8 +2597,8 @@ body.is-platform-image-capturing .platform-print-root {
     display: block !important;
     width: 100% !important;
     min-height: 0 !important;
-    height: 200mm !important;
-    max-height: 200mm !important;
+    height: 206mm !important;
+    max-height: 206mm !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
@@ -2999,7 +3008,7 @@ body.is-platform-image-capturing .platform-print-root {
   .platform-print-sheet-svg {
     display: block;
     width: 100%;
-    height: 200mm;
+    height: 206mm;
   }
 
   .platform-print-svg-canvas,
@@ -3072,6 +3081,21 @@ body.is-platform-image-capturing .platform-print-root {
     border: 0;
     border-radius: 0;
     box-shadow: none;
+  }
+
+  .platform-print-root .platform-print-document.is-page-height-fitted > .simulation-final-document {
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+  }
+
+  .platform-print-root .platform-print-document.is-page-height-fitted .simulation-final-grade-grid {
+    flex: 1 1 auto;
+    align-items: stretch;
+  }
+
+  .platform-print-root .platform-print-document.is-page-height-fitted .simulation-final-grade {
+    height: 100%;
   }
 
   .platform-print-root .simulation-final-summary {
@@ -5366,9 +5390,9 @@ body.is-platform-image-capturing .platform-print-root {
   bottom: calc(82px + env(safe-area-inset-bottom));
   left: 18px;
   width: fit-content;
-  max-width: min(calc(100% - 36px), 560px);
+  max-width: min(calc(100% - 36px), 620px);
   margin: 0 auto;
-  padding: 11px 15px;
+  padding: 14px 19px;
   border: 1px solid rgba(114, 224, 189, 0.2);
   border-radius: 12px;
   color: white;
@@ -5949,7 +5973,7 @@ body.is-platform-image-capturing .platform-print-root {
   gap: 7px;
   padding: 10px 11px;
   border: 1px solid #d7e6e0;
-  border-radius: 12px;
+  border-radius: 14px;
   background: #f2f8f5;
 }
 
@@ -5972,7 +5996,8 @@ body.is-platform-image-capturing .platform-print-root {
   border-radius: 999px;
   color: #315b50;
   background: #fff;
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 1.45;
   font-weight: 800;
 }
 
@@ -17718,5 +17743,110 @@ body.curriculum-preview-open {
 
   .simulation-final-summary h1 {
     font-size: 23px;
+  }
+}
+
+/* PC 편제표 등록 안내와 연결 학교의 입학년도 선택을 또렷하게 표시한다. */
+@media (min-width: 1024px) {
+  .school-upload-card .curriculum-format-notice {
+    gap: 14px;
+    padding: 19px 21px;
+    border-radius: 16px;
+  }
+
+  .school-upload-card .curriculum-format-notice .icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .school-upload-card .curriculum-format-notice strong {
+    font-size: 15px;
+  }
+
+  .school-upload-card .curriculum-format-notice span {
+    margin-top: 5px;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .connected-schools-card .school-admission-year-options {
+    gap: 10px;
+    padding: 15px 16px;
+    border-radius: 15px;
+  }
+
+  .connected-schools-card .school-admission-year-options > span,
+  .connected-schools-card .school-admission-year-options em {
+    font-size: 13px;
+  }
+
+  .connected-schools-card .school-admission-year-options > div {
+    gap: 8px;
+  }
+
+  .connected-schools-card .school-admission-year-options button {
+    min-height: 42px;
+    padding: 0 15px;
+    font-size: 13px;
+  }
+}
+
+/* 학교 목록은 지역·등록 연도 수를 먼저, 학교명을 다음 줄에 표시한다. */
+.connected-school-list > button > div,
+.simulation-school-options > button > div {
+  min-width: 0;
+}
+
+.connected-school-list > button small,
+.simulation-school-options > button small {
+  margin: 0 0 4px;
+}
+
+.connected-school-list > button strong,
+.simulation-school-options > button strong {
+  margin: 0;
+}
+
+.header-school-picker .school-picker-search input {
+  font-size: 13px;
+}
+
+.connected-school-list-trigger {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 13px;
+  border: 1px solid #cbded7;
+  border-radius: 12px;
+  color: var(--primary);
+  background: #f5faf8;
+  cursor: pointer;
+}
+
+.connected-school-list-trigger strong {
+  font-size: 13px;
+}
+
+.connected-school-list-trigger .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.connected-school-list-trigger:hover,
+.connected-school-list-trigger:focus-visible {
+  border-color: rgba(8, 116, 91, 0.45);
+  outline: none;
+  background: #eaf6f1;
+}
+
+.connected-schools-card .active-school-summary {
+  margin-top: 22px;
+}
+
+@media (min-width: 1024px) {
+  .app-toast {
+    padding: 15px 21px;
+    font-size: 13px;
   }
 }

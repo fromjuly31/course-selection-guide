@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#071720">
   <title>학과·선택과목 조회 · 선택 과목 안내 플랫폼</title>
   <meta name="description" content="학교별 편제표와 연동되는 과목 선택 안내 플랫폼">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="app.css">
-  <link rel="stylesheet" href="chatbot.css">
+  <link rel="stylesheet" href="styles.css?v=20260905-3">
+  <link rel="stylesheet" href="app.css?v=20260905-3">
+  <link rel="stylesheet" href="chatbot.css?v=20260905-2">
 </head>
 <body class="app-page">
   <header class="app-header">
@@ -19,14 +19,25 @@
       </a>
       <div class="header-school-picker" data-school-picker>
         <button type="button" data-school-trigger aria-expanded="false">
-          <i></i><span><small>현재 학교 · 입학년도</small><strong data-school-picker-label>학교 선택</strong></span>
+          <i></i><span><small data-school-picker-meta>현재 연동 학교</small><strong data-school-picker-label>미선택</strong></span>
           <svg class="icon" aria-hidden="true"><use href="icons.svg#arrow"></use></svg>
         </button>
-        <div class="header-school-menu" data-school-menu hidden>
-          <div class="header-school-menu-head"><p>연동된 학교</p><span data-header-school-search-count>0곳</span></div>
-          <label class="header-school-search"><svg class="icon" aria-hidden="true"><use href="icons.svg#search"></use></svg><input type="search" placeholder="지역명 또는 학교명 검색" autocomplete="off" data-header-school-search></label>
-          <div data-school-options><span class="school-menu-empty">학교 목록을 불러오는 중입니다.</span></div>
-        </div>
+        <dialog class="header-school-menu school-picker-dialog" data-school-menu aria-labelledby="header-school-dialog-title">
+          <button class="school-picker-dialog-close" type="button" data-school-menu-close aria-label="학교 목록 닫기">×</button>
+          <section data-school-list-view>
+            <header class="school-picker-dialog-head"><div><small>CONNECTED SCHOOLS</small><h2 id="header-school-dialog-title">연동 학교 목록</h2></div><strong data-header-school-search-count>0개 학교</strong></header>
+            <div class="school-picker-current" data-school-current><small data-school-current-meta>현재 연동 학교</small><strong data-school-current-name>미선택</strong></div>
+            <label class="header-school-search school-picker-search"><svg class="icon" aria-hidden="true"><use href="icons.svg#search"></use></svg><input type="search" placeholder="지역명 또는 학교명 검색" autocomplete="off" data-header-school-search></label>
+            <div data-school-options><span class="school-menu-empty">학교 목록을 불러오는 중입니다.</span></div>
+          </section>
+          <section class="school-year-choice" data-school-year-view hidden>
+            <button class="school-year-back" type="button" data-school-year-back><svg class="icon" aria-hidden="true"><use href="icons.svg#arrow"></use></svg> 학교 목록</button>
+            <small data-school-year-meta></small>
+            <h2 data-school-year-name>학교명</h2>
+            <p>연동할 입학년도를 선택하세요.</p>
+            <div data-school-year-options></div>
+          </section>
+        </dialog>
       </div>
     </div>
   </header>
@@ -65,21 +76,21 @@
   <div class="app-toast" role="status" aria-live="polite" data-app-toast></div>
 
   <nav class="bottom-nav app-bottom-nav" aria-label="주요 메뉴">
-    <a class="nav-item" href="index.html"><svg class="icon" aria-hidden="true"><use href="icons.svg#home"></use></svg><span>메인</span></a>
-    <a class="nav-item" href="section.html?tab=subjects" data-tab="subjects"><svg class="icon" aria-hidden="true"><use href="icons.svg#book"></use></svg><span>과목 안내</span></a>
-    <a class="nav-item" href="section.html?tab=departments" data-tab="departments"><svg class="icon" aria-hidden="true"><use href="icons.svg#graduation"></use></svg><span>학과 안내</span></a>
-    <a class="nav-item" href="section.html?tab=recommend" data-tab="recommend"><svg class="icon" aria-hidden="true"><use href="icons.svg#sparkles"></use></svg><span>과목 추천</span></a>
-    <a class="nav-item" href="section.html?tab=simulation" data-tab="simulation"><svg class="icon" aria-hidden="true"><use href="icons.svg#checklist"></use></svg><span>모의 수강신청</span></a>
-    <a class="nav-item" href="section.html?tab=admin" data-tab="admin"><svg class="icon" aria-hidden="true"><use href="icons.svg#settings"></use></svg><span>데이터 연동</span></a>
+    <button class="nav-item" type="button" data-nav-href="index.html"><svg class="icon" aria-hidden="true"><use href="icons.svg#home"></use></svg><span>메인</span></button>
+    <button class="nav-item" type="button" data-nav-href="section.html?tab=subjects&amp;v=20260905-3" data-tab="subjects"><svg class="icon" aria-hidden="true"><use href="icons.svg#book"></use></svg><span>과목 안내</span></button>
+    <button class="nav-item" type="button" data-nav-href="section.html?tab=departments&amp;v=20260905-3" data-tab="departments"><svg class="icon" aria-hidden="true"><use href="icons.svg#graduation"></use></svg><span>학과 안내</span></button>
+    <button class="nav-item" type="button" data-nav-href="section.html?tab=recommend&amp;v=20260905-3" data-tab="recommend"><svg class="icon" aria-hidden="true"><use href="icons.svg#sparkles"></use></svg><span>과목 추천</span></button>
+    <button class="nav-item" type="button" data-nav-href="section.html?tab=simulation&amp;v=20260905-3" data-tab="simulation"><svg class="icon" aria-hidden="true"><use href="icons.svg#checklist"></use></svg><span>모의 수강신청</span></button>
+    <button class="nav-item" type="button" data-nav-href="section.html?tab=admin&amp;v=20260905-3" data-tab="admin"><svg class="icon" aria-hidden="true"><use href="icons.svg#settings"></use></svg><span>데이터 연동</span></button>
   </nav>
 
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="supabase-config.js"></script>
-  <script src="school-data.js"></script>
-  <script src="app-data.js"></script>
-  <script src="app.js"></script>
-  <script src="chatbot.js"></script>
+  <script src="supabase-config.js?v=20260905-2"></script>
+  <script src="school-data.js?v=20260905-3"></script>
+  <script src="app-data.js?v=20260905-2"></script>
+  <script src="app.js?v=20260905-3"></script>
+  <script src="chatbot.js?v=20260905-2"></script>
 </body>
 </html>

@@ -42,6 +42,7 @@ function elementStub() {
 const root = elementStub();
 const detailDialog = elementStub();
 const detailContent = elementStub();
+const recommendNoticeDialog = elementStub();
 const curriculumAlertDialog = elementStub();
 const curriculumAlertTitle = elementStub();
 const curriculumAlertMessage = elementStub();
@@ -64,6 +65,7 @@ global.document = {
       "#app-root": root,
       "#record-dialog": detailDialog,
       "[data-record-dialog-content]": detailContent,
+      "#recommend-notice-dialog": recommendNoticeDialog,
       "#curriculum-alert-dialog": curriculumAlertDialog,
       "#curriculum-alert-title": curriculumAlertTitle,
       "#curriculum-alert-message": curriculumAlertMessage,
@@ -189,6 +191,8 @@ async function main() {
   assert.match(schoolStoreSource, /async function loadCurriculumForCopy/);
   assert.match(schoolStoreSource, /saveLocalCurriculumDraft/);
   assert.match(schoolStoreSource, /isMissingCurriculumDraftTableError\(error\).*saveLocalCurriculumDraft/s);
+  assert.match(schoolStoreSource, /function selectionStorage\(\) \{\s*return window\.sessionStorage/);
+  assert.match(schoolStoreSource, /async function selectSchoolAdmissionYear/);
   assert.match(appSource, /function refreshSubjectSearchInPlace/);
   assert.match(appSource, /function refreshDepartmentSearchInPlace/);
   assert.match(appSource, /function refreshRecommendDepartmentSearchInPlace/);
@@ -204,9 +208,11 @@ async function main() {
   assert.match(appSource, /state\.simulationMaxGradeStep = Math\.max\(firstGrade, state\.simulationMaxGradeStep\)/);
   assert.match(appSource, /state\.simulationResultUnlocked = true;\s*state\.simulationHistoryOpen = false;\s*state\.simulationResultOpen = true/);
   assert.match(appSource, /const descendantBottom = isSimulation/);
-  assert.match(appSource, /measuredHeight \* 1\.04 \+ 12/);
+  assert.match(appSource, /measuredHeight \* 1\.02 \+ 6/);
+  assert.match(appSource, /printablePageHeight = Math\.ceil\(contentWidth \* \(206 \/ 293\)\)/);
   assert.match(appDataSource, /INDEXED_DB_OPEN_TIMEOUT = 2500/);
   assert.match(appDataSource, /fetchWithTimeout/);
+  assert.match(appDataSource, /STATIC_DATA_VERSION = "20260905-2"/);
   assert.match(appSource, /"success",\s*closeCurriculumPreview\s*\)/);
   assert.match(appSource, /if \(confirmAction\) await confirmAction\(\)/);
   assert.doesNotMatch(appSource, /기이수 과목/);
@@ -218,16 +224,27 @@ async function main() {
   assert.match(appCss, /\.semester-curriculum-section \.curriculum-option-card header > span[\s\S]*?font-size: 12px/);
   assert.match(appCss, /\.simulation-selection-summary > \.simulation-grade-actions[\s\S]*?justify-content: flex-end/);
   assert.match(appCss, /\.simulation-grade-actions \.simulation-final-open[\s\S]*?min-width: 180px/);
-  assert.match(appCss, /@page[\s\S]*?margin: 5mm/);
+  assert.match(appCss, /@page[\s\S]*?margin: 2mm/);
+  assert.match(appCss, /body\.is-platform-print-measuring \.platform-print-root[\s\S]*?width: 293mm/);
+  assert.match(appCss, /\.platform-print-sheet-svg[\s\S]*?height: 206mm/);
   assert.match(appCss, /\.platform-print-root \.simulation-final-summary h1[\s\S]*?font-size: 16pt/);
   assert.match(appCss, /\.platform-print-root \.simulation-final-summary > div[\s\S]*?justify-content: space-between/);
   assert.match(appCss, /\.platform-print-root \.simulation-final-course-group li[\s\S]*?font-size: 8pt/);
   assert.match(appCss, /@media \(max-width: 820px\)[\s\S]*?\.simulation-grade-progress[\s\S]*?display: flex/);
   assert.match(appCss, /\.common-course-block\.semester-subject-block,[\s\S]*?\.semester-elective-block\.semester-subject-block[\s\S]*?flex-direction: column/);
   assert.match(appCss, /\.recommend-result-course-items > button/);
-  assert.match(appSource, /documentData\.kind === "simulation" \? 14 : 42/);
-  assert.match(appSource, /isSimulation \? "xMidYMin meet" : "xMinYMin meet"/);
+  assert.match(appCss, /\.school-upload-card \.curriculum-format-notice span[\s\S]*?font-size: 13px/);
+  assert.match(appCss, /\.connected-schools-card \.school-admission-year-options button[\s\S]*?min-height: 42px/);
+  assert.match(appSource, /const padding = 10/);
+  assert.match(appSource, /sheet\.setAttribute\("preserveAspectRatio", "xMidYMin meet"\)/);
+  assert.match(appSource, /const simulationCourse = event\.target\.closest\("\[data-simulation-course\]"\)/);
+  assert.match(appSource, /data-simulation-course=/);
+  assert.doesNotMatch(appSource, /section\.html\?tab=subjects&q=\$\{encodeURIComponent\(entry\.name\)\}/);
   assert.match(sectionHtml, /data-header-school-search/);
+  assert.match(sectionHtml, /<dialog class="header-school-menu school-picker-dialog"/);
+  assert.match(sectionHtml, /data-school-picker-label>미선택/);
+  assert.match(sectionHtml, /app\.js\?v=20260905-3/);
+  assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 
   for (let index = 0; index < 20 && !window.DatabaseApp; index += 1) {
@@ -238,7 +255,13 @@ async function main() {
 
   root.innerHTML = '<div class="initial-loading">데이터베이스를 불러오고 있습니다.</div>';
   state.tab = "recommend";
-  window.DatabaseApp.renderRecommend();
+  recommendNoticeDialog.open = true;
+  await recommendNoticeDialog.dispatchTestEvent("click", {
+    target: {
+      closest(selector) { return selector === "[data-recommend-notice-confirm]" ? this : null; }
+    }
+  });
+  assert.equal(recommendNoticeDialog.open, false);
   assert.match(root.innerHTML, /class="recommend-wizard"/);
   assert.doesNotMatch(root.innerHTML, /데이터베이스를 불러오고 있습니다/);
 
@@ -347,8 +370,9 @@ async function main() {
   state.tab = "admin";
   state.pendingCurriculum = null;
   window.DatabaseApp.renderAdmin();
-  assert.ok(root.innerHTML.indexOf("하늘고등학교") < root.innerHTML.indexOf("가람고등학교"));
-  assert.ok(root.innerHTML.indexOf("가람고등학교") < root.innerHTML.indexOf("나래고등학교"));
+  assert.match(root.innerHTML, /data-open-connected-school-list/);
+  assert.match(root.innerHTML, /3개 학교/);
+  assert.doesNotMatch(root.innerHTML, /하늘고등학교/);
 
   state.tab = "simulation";
   state.simulationSchoolSearch = "서울";
@@ -555,7 +579,8 @@ async function main() {
   assert.match(root.innerHTML, /편제표 열어 수정/);
   assert.match(root.innerHTML, /data-delete-curriculum/);
   assert.match(root.innerHTML, /data-delete-school/);
-  assert.match(root.innerHTML, /2026년 입학생 편제표 연동됨/);
+  assert.match(root.innerHTML, /강원특별자치도 · 2026년 입학생/);
+  assert.match(root.innerHTML, /편제표 연동됨/);
   assert.match(root.innerHTML, /2026년 입학생/);
 
   state.simulationHistoryOpen = true;
@@ -621,6 +646,26 @@ async function main() {
   assert.equal(detailDialog.open, true);
   assert.equal(detailDialog.classList.contains("is-course-dialog"), true);
   assert.match(detailContent.innerHTML, /course-dialog-sections/);
+
+  detailDialog.close();
+  state.tab = "simulation";
+  state.simulationResultOpen = true;
+  await root.dispatchTestEvent("click", {
+    target: {
+      dataset: { simulationCourse: recommendedCourseName },
+      closest(selector) { return selector === "[data-simulation-course]" ? this : null; },
+      matches() { return false; }
+    }
+  });
+  assert.equal(detailDialog.open, true);
+  assert.equal(state.tab, "simulation");
+  assert.equal(state.simulationResultOpen, true);
+  assert.equal(detailDialog.classList.contains("is-course-dialog"), true);
+  assert.match(detailContent.innerHTML, /course-dialog-sections/);
+  detailDialog.close();
+  await detailDialog.dispatchTestEvent("close", {});
+  assert.equal(state.tab, "simulation");
+  assert.equal(state.simulationResultOpen, true);
 
   window.DatabaseApp.openRecord(0);
   assert.match(detailContent.innerHTML, /course-dialog-head/);
