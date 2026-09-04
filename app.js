@@ -3463,6 +3463,11 @@
       .map(({ course }) => course);
   }
 
+  function courseGroupOrderIndex(category) {
+    const groupIndex = COURSE_GROUP_ORDER.indexOf(normalizeCourseGroup(category));
+    return groupIndex < 0 ? COURSE_GROUP_ORDER.length : groupIndex;
+  }
+
   function prepareCurriculumForEditing(curriculum) {
     const courseMetadata = curriculum.courseMetadata || {};
     curriculum.grades = (Array.isArray(curriculum.grades) ? curriculum.grades : []).map((grade) => {
@@ -3794,7 +3799,9 @@
         type: uploadedCourseType(metadata.type) || "기타"
       });
     });
-    return [...byKey.values()].sort((a, b) => a.category.localeCompare(b.category, "ko") || a.name.localeCompare(b.name, "ko"));
+    return [...byKey.values()].sort((a, b) => courseGroupOrderIndex(a.category) - courseGroupOrderIndex(b.category)
+      || a.category.localeCompare(b.category, "ko")
+      || a.name.localeCompare(b.name, "ko"));
   }
 
   function curriculumCoursePickerMarkup() {
@@ -6396,6 +6403,7 @@
     combineFreshmanCurriculumImports,
     localizedAccessError,
     sortCurriculumCoursesByGroup,
+    courseGroupOrderIndex,
     normalizeCurriculumCourseNames: uniqueCourseNames,
     getCurriculumGrades: curriculumGrades,
     departmentCommonDisclosureMarkup,

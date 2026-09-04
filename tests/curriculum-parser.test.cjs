@@ -218,6 +218,11 @@ async function main() {
     ),
     ["문학", "공통수학1", "영어", "통합사회", "생명과학", "음악", "기술·가정", "정보"]
   );
+  assert.deepEqual(
+    ["정보", "과학", "교양", "영어", "수학", "국어", "미분류"]
+      .sort((a, b) => window.DatabaseApp.courseGroupOrderIndex(a) - window.DatabaseApp.courseGroupOrderIndex(b)),
+    ["국어", "수학", "영어", "과학", "정보", "교양", "미분류"]
+  );
 
   const result = await window.DatabaseApp.parseCurriculumFile({
     name: "2026학년도_신입생_3개년.xlsx",
