@@ -38,6 +38,12 @@
     return JSON.parse(JSON.stringify(value));
   };
 
+  function normalizeCourseTypography(value) {
+    return typeof value === "string"
+      ? value.replace(/기술\s*[·ㆍ･・]\s*가정/gu, "기술·가정")
+      : value;
+  }
+
   function openDatabase() {
     return new Promise((resolve, reject) => {
       if (!("indexedDB" in window)) {
@@ -137,7 +143,7 @@
       columns: discoveredColumns,
       rows: rows.map((row) => {
         const normalized = {};
-        discoveredColumns.forEach((column) => { normalized[column] = row[column] ?? ""; });
+        discoveredColumns.forEach((column) => { normalized[column] = normalizeCourseTypography(row[column] ?? ""); });
         return normalized;
       }),
       chatbot: {

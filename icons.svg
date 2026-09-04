@@ -108,6 +108,9 @@
   <symbol id="pen" viewBox="0 0 24 24">
     <path d="m12 20 7-7 3 3-7 7-4 1 1-4ZM18 14l-8-8 4-4 8 8M3 21c3-1 5-3 6-6"/>
   </symbol>
+  <symbol id="pencil" viewBox="0 0 24 24">
+    <path d="m16 4 4 4L8 20H4v-4L16 4Z"/><path d="m14 6 4 4"/>
+  </symbol>
   <symbol id="lightbulb" viewBox="0 0 24 24">
     <path d="M9 18h6M10 22h4M8.5 15.5A7 7 0 1 1 15.5 15.5c-.9.7-1.5 1.5-1.5 2.5h-4c0-1-.6-1.8-1.5-2.5Z"/>
   </symbol>

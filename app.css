@@ -261,6 +261,9 @@
 .compact-search {
   position: relative;
   display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .search-field .icon,
@@ -279,6 +282,8 @@
 .compact-search input,
 .sheet-picker select {
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   min-height: 48px;
   padding: 0 15px 0 43px;
   border: 1px solid var(--line);
@@ -341,7 +346,7 @@
   display: grid;
   width: 100%;
   min-height: 80px;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 13px;
   padding: 13px 17px;
@@ -405,6 +410,23 @@
   font-family: Georgia, serif;
   font-size: 13px;
   text-align: center;
+}
+
+.department-common-click {
+  display: grid;
+  min-width: 112px;
+  min-height: 38px;
+  place-items: center;
+  padding: 0 13px;
+  border: 1px solid color-mix(in srgb, var(--field-accent) 22%, transparent);
+  border-radius: 12px;
+  color: color-mix(in srgb, var(--field-accent) 72%, #51645f);
+  background: color-mix(in srgb, var(--field-soft) 74%, white);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  font: 900 10px Consolas, monospace;
+  letter-spacing: 0.2em;
+  opacity: 0.82;
+  white-space: nowrap;
 }
 
 .department-common-disclosure > button > i {
@@ -952,7 +974,10 @@
 .recommend-search {
   position: relative;
   display: block;
+  width: 100%;
+  min-width: 0;
   flex: 0 0 auto;
+  box-sizing: border-box;
 }
 
 .recommend-search .icon {
@@ -967,6 +992,8 @@
 
 .recommend-search input {
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   height: 35px;
   padding: 0 12px 0 34px;
   border: 1px solid #d9e3df;
@@ -2562,6 +2589,340 @@ body.is-platform-image-capturing .platform-print-root {
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
+  }
+}
+
+/* 학교 편제표 권한 확인과 관리자 관리 도구 */
+.school-upload-head {
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.school-admin-access {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.school-admin-access > button,
+.school-admin-access > span {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid #c9d9d4;
+  border-radius: 999px;
+  color: #31534a;
+  background: #f7faf9;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.school-admin-access > button {
+  cursor: pointer;
+}
+
+.school-admin-access > button:hover,
+.school-admin-access > button:focus-visible {
+  border-color: var(--primary);
+  color: var(--primary-dark);
+  background: #eaf6f2;
+}
+
+.school-admin-access > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.school-admin-access .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.school-admin-access.is-signed-in > span,
+.school-write-status {
+  border-color: rgba(8, 116, 91, 0.22);
+  color: var(--primary-dark);
+  background: #e8f6f1;
+}
+
+.curriculum-upload-zone {
+  width: 100%;
+  appearance: none;
+  font: inherit;
+}
+
+.curriculum-upload-input {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.school-auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 20, 17, 0.62);
+  backdrop-filter: blur(8px);
+}
+
+.school-auth-dialog {
+  position: relative;
+  width: min(560px, calc(100vw - 48px));
+  padding: 32px;
+  border: 1px solid rgba(150, 190, 177, 0.58);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 30px 80px rgba(0, 32, 24, 0.28);
+}
+
+.school-auth-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #476159;
+  background: #edf3f1;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.school-auth-dialog > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 15px;
+  padding-right: 38px;
+}
+
+.school-auth-dialog > header > span {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 17px;
+  color: var(--primary);
+  background: #e2f3ed;
+}
+
+.school-auth-dialog > header .icon {
+  width: 25px;
+  height: 25px;
+}
+
+.school-auth-dialog header small {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+}
+
+.school-auth-dialog h3 {
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-size: 23px;
+}
+
+.school-auth-dialog header p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.school-auth-form {
+  display: grid;
+  gap: 13px;
+  margin-top: 24px;
+}
+
+.school-auth-form label span {
+  display: block;
+  margin-bottom: 7px;
+  color: #41574f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.school-auth-form input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 15px;
+  border: 1px solid #ccd9d5;
+  border-radius: 13px;
+  outline: none;
+  color: var(--ink);
+  background: #fbfdfc;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.school-auth-form input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(8, 116, 91, 0.1);
+}
+
+.school-auth-file input {
+  padding: 6px 8px;
+  line-height: normal;
+}
+
+.school-auth-file small {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.school-auth-file input::file-selector-button {
+  height: 36px;
+  margin-right: 10px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--primary-dark);
+  background: #e5f3ee;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.school-auth-form .primary-action {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 3px;
+  font-size: 14px;
+}
+
+.school-auth-unavailable {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 22px;
+  border-radius: 15px;
+  color: var(--muted);
+  background: #f4f7f6;
+  text-align: center;
+}
+
+.school-auth-unavailable strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.school-auth-unavailable p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.active-school-admin-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.active-school-admin-actions button {
+  min-height: 40px;
+  margin: 0;
+  border-radius: 11px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.active-school-admin-actions .school-edit-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(133, 239, 204, 0.28);
+  color: #d9fff2;
+  background: rgba(8, 116, 91, 0.55);
+  cursor: pointer;
+}
+
+.active-school-admin-actions .school-edit-action .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.active-school-admin-actions .danger-action {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+}
+
+.active-school-admin-actions .is-school-delete {
+  grid-column: 1 / -1;
+  border-color: rgba(255, 183, 168, 0.16);
+  color: rgba(255, 220, 213, 0.74);
+  background: rgba(70, 9, 5, 0.2);
+}
+
+@media (max-width: 720px) {
+  .school-upload-head {
+    align-items: stretch;
+  }
+
+  .school-admin-access {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .school-auth-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .school-auth-dialog {
+    width: 100%;
+    padding: 27px 20px max(24px, env(safe-area-inset-bottom));
+    border-radius: 24px 24px 0 0;
+  }
+
+  .school-auth-dialog > header {
+    align-items: start;
+    padding-right: 34px;
+  }
+
+  .school-auth-dialog h3 {
+    font-size: 21px;
+  }
+
+  .active-school-admin-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .active-school-admin-actions .is-school-delete {
+    grid-column: auto;
   }
 }
 
@@ -4544,6 +4905,8 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 .curriculum-alert-dialog {
+  position: fixed;
+  z-index: 10000;
   width: min(calc(100% - 32px), 480px);
   margin: auto;
   padding: 30px;
@@ -4557,6 +4920,7 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 .curriculum-alert-dialog::backdrop {
+  z-index: 9999;
   background: rgba(4, 17, 22, 0.72);
   backdrop-filter: blur(7px);
 }
@@ -7114,6 +7478,9 @@ body.is-platform-image-capturing .platform-print-root {
 /* Department guide and major-based recommendation */
 .major-search {
   display: grid;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 10px;
@@ -7125,6 +7492,8 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 .major-search .search-field {
+  width: 100%;
+  min-width: 0;
   min-height: 52px;
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -14746,6 +15115,236 @@ button.major-subject-chip:hover {
   }
 }
 
+/* 편제표 파싱 결과는 데이터 연동 화면 위의 독립 검토 모달에서 확인한다. */
+body.curriculum-preview-open {
+  overflow: hidden;
+}
+
+.curriculum-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 20, 27, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.curriculum-preview-overlay .curriculum-upload-preview {
+  position: relative;
+  width: min(1380px, 100%);
+  max-height: calc(100dvh - 48px);
+  margin: 0;
+  padding: 24px;
+  overflow: auto;
+  border-color: rgba(185, 228, 212, 0.9);
+  border-radius: 24px;
+  background: #f5fbf8;
+  box-shadow: 0 30px 90px rgba(0, 20, 28, 0.32);
+}
+
+.curriculum-preview-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  margin: 0;
+  place-items: center;
+  border: 1px solid #d6e5e0;
+  border-radius: 50%;
+  color: #48625a;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 5px 15px rgba(12, 52, 42, 0.09);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.curriculum-preview-overlay .curriculum-upload-preview > header {
+  padding-right: 52px;
+}
+
+.curriculum-preview-pages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.curriculum-preview-pages button {
+  display: grid;
+  gap: 4px;
+  min-height: 62px;
+  padding: 11px 14px;
+  border: 1px solid #cddfd9;
+  border-radius: 13px;
+  color: #526860;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.curriculum-preview-pages button strong {
+  color: #183f34;
+  font-size: 13px;
+}
+
+.curriculum-preview-pages button span {
+  font-size: 10px;
+}
+
+.curriculum-preview-pages button.is-selected {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #e9f7f2;
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.curriculum-region-field {
+  position: relative;
+}
+
+.curriculum-region-picker {
+  position: relative;
+}
+
+.curriculum-region-picker > button {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid #bcd5cc;
+  border-radius: 9px;
+  color: var(--ink);
+  background: #fbfdfc;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.curriculum-region-picker > button .icon {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.18s ease;
+}
+
+.curriculum-region-picker > button[aria-expanded="true"] .icon {
+  transform: rotate(90deg);
+}
+
+.curriculum-region-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 7px);
+  left: 0;
+  display: grid;
+  width: min(520px, calc(100vw - 76px));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid #bfd6ce;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(13, 54, 44, 0.2);
+}
+
+.curriculum-region-options[hidden] {
+  display: none;
+}
+
+.curriculum-region-options button {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 1px solid #e0ebe7;
+  border-radius: 9px;
+  color: #405b53;
+  background: #f9fcfb;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.curriculum-region-options button .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.curriculum-region-options button:hover,
+.curriculum-region-options button:focus-visible,
+.curriculum-region-options button.is-selected {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #eaf7f2;
+}
+
+.curriculum-fixed-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.common-course-block.is-designated {
+  border-color: #d7dced;
+  background: #f7f8fd;
+}
+
+.common-course-chip.is-designated {
+  border-color: #ced6eb;
+  color: #48577c;
+  background: #fff;
+}
+
+@media (min-width: 1024px) {
+  .curriculum-region-picker > button,
+  .curriculum-region-options button {
+    min-height: 42px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 820px) {
+  .curriculum-preview-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .curriculum-preview-overlay .curriculum-upload-preview {
+    width: 100%;
+    max-height: 94dvh;
+    padding: 18px;
+    border-radius: 23px 23px 0 0;
+  }
+
+  .curriculum-fixed-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .curriculum-preview-overlay .curriculum-upload-preview {
+    padding: 14px;
+  }
+
+  .curriculum-preview-pages {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .curriculum-region-options {
+    width: min(420px, calc(100vw - 48px));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 620px) {
   .major-book-section {
     padding: 16px;
@@ -14783,11 +15382,1594 @@ button.major-subject-chip:hover {
   }
 }
 
+/* 편제표 편집은 큰 글자, 한 줄 한 과목, 영역 안의 추가 버튼을 기준으로 구성한다. */
+.curriculum-entry-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0 12px;
+}
+
+.curriculum-entry-methods > .curriculum-create-blank,
+.curriculum-entry-methods > .curriculum-upload-zone {
+  min-height: 150px;
+  margin: 0;
+}
+
+.curriculum-entry-methods > .curriculum-create-blank strong,
+.curriculum-entry-methods > .curriculum-upload-zone strong {
+  font-size: 15px;
+}
+
+.curriculum-entry-methods > .curriculum-create-blank small,
+.curriculum-entry-methods > .curriculum-upload-zone small {
+  font-size: 11px;
+  letter-spacing: -0.045em;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.curriculum-create-blank {
+  display: grid;
+  width: 100%;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 22px;
+  border: 1px dashed #9fbbb1;
+  border-radius: 17px;
+  color: var(--ink);
+  background: #f3f8f5;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.curriculum-create-blank:hover,
+.curriculum-create-blank:focus-visible {
+  border-color: var(--primary);
+  background: #e9f6f1;
+}
+
+.curriculum-create-blank > span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  margin-bottom: 4px;
+  border-radius: 14px;
+  color: var(--primary);
+  background: #dcefe8;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.curriculum-create-blank strong,
+.curriculum-create-blank small {
+  display: block;
+}
+
+.curriculum-create-blank strong {
+  font-size: 12px;
+}
+
+.curriculum-create-blank small {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.curriculum-preview-overlay .curriculum-upload-preview {
+  width: min(1540px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 30px;
+}
+
+.curriculum-preview-overlay .curriculum-upload-preview > header h3 {
+  font-size: clamp(22px, 2vw, 30px);
+}
+
+.curriculum-preview-overlay .curriculum-upload-preview > header p,
+.curriculum-preview-overlay .curriculum-upload-preview > header > span {
+  font-size: 13px;
+}
+
+.curriculum-preview-overlay .curriculum-editor-school-fields > label > span,
+.curriculum-preview-overlay .curriculum-editor-school-fields > div > span,
+.curriculum-preview-overlay .curriculum-option-editor label > span {
+  font-size: 11px;
+}
+
+.curriculum-preview-overlay .curriculum-editor-school-fields input,
+.curriculum-preview-overlay .curriculum-region-picker > button,
+.curriculum-preview-overlay .curriculum-option-editor input {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.curriculum-preview-overlay .curriculum-grade-editor > header strong {
+  font-size: 17px;
+}
+
+.curriculum-preview-grade-pages {
+  display: flex;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.curriculum-preview-grade-pages button {
+  display: grid;
+  min-width: 150px;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 9px;
+  padding: 10px 13px;
+  border: 1px solid #d1e1dc;
+  border-radius: 13px;
+  color: #496159;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.curriculum-preview-grade-pages button > span {
+  grid-row: 1 / 3;
+  font-size: 26px;
+  font-weight: 850;
+}
+
+.curriculum-preview-grade-pages button strong {
+  font-size: 13px;
+}
+
+.curriculum-preview-grade-pages button small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.curriculum-preview-grade-pages button.is-selected {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #e9f7f2;
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.curriculum-preview-overlay .curriculum-grade-editor > header span,
+.curriculum-preview-overlay .curriculum-semester-editor > header span,
+.curriculum-preview-overlay .curriculum-editor-lane > header span {
+  font-size: 11px;
+}
+
+.curriculum-preview-overlay .curriculum-semester-editor {
+  padding: 16px;
+  border-radius: 16px;
+}
+
+.curriculum-preview-overlay .curriculum-semester-editor > header h5 {
+  font-size: 18px;
+}
+
+.curriculum-editor-lane > header > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.curriculum-preview-overlay .curriculum-editor-lane > header strong {
+  font-size: 14px;
+}
+
+.curriculum-editor-lane > header .curriculum-add-course {
+  width: auto;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 13px;
+  border-style: solid;
+  font-size: 12px;
+}
+
+.curriculum-course-dropzone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 58px;
+  gap: 8px;
+  padding: 9px;
+}
+
+.curriculum-editor-course {
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 52px;
+}
+
+.curriculum-preview-overlay .curriculum-editor-course strong {
+  font-size: 14px;
+}
+
+.curriculum-preview-overlay .curriculum-course-meta {
+  font-size: 10px;
+}
+
+.curriculum-preview-overlay .curriculum-course-remove {
+  padding: 0 14px;
+  font-size: 20px;
+}
+
+.curriculum-preview-overlay .curriculum-add-option {
+  min-height: 42px;
+  font-size: 12px;
+}
+
+.curriculum-preview-overlay .admin-button-row {
+  position: sticky;
+  z-index: 4;
+  bottom: -30px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 24px -30px -30px;
+  padding: 18px 24px;
+  border-top: 1px solid #d9e8e3;
+  background: rgba(245, 251, 248, 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.curriculum-preview-overlay .admin-button-row .primary-action,
+.curriculum-preview-overlay .admin-button-row .text-action {
+  min-width: 190px;
+  min-height: 52px;
+  font-size: 14px;
+}
+
+.curriculum-course-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5100;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: rgba(2, 17, 23, 0.7);
+}
+
+.curriculum-course-picker {
+  display: grid;
+  width: min(1180px, 100%);
+  max-height: calc(100dvh - 64px);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid #c8ddd6;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 32px 90px rgba(0, 18, 25, 0.4);
+}
+
+.curriculum-course-picker > header,
+.curriculum-course-picker > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 24px;
+}
+
+.curriculum-course-picker > header {
+  border-bottom: 1px solid #e1ebe7;
+}
+
+.curriculum-course-picker > header small,
+.curriculum-course-picker > header h3,
+.curriculum-course-picker > header p {
+  display: block;
+  margin: 0;
+}
+
+.curriculum-course-picker > header h3 {
+  margin-top: 3px;
+  font-size: 23px;
+}
+
+.curriculum-course-picker > header p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.curriculum-course-picker > header > button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #d7e4df;
+  border-radius: 50%;
+  background: #f8fbfa;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.curriculum-picker-search,
+.simulation-history-tools > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 24px 10px;
+  padding: 0 14px;
+  border: 1px solid #bed6cd;
+  border-radius: 13px;
+  background: #fbfdfc;
+}
+
+.curriculum-picker-search .icon,
+.simulation-history-tools > label .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+}
+
+.curriculum-picker-search input,
+.simulation-history-tools input {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+}
+
+.curriculum-picker-categories,
+.simulation-history-tools nav {
+  display: flex;
+  gap: 7px;
+  padding: 0 24px 14px;
+  overflow-x: auto;
+}
+
+.curriculum-picker-categories button,
+.simulation-history-tools nav button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #d2e0db;
+  border-radius: 999px;
+  color: #4d655d;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.curriculum-picker-categories button.is-selected,
+.simulation-history-tools nav button.is-selected {
+  border-color: var(--primary);
+  color: #fff;
+  background: var(--primary);
+}
+
+.curriculum-picker-results {
+  display: grid;
+  gap: 18px;
+  padding: 6px 24px 24px;
+  overflow: auto;
+  background: #f7faf9;
+}
+
+.curriculum-picker-category,
+.simulation-history-category {
+  padding: 16px;
+  border: 1px solid #dbe8e3;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.curriculum-picker-category > header,
+.simulation-history-category > header,
+.curriculum-picker-type > header,
+.simulation-history-type > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.curriculum-picker-category > header h4,
+.simulation-history-category > header h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.curriculum-picker-category > header span,
+.simulation-history-category > header span,
+.curriculum-picker-type > header span,
+.simulation-history-type > header span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.curriculum-picker-type,
+.simulation-history-type {
+  margin-top: 13px;
+}
+
+.curriculum-picker-type > header strong,
+.simulation-history-type > header strong {
+  color: var(--primary);
+  font-size: 12px;
+}
+
+.curriculum-picker-type > div,
+.simulation-history-type > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.curriculum-picker-type button,
+.simulation-history-type button {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid #dce7e3;
+  border-radius: 11px;
+  color: #28483f;
+  background: #fafcfb;
+  text-align: left;
+  cursor: pointer;
+}
+
+.curriculum-picker-type button > span,
+.simulation-history-type button > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--primary);
+  background: #e8f5f0;
+}
+
+.curriculum-picker-type button strong,
+.simulation-history-type button strong {
+  font-size: 13px;
+}
+
+.curriculum-picker-type button.is-selected,
+.simulation-history-type button.is-selected {
+  border-color: var(--primary);
+  color: #0d5a45;
+  background: #e8f7f1;
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.curriculum-course-picker > footer {
+  border-top: 1px solid #dfeae6;
+  background: #fff;
+}
+
+.curriculum-course-picker > footer > span {
+  font-size: 13px;
+}
+
+.curriculum-course-picker > footer > span strong {
+  margin-right: 4px;
+  color: var(--primary);
+  font-size: 20px;
+}
+
+.curriculum-course-picker > footer > div {
+  display: flex;
+  gap: 9px;
+}
+
+.curriculum-course-picker > footer button {
+  min-height: 46px;
+  padding: 0 18px;
+}
+
+/* 시뮬레이션의 첫 단계: 기이수 과목 선택 */
+.simulation-history-stage {
+  margin-top: 18px;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid #cfe1da;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 14px 40px rgba(18, 66, 54, 0.07);
+}
+
+.simulation-grade-progress {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.semester-curriculum-section .common-course-block {
+  grid-template-columns: minmax(170px, 0.35fr) minmax(0, 1fr);
+  padding: 15px;
+}
+
+.semester-curriculum-section .common-course-block h3,
+.semester-curriculum-section .curriculum-option-card h3 {
+  font-size: 15px;
+}
+
+.semester-curriculum-section .common-course-block small,
+.semester-curriculum-section .curriculum-option-card header small {
+  font-size: 10px;
+}
+
+.semester-curriculum-section .common-course-chip,
+.semester-curriculum-section .curriculum-course-options button {
+  min-height: 40px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+.semester-curriculum-section .common-course-list,
+.semester-curriculum-section .curriculum-course-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.semester-curriculum-section .common-course-chip,
+.semester-curriculum-section .curriculum-course-options button {
+  width: 100%;
+  justify-content: flex-start;
+  border-radius: 11px;
+  text-align: left;
+}
+
+.simulation-history-stage > header,
+.simulation-history-stage > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.simulation-history-stage > header h2,
+.simulation-history-stage > header p {
+  margin: 0;
+}
+
+.simulation-history-stage > header h2 {
+  margin-top: 5px;
+  font-size: clamp(21px, 2.2vw, 30px);
+}
+
+.simulation-history-stage > header span {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.simulation-history-stage > header > strong {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: var(--primary);
+  background: #e8f6f1;
+  font-size: 14px;
+}
+
+.simulation-history-tools > label {
+  margin: 20px 0 10px;
+}
+
+.simulation-history-tools nav {
+  padding: 0 0 14px;
+}
+
+.simulation-history-results {
+  display: grid;
+  gap: 14px;
+  max-height: 620px;
+  padding: 14px;
+  overflow: auto;
+  border-radius: 18px;
+  background: #f5f9f7;
+}
+
+.simulation-history-stage > footer {
+  margin-top: 18px;
+}
+
+.simulation-history-curriculum-list {
+  margin-top: 20px;
+}
+
+.simulation-history-curriculum-list .grade-curriculum-card {
+  background: #f8fbfa;
+}
+
+.simulation-history-stage > footer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 820px) {
+  .curriculum-entry-methods {
+    grid-template-columns: 1fr;
+  }
+
+  .curriculum-preview-overlay .curriculum-grade-editor > div {
+    grid-template-columns: 1fr;
+  }
+
+  .curriculum-course-picker-overlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .curriculum-course-picker {
+    width: 100%;
+    max-height: 95dvh;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .simulation-history-stage > header,
+  .simulation-history-stage > footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .curriculum-preview-overlay .admin-button-row {
+    margin-right: -14px;
+    margin-left: -14px;
+    padding: 12px;
+  }
+
+  .curriculum-preview-overlay .admin-button-row .primary-action,
+  .curriculum-preview-overlay .admin-button-row .text-action {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .curriculum-course-picker > header,
+  .curriculum-course-picker > footer {
+    padding: 15px;
+  }
+
+  .curriculum-picker-search {
+    margin-right: 15px;
+    margin-left: 15px;
+  }
+
+  .curriculum-picker-categories,
+  .curriculum-picker-results {
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+
+  .curriculum-picker-type > div,
+  .simulation-history-type > div {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Unified connected-school search */
+.header-school-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 2px 5px 8px;
+}
+
+.header-school-menu-head p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+}
+
+.header-school-menu-head span {
+  color: #72e0bd;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.header-school-search,
+.simulation-school-search {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.comparison-search-field,
+.curriculum-picker-search {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.header-school-search {
+  min-height: 42px;
+  margin-bottom: 9px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.header-school-search:focus-within {
+  border-color: rgba(114, 224, 189, 0.65);
+  box-shadow: 0 0 0 3px rgba(114, 224, 189, 0.1);
+}
+
+.header-school-search .icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.header-school-search input,
+.simulation-school-search input,
+.comparison-search-field input,
+.curriculum-picker-search input {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  box-sizing: border-box;
+  border: 0;
+  outline: 0;
+  font: inherit;
+}
+
+.header-school-search input {
+  color: #fff;
+  background: transparent;
+  font-size: 11px;
+}
+
+.header-school-search input::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.header-school-search input::-webkit-search-cancel-button,
+.simulation-school-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.simulation-school-search {
+  min-height: 48px;
+  margin-bottom: 12px;
+  padding: 0 13px;
+  border: 1px solid #d5e4df;
+  border-radius: 13px;
+  background: #f8fbfa;
+}
+
+.simulation-school-search:focus-within {
+  border-color: rgba(8, 116, 91, 0.55);
+  box-shadow: 0 0 0 4px rgba(8, 116, 91, 0.08);
+}
+
+.simulation-school-search > .icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--primary);
+}
+
+.simulation-school-search input {
+  color: var(--ink);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.simulation-school-search input::placeholder {
+  color: #899b95;
+}
+
+.simulation-school-search button {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #577068;
+  background: #e5efeb;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.simulation-school-search button[hidden] {
+  display: none;
+}
+
+/* 검색 중에는 입력칸 DOM과 화면 위치를 유지하고 결과 영역만 교체합니다. */
+.app-main:has(> .course-group-grid) > .course-group-grid.is-live-search-results,
+.app-main:has(> .major-field-grid) > .major-field-grid.is-live-search-results {
+  display: block;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.course-group-grid.is-live-search-results > .record-grid,
+.major-field-grid.is-live-search-results > .major-browser {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.major-field-grid.is-live-search-results > .major-browser {
+  min-height: 100%;
+}
+
+.simulation-school-options {
+  min-height: clamp(190px, 30dvh, 300px);
+  max-height: clamp(190px, 30dvh, 300px);
+  align-content: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+@media (min-width: 1024px) {
+  .header-school-menu-head p,
+  .header-school-menu-head span {
+    font-size: 11px;
+  }
+
+  .header-school-search input {
+    font-size: 12px;
+  }
+}
+
+/* School identity step and curriculum drafts */
+.school-auth-region-field {
+  position: relative;
+}
+
+.school-auth-region-field > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #41574f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.school-auth-region-field > button {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 15px;
+  border: 1px solid #ccd9d5;
+  border-radius: 13px;
+  color: var(--ink);
+  background: #fbfdfc;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.school-auth-region-field > button[aria-expanded="true"] {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(8, 116, 91, 0.1);
+}
+
+.school-auth-region-field > button .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.school-auth-region-options {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  display: grid;
+  max-height: 250px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  padding: 9px;
+  overflow: auto;
+  border: 1px solid #c9ddd6;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(10, 54, 42, 0.18);
+}
+
+.school-auth-region-options[hidden] {
+  display: none;
+}
+
+.school-auth-region-options button {
+  display: flex;
+  min-height: 39px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #3d554d;
+  background: #f5f9f7;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.school-auth-region-options button:hover,
+.school-auth-region-options button.is-selected {
+  border-color: #9bd0bf;
+  color: var(--primary-dark);
+  background: #e6f4ef;
+}
+
+.school-auth-region-options .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.school-auth-draft-help {
+  margin: 0;
+  padding: 11px 13px;
+  border-radius: 11px;
+  color: #4d675e;
+  background: #eef7f3;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.curriculum-draft-status {
+  margin: 16px 0 0;
+  color: #48675d;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.curriculum-preview-overlay .admin-button-row .secondary-action {
+  min-width: 190px;
+  min-height: 52px;
+  font-size: 14px;
+}
+
+@media (max-width: 560px) {
+  .school-auth-region-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .curriculum-preview-overlay .admin-button-row .secondary-action {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+}
+
+/* 추천 3단계: 여러 학과의 교집합은 학과별 상세 카드와 별도의 모음 영역으로 보인다. */
+.recommend-common-review.is-common-collection {
+  position: relative;
+  min-height: auto;
+  margin: 6px 0 26px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid rgba(8, 116, 91, 0.34);
+  border-radius: 22px;
+  background: linear-gradient(145deg, #edf8f4 0%, #f8fcfa 62%, #e8f4ef 100%);
+  box-shadow: 0 16px 34px rgba(8, 81, 65, 0.09);
+}
+
+.recommend-common-review.is-common-collection::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  content: "";
+  background: linear-gradient(#08745b, #6bc6a9);
+}
+
+.recommend-common-review .recommend-common-collection-head {
+  min-height: 78px;
+  padding: 17px 20px 14px 23px;
+  border-bottom: 1px solid rgba(8, 116, 91, 0.16);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.recommend-common-collection-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 13px;
+}
+
+.recommend-common-collection-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(8, 116, 91, 0.18);
+  border-radius: 15px;
+  color: #fff;
+  background: linear-gradient(145deg, #08745b, #159575);
+  box-shadow: 0 8px 18px rgba(8, 116, 91, 0.2);
+}
+
+.recommend-common-collection-icon .icon {
+  width: 23px;
+  height: 23px;
+}
+
+.recommend-common-review .recommend-common-collection-title small {
+  color: #08745b;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.recommend-common-review .recommend-common-collection-title h3 {
+  margin-top: 3px;
+  font-size: 22px;
+}
+
+.recommend-common-collection-title p {
+  margin: 5px 0 0;
+  color: #587068;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.recommend-common-review .recommend-common-collection-head > em {
+  display: grid;
+  min-width: 52px;
+  min-height: 52px;
+  place-items: center;
+  align-content: center;
+  gap: 1px;
+  padding: 6px 9px;
+  border: 1px solid rgba(8, 116, 91, 0.18);
+  border-radius: 15px;
+  color: #08745b;
+  background: #fff;
+  box-shadow: 0 6px 15px rgba(8, 81, 65, 0.08);
+}
+
+.recommend-common-collection-head > em strong,
+.recommend-common-collection-head > em span {
+  display: block;
+  font-style: normal;
+  line-height: 1;
+}
+
+.recommend-common-collection-head > em strong {
+  font-size: 17px;
+}
+
+.recommend-common-collection-head > em span {
+  margin-top: 3px;
+  color: #638178;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.recommend-common-scope {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 13px 17px 0 20px;
+  padding: 10px 12px;
+  border: 1px dashed rgba(8, 116, 91, 0.28);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.recommend-common-scope > strong {
+  flex: 0 0 auto;
+  color: #48655c;
+  font-size: 10px;
+}
+
+.recommend-common-scope > div {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.recommend-common-scope span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #08634f;
+  background: #dff1ea;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.recommend-common-review.is-common-collection > .recommend-common-course-stack {
+  margin: 12px 17px 17px 20px;
+  border-color: rgba(8, 116, 91, 0.22);
+  box-shadow: 0 8px 20px rgba(8, 81, 65, 0.06);
+}
+
+.recommend-common-course-stack > .is-common-reflected {
+  background: linear-gradient(90deg, rgba(255, 247, 232, 0.72), #fff 34%);
+}
+
+.recommend-common-course-stack > .is-common-related {
+  background: linear-gradient(90deg, rgba(232, 247, 241, 0.75), #fff 34%);
+}
+
+.recommend-course-review > .recommend-department-review {
+  position: relative;
+  margin-top: 0;
+  padding: 17px;
+  border-color: #dfe5e3;
+  border-radius: 18px;
+  background: #fafbfb;
+}
+
+@media (max-width: 820px) {
+  .recommend-common-review.is-common-collection {
+    margin-bottom: 24px;
+  }
+
+  .recommend-common-review .recommend-common-collection-head {
+    min-height: 72px;
+    padding: 15px 15px 13px 18px;
+  }
+
+  .recommend-common-collection-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .recommend-common-review .recommend-common-collection-title h3 {
+    font-size: 19px;
+  }
+
+  .recommend-common-scope {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-right: 13px;
+    margin-left: 16px;
+  }
+
+  .recommend-common-review.is-common-collection > .recommend-common-course-stack {
+    margin-right: 13px;
+    margin-left: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .recommend-common-collection-title p {
+    display: none;
+  }
+
+  .recommend-common-collection-title {
+    gap: 9px;
+  }
+
+  .recommend-common-review .recommend-common-collection-head > em {
+    min-width: 46px;
+    min-height: 46px;
+  }
+}
+
+/* 분야 공통 과목 진입 카드와 상세 모달의 최종 가독성 보정 */
+@media (min-width: 821px) {
+  .department-common-disclosure > button {
+    min-height: 112px;
+    grid-template-columns: auto minmax(0, 1fr) minmax(132px, 0.24fr) auto auto;
+    gap: 16px;
+    padding: 18px 22px;
+    cursor: pointer;
+  }
+
+  .department-common-disclosure > button > span:first-child {
+    width: 56px;
+    height: 56px;
+    border-radius: 17px;
+  }
+
+  .department-common-disclosure > button > span:first-child .icon {
+    width: 25px;
+    height: 25px;
+  }
+
+  .department-common-disclosure > button > span:nth-child(2) small {
+    font-size: 11px;
+  }
+
+  .department-common-disclosure > button > span:nth-child(2) strong {
+    margin-top: 5px;
+    font-size: 23px;
+  }
+
+  .department-common-disclosure > button > span:nth-child(2) em {
+    margin-top: 5px;
+    font-size: 13px;
+  }
+
+  .department-common-disclosure > button > b {
+    min-width: 48px;
+    padding: 8px 12px;
+    font-size: 17px;
+  }
+
+  .department-common-click {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 15px;
+    font-size: 12px;
+    letter-spacing: 0.24em;
+    opacity: 0.9;
+  }
+
+  .department-common-disclosure > button > i {
+    width: 38px;
+    height: 38px;
+  }
+
+  .department-common-disclosure > button > i .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .sheet-dialog.is-department-common-dialog {
+    width: min(calc(100% - 32px), 1420px);
+    max-height: calc(100dvh - 32px);
+    padding: 34px 38px 38px;
+  }
+
+  .department-common-dialog-head {
+    gap: 20px;
+    padding-bottom: 23px;
+  }
+
+  .department-common-dialog-head > span {
+    width: 66px;
+    height: 66px;
+    border-radius: 19px;
+  }
+
+  .department-common-dialog-head > span .icon {
+    width: 29px;
+    height: 29px;
+  }
+
+  .department-common-dialog-head h2 {
+    font-size: 34px;
+  }
+
+  .department-common-dialog-head p:last-child {
+    font-size: 14px;
+  }
+
+  .department-common-dialog-head > em {
+    min-width: 58px;
+    padding: 10px 14px;
+    font-size: 20px;
+  }
+
+  .department-common-dialog-body > .major-subject-groups.is-field-common {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    max-height: none;
+    gap: 14px;
+    overflow: visible;
+    margin-top: 20px;
+  }
+
+  .is-department-common-dialog .major-subject-group {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .is-department-common-dialog .major-subject-group > header > span {
+    width: 36px;
+    height: 36px;
+  }
+
+  .is-department-common-dialog .major-subject-group > header strong {
+    font-size: 15px;
+  }
+
+  .is-department-common-dialog .major-subject-groups.is-field-common .common-major-subjects > span {
+    padding: 11px 12px;
+  }
+
+  .is-department-common-dialog .common-major-subjects strong {
+    font-size: 13px;
+  }
+
+  .is-department-common-dialog .common-major-subjects small {
+    font-size: 10px;
+  }
+
+  .sheet-dialog.is-course-dialog {
+    width: min(calc(100% - 40px), 1220px);
+    max-height: calc(100dvh - 36px);
+    padding: 38px 42px 42px;
+  }
+
+  .is-course-dialog .course-dialog-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 24px;
+    padding-right: 48px;
+  }
+
+  .is-course-dialog .course-dialog-head > div:first-child {
+    min-width: 0;
+  }
+
+  .is-course-dialog .course-dialog-head .detail-print-row {
+    min-height: 0;
+    margin: 0;
+  }
+
+  .is-course-dialog .dialog-close {
+    top: 20px;
+    right: 20px;
+    width: 42px;
+    height: 42px;
+    font-size: 24px;
+  }
+
+  .is-course-dialog .dialog-kicker {
+    font-size: 13px;
+  }
+
+  .sheet-dialog.is-course-dialog h2 {
+    padding-right: 0;
+    font-size: 38px;
+  }
+
+  .is-course-dialog .course-dialog-badges {
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .is-course-dialog .course-dialog-badges span {
+    padding: 7px 11px;
+    font-size: 12px;
+  }
+
+  .is-course-dialog .course-dialog-facts {
+    margin-top: 22px;
+    border-radius: 17px;
+  }
+
+  .is-course-dialog .course-dialog-facts > div {
+    padding: 17px 13px;
+  }
+
+  .is-course-dialog .course-dialog-facts dt {
+    font-size: 12px;
+  }
+
+  .is-course-dialog .course-dialog-facts dd {
+    font-size: 16px;
+  }
+
+  .course-dialog-sections {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+  }
+
+  .is-course-dialog .course-dialog-section,
+  .is-course-dialog .course-dialog-section.is-recommendation {
+    min-width: 0;
+    margin: 0;
+    padding: 19px 21px;
+    border: 1px solid #e0eae6;
+    border-radius: 17px;
+    background: #fafcfb;
+  }
+
+  .is-course-dialog .course-dialog-section.is-recommendation {
+    border-color: #cbe4da;
+    background: #eef8f4;
+  }
+
+  .is-course-dialog .course-dialog-section h3 {
+    font-size: 19px;
+  }
+
+  .is-course-dialog .course-dialog-section > p,
+  .is-course-dialog .course-dialog-section li,
+  .is-course-dialog .course-dialog-faq article p {
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .is-course-dialog .course-dialog-faq {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .is-course-dialog .course-dialog-faq > h3 {
+    grid-column: 1 / -1;
+  }
+
+  .is-course-dialog .course-dialog-faq article {
+    margin: 0;
+    padding: 16px;
+  }
+
+  .is-course-dialog .course-dialog-faq article h4 {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 820px) {
+  .department-common-disclosure > button {
+    cursor: pointer;
+  }
+
+  .department-common-click {
+    min-width: 88px;
+    min-height: 32px;
+    padding: 0 9px;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    opacity: 0.86;
+  }
+
+  .course-dialog-sections {
+    display: grid;
+    gap: 0;
+  }
+
+  .course-dialog-head {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+}
+
+@media (max-width: 540px) {
+  .department-common-disclosure > button {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+
+  .department-common-disclosure > button > b {
+    display: none;
+  }
+
+  .department-common-disclosure > button > span:nth-child(2) strong {
+    font-size: 15px;
+  }
+}
+
 @media print {
   .platform-print-root .simulation-final-course-group li small {
     margin-right: 1mm;
     padding: 0.5mm 1mm;
     border-radius: 1mm;
     font-size: 5.5pt;
+  }
+}
+
+/* Keep the compact management controls above later legacy admin-card rules. */
+.admin-section-head.school-upload-head {
+  align-items: flex-start;
+}
+
+.active-school-summary .active-school-admin-actions .danger-action {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .admin-section-head.school-upload-head {
+    align-items: flex-start;
+  }
+}
+
+/* 직접 등록과 파일 업로드 카드는 같은 크기와 타이포그래피를 사용한다. */
+.curriculum-entry-methods > .curriculum-create-blank,
+.curriculum-entry-methods > .curriculum-upload-zone {
+  min-height: 172px;
+  align-content: center;
+  gap: 8px;
+  padding: 26px;
+  border-radius: 19px;
+}
+
+.curriculum-entry-methods > .curriculum-create-blank > span,
+.curriculum-entry-methods > .curriculum-upload-zone > .upload-icon {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 4px;
+  border-radius: 15px;
+}
+
+.curriculum-entry-methods > .curriculum-create-blank > span {
+  font-size: 0;
+}
+
+.curriculum-entry-methods > .curriculum-create-blank > span .icon,
+.curriculum-entry-methods > .curriculum-upload-zone > .upload-icon .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.curriculum-entry-methods > .curriculum-create-blank strong,
+.curriculum-entry-methods > .curriculum-upload-zone strong {
+  display: block;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.curriculum-entry-methods > .curriculum-create-blank small,
+.curriculum-entry-methods > .curriculum-upload-zone small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: -0.035em;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+@media (min-width: 1200px) {
+  .curriculum-entry-methods > .curriculum-create-blank,
+  .curriculum-entry-methods > .curriculum-upload-zone {
+    min-height: 190px;
+    padding: 30px;
+  }
+
+  .curriculum-entry-methods > .curriculum-create-blank > span,
+  .curriculum-entry-methods > .curriculum-upload-zone > .upload-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 17px;
+  }
+
+  .curriculum-entry-methods > .curriculum-create-blank > span {
+    font-size: 0;
+  }
+
+  .curriculum-entry-methods > .curriculum-create-blank > span .icon,
+  .curriculum-entry-methods > .curriculum-upload-zone > .upload-icon .icon {
+    width: 27px;
+    height: 27px;
+  }
+
+  .curriculum-entry-methods > .curriculum-create-blank strong,
+  .curriculum-entry-methods > .curriculum-upload-zone strong {
+    font-size: 18px;
+  }
+
+  .curriculum-entry-methods > .curriculum-create-blank small,
+  .curriculum-entry-methods > .curriculum-upload-zone small {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 560px) {
+  .curriculum-entry-methods > .curriculum-create-blank,
+  .curriculum-entry-methods > .curriculum-upload-zone {
+    min-height: 158px;
+    padding: 22px 16px;
+  }
+
+  .curriculum-entry-methods > .curriculum-create-blank small,
+  .curriculum-entry-methods > .curriculum-upload-zone small {
+    font-size: 11px;
   }
 }
