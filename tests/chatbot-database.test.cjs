@@ -8,9 +8,9 @@ const chatbot = database.chatbot;
 
 assert.equal(database.meta.schemaVersion, 2);
 assert.equal(database.rows.length, 290);
-assert.equal(chatbot.faqIntents.length, 62);
-assert.equal(chatbot.questionVariants.length, 311);
-assert.equal(chatbot.answers.length, 126);
+assert.equal(chatbot.faqIntents.length, 63);
+assert.equal(chatbot.questionVariants.length, 337);
+assert.equal(chatbot.answers.length, 130);
 assert.equal(chatbot.keywordWeights.length, 5464);
 assert.equal(chatbot.sources.length, 16);
 assert.equal(chatbot.clarificationRules.length, 1);
@@ -66,5 +66,27 @@ assert.equal(koreanTeacher.intentId, "COURSE_SCOPE_CLARIFY");
 assert.equal(koreanTeacher.results.length, 0);
 assert.ok(koreanTeacher.candidateCount >= 6);
 assert.ok(koreanTeacher.choices.some((choice) => choice.label.startsWith("진로선택")));
+
+const careerIntent = chatbot.faqIntents.find((intent) => intent.intent_id === "F063");
+assert.equal(careerIntent.category, "진로탐색");
+assert.equal(careerIntent.answer_mode, "MULTI");
+assert.equal(chatbot.questionVariants.filter((variant) => variant.intent_id === "F063").length, 26);
+assert.equal(chatbot.answers.filter((answer) => answer.intent_id === "F063").length, 4);
+assert.equal(chatbot.sources.find((source) => source.source_id === "S01").url, "https://www.hscredit.kr/curriculum/subjects");
+
+const undecidedCareer = engine.respond("저 진로가 없어요.");
+assert.equal(undecidedCareer.intentId, "F063");
+assert.equal(undecidedCareer.results.length, 0);
+assert.match(undecidedCareer.text, /지금 당장 하나의 직업이나 학과로 확정할 필요는 없습니다/u);
+assert.match(undecidedCareer.text, /진로검사, 진로상담, 독서, 동아리, 체험 활동/u);
+assert.doesNotMatch(undecidedCareer.text, /선택과목을 정해야 하는데/u);
+assert.match(undecidedCareer.text, /1\. 내가 좋아하거나 관심 있는 것은/u);
+
+const undecidedCourseChoice = engine.respond("선택과목 골라야 하는데 진로가 없어요.");
+assert.equal(undecidedCourseChoice.intentId, "F063");
+assert.equal(undecidedCourseChoice.results.length, 0);
+assert.match(undecidedCourseChoice.text, /선택과목을 정해야 하는데 진로가 아직 확실하지 않다면/u);
+assert.match(undecidedCourseChoice.sourceText, /한국교육과정평가원 고교학점제 공식 홈페이지/u);
+assert.equal(undecidedCourseChoice.sourceDetails[0].url, "https://www.hscredit.kr/curriculum/subjects");
 
 console.log(`chatbot database tests passed (${evaluatedCases.length} DB cases)`);

@@ -110,11 +110,21 @@ async function main() {
     assert.equal(mobileSupportDock.faqLabel, "none");
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
     assert.equal(await evaluate("document.querySelector('.course-chatbot-suggestions') === null"), true);
+    await evaluate(`(() => {
+      const messages = document.querySelector('[data-chat-messages]');
+      const nativeScrollTo = messages.scrollTo.bind(messages);
+      window.__chatScrollBehaviors = [];
+      messages.scrollTo = (options) => {
+        window.__chatScrollBehaviors.push(options?.behavior || 'auto');
+        nativeScrollTo(options);
+      };
+    })()`);
     await evaluate(`(async () => {
       document.querySelector('.course-chatbot-launcher').click();
       await window.CourseChatbot.answer('교사가 진로야');
       return true;
     })()`, true);
+    await waitFor(async () => evaluate("window.__chatScrollBehaviors.includes('smooth')"));
     const desktopPanelWidth = await evaluate("document.querySelector('.course-chatbot-panel').getBoundingClientRect().width");
     assert.ok(desktopPanelWidth >= 465, `PC 챗봇 너비: ${desktopPanelWidth}px`);
     const broad = await evaluate(`(() => {
@@ -123,13 +133,16 @@ async function main() {
         resultCount: item.querySelectorAll('.course-chatbot-result').length,
         choices: [...item.querySelectorAll('.course-chatbot-followups button')].map((button) => button.textContent),
         source: item.querySelector('.course-chatbot-source')?.textContent || '',
-        sourceIsLast: item.lastElementChild?.classList.contains('course-chatbot-source') || false
+        sourceIsLast: item.lastElementChild?.classList.contains('course-chatbot-source') || false,
+        scrollBehaviors: window.__chatScrollBehaviors
       };
     })()`);
     assert.equal(broad.resultCount, 3);
     assert.ok(broad.choices.includes("국어 교사"));
+    assert.equal(new Set(broad.choices).size, broad.choices.length);
     assert.match(broad.source, /^\[출처:/);
     assert.equal(broad.sourceIsLast, true);
+    assert.equal(broad.scrollBehaviors.at(-1), "smooth");
 
     await evaluate("window.CourseChatbot.answer('국어 교사')", true);
     const narrowedQuestion = await evaluate(`(() => {
@@ -147,7 +160,12 @@ async function main() {
     assert.equal(narrowedQuestion.sourceIsLast, true);
 
     await evaluate("window.CourseChatbot.answer('교육의 이해는 어떤 과목이야?')", true);
-    await wait(800);
+    await waitFor(async () => evaluate(`(() => {
+      const item = [...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1);
+      const messageArea = document.querySelector('[data-chat-messages]');
+      const expectedTop = messageArea.getBoundingClientRect().top + (Number.parseFloat(getComputedStyle(messageArea).paddingTop) || 0);
+      return Math.abs(item.getBoundingClientRect().top - expectedTop) <= 4;
+    })()`), 3000);
     const exactCourse = await evaluate(`(() => {
       const item = [...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1);
       const messageArea = document.querySelector('[data-chat-messages]');

@@ -4,14 +4,14 @@
                  "schemaVersion":  2,
                  "sourceType":  "default",
                  "sourceName":  "2022개정교육과정_과목선택_FAQ_챗봇DB.xlsx",
-                 "sourceUpdatedAt":  "2026-09-05T11:06:00.8538559+09:00",
-                 "generatedAt":  "2026-09-05T11:06:13.5069258+09:00",
+                 "sourceUpdatedAt":  "2026-09-05T13:50:03.6338831+09:00",
+                 "generatedAt":  "2026-09-05T13:50:06.0874193+09:00",
                  "regularSubjectCount":  155,
                  "specialSubjectCount":  135,
                  "subjectCount":  290,
                  "keywordWeightCount":  5464,
-                 "faqIntentCount":  62,
-                 "answerCount":  126,
+                 "faqIntentCount":  63,
+                 "answerCount":  130,
                  "sourceCount":  16,
                  "searchSettingCount":  24
              },
@@ -83122,6 +83122,21 @@
                                            "min_margin":  1.2,
                                            "do_not_infer":  "",
                                            "status":  "ACTIVE"
+                                       },
+                                       {
+                                           "intent_id":  "F063",
+                                           "category":  "진로탐색",
+                                           "canonical_question":  "진로가 아직 없는데 어떻게 찾아야 하나요?",
+                                           "answer_mode":  "MULTI",
+                                           "risk_level":  "LOW",
+                                           "time_sensitive":  "N",
+                                           "external_needed":  "N",
+                                           "required_context":  "",
+                                           "core_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                           "min_score":  4,
+                                           "min_margin":  0.8,
+                                           "do_not_infer":  "특정 과목·대학·학과·직업을 임의 추천하지 않음; 진로 확정을 압박하지 않음; DB 밖의 구체적인 대입 정보를 생성하지 않음",
+                                           "status":  "ACTIVE"
                                        }
                                    ],
                     "questionVariants":  [
@@ -85923,6 +85938,240 @@
                                                  "normalized_utterance":  "온라인학교 과목 학생부 성적",
                                                  "intent_keywords":  "공동교육과정; 온라인학교; 대학; 성취도; 석차등급; 기록",
                                                  "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-01",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "진로가 아직 없는데 어떻게 찾아야 하나요?",
+                                                 "variant_type":  "CANONICAL",
+                                                 "normalized_utterance":  "진로가 아직 없는데 어떻게 찾아야 하나요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-02",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "진로가 없어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "진로가 없어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-03",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "진로를 못 정했어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "진로를 못 정했어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-04",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "진로는 어떻게 찾아야 하나요?",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "진로는 어떻게 찾아야 하나요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-05",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "꿈이 없어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "꿈이 없어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-06",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "장래희망이 없어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "장래희망이 없어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-07",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "하고 싶은 게 없어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "하고 싶은 게 없어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-08",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "뭘 하고 싶은지 모르겠어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "뭘 하고 싶은지 모르겠어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-09",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "희망 직업이 없어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "희망 직업이 없어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-10",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "희망 학과를 못 정했어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "희망 학과를 못 정했어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-11",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "관심 있는 분야가 없어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "관심 있는 분야가 없어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-12",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "관심 분야를 모르겠어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "관심 분야를 모르겠어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-13",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "제 적성이 뭔지 모르겠어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "제 적성이 뭔지 모르겠어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-14",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "진로가 막막해요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "진로가 막막해요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-15",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "미래에 뭘 해야 할지 모르겠어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "미래에 뭘 해야 할지 모르겠어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-16",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "어떤 직업이 저한테 맞는지 모르겠어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "어떤 직업이 저한테 맞는지 모르겠어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-17",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "진로를 정하려면 뭐부터 해야 하나요?",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "진로를 정하려면 뭐부터 해야 하나요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-18",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "고등학생인데 아직 꿈이 없어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "고등학생인데 아직 꿈이 없어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-19",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "진로를 꼭 지금 정해야 하나요?",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "진로를 꼭 지금 정해야 하나요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-20",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "진로를 어떻게 결정하나요?",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "진로를 어떻게 결정하나요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-21",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "하고 싶은 일을 찾는 방법이 있나요?",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "하고 싶은 일을 찾는 방법이 있나요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-22",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "좋아하는 게 뭔지도 모르겠어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "좋아하는 게 뭔지도 모르겠어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-23",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "가고 싶은 학과가 없어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "가고 싶은 학과가 없어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-24",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "대학에서 뭘 전공해야 할지 모르겠어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "대학에서 뭘 전공해야 할지 모르겠어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-25",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "선택과목 골라야 하는데 진로가 없어요.",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "선택과목 골라야 하는데 진로가 없어요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
+                                             },
+                                             {
+                                                 "variant_id":  "V-F063-26",
+                                                 "intent_id":  "F063",
+                                                 "utterance":  "진로가 없으면 과목을 어떻게 골라야 하나요?",
+                                                 "variant_type":  "PARAPHRASE",
+                                                 "normalized_utterance":  "진로가 없으면 과목을 어떻게 골라야 하나요",
+                                                 "intent_keywords":  "진로; 진로 미정; 꿈; 장래희망; 직업; 학과; 전공; 관심 분야; 적성; 흥미; 하고 싶은 것; 진로 탐색; 진로 고민; 선택과목; 진로 없음; 꿈 없음; 학과 미정; 관심 분야 미정; 적성 미정; 흥미 미정; 하고 싶은 것 없음",
+                                                 "status":  "ACTIVE"
                                              }
                                          ],
                     "answers":  [
@@ -87941,6 +88190,70 @@
                                         "source_priority":  105,
                                         "status":  "CURRENT",
                                         "source_status":  "CURRENT"
+                                    },
+                                    {
+                                        "answer_id":  "A-F063-01",
+                                        "intent_id":  "F063",
+                                        "answer_order":  1,
+                                        "answer_type":  "핵심",
+                                        "answer_text":  "진로를 지금 당장 하나의 직업이나 학과로 확정할 필요는 없습니다. 먼저 자신이 좋아하거나 관심 있는 것, 잘하는 것부터 살펴보면서 관심 분야를 넓게 찾아보는 것이 좋습니다.",
+                                        "condition":  "",
+                                        "caution":  "진로를 빨리 확정하도록 압박하지 않음",
+                                        "source_id":  "S01",
+                                        "source_locator":  "과목 선택 시 흥미·적성, 진로와의 연계, 과목의 위계, 학업량의 균형 등을 함께 고려하도록 안내",
+                                        "valid_from":  "",
+                                        "valid_to":  "",
+                                        "source_priority":  100,
+                                        "status":  "CURRENT",
+                                        "source_status":  "CURRENT"
+                                    },
+                                    {
+                                        "answer_id":  "A-F063-02",
+                                        "intent_id":  "F063",
+                                        "answer_order":  2,
+                                        "answer_type":  "진로 탐색 방법",
+                                        "answer_text":  "진로검사, 진로상담, 독서, 동아리, 체험 활동, 교과 수업 등 다양한 경험을 해 보면서 어떤 분야에 더 관심이 생기는지 살펴보세요. 관심이 생긴 분야가 있다면 그와 관련된 계열, 학과, 직업을 차례로 탐색하면서 진로를 점차 구체화할 수 있습니다.",
+                                        "condition":  "",
+                                        "caution":  "특정 학과나 직업을 임의로 추천하지 않음",
+                                        "source_id":  "S01",
+                                        "source_locator":  "과목 선택 시 흥미·적성, 진로와의 연계, 과목의 위계, 학업량의 균형 등을 함께 고려하도록 안내",
+                                        "valid_from":  "",
+                                        "valid_to":  "",
+                                        "source_priority":  100,
+                                        "status":  "CURRENT",
+                                        "source_status":  "CURRENT"
+                                    },
+                                    {
+                                        "answer_id":  "A-F063-03",
+                                        "intent_id":  "F063",
+                                        "answer_order":  3,
+                                        "answer_type":  "선택과목과 연결",
+                                        "answer_text":  "선택과목을 정해야 하는데 진로가 아직 확실하지 않다면 특정 직업이나 학과에 지나치게 맞춰 과목을 선택하기보다는 자신의 흥미와 적성, 현재 관심 분야를 중심으로 여러 가능성을 열어 두고 선택하는 것이 좋습니다. 이후 학교생활과 다양한 경험을 통해 진로를 구체화해 나갈 수 있습니다.",
+                                        "condition":  "QUERY_HAS_ANY:선택과목;선택 과목;과목 선택;과목을;과목 골;과목 고르",
+                                        "caution":  "특정 과목을 근거 없이 추천하지 않음",
+                                        "source_id":  "S01",
+                                        "source_locator":  "과목 선택 시 흥미·적성, 진로와의 연계, 과목의 위계, 학업량의 균형 등을 함께 고려하도록 안내",
+                                        "valid_from":  "",
+                                        "valid_to":  "",
+                                        "source_priority":  100,
+                                        "status":  "CURRENT",
+                                        "source_status":  "CURRENT"
+                                    },
+                                    {
+                                        "answer_id":  "A-F063-04",
+                                        "intent_id":  "F063",
+                                        "answer_order":  4,
+                                        "answer_type":  "간단한 행동 순서",
+                                        "answer_text":  "진로가 막막하다면 다음 순서로 생각해 볼 수 있습니다.\n\n1. 내가 좋아하거나 관심 있는 것은 무엇인지 살펴본다.\n2. 내가 비교적 잘하거나 더 배우고 싶은 것을 찾아본다.\n3. 관련된 분야와 계열을 탐색한다.\n4. 그 분야의 학과와 직업을 찾아본다.\n5. 수업, 독서, 동아리, 체험 등을 통해 직접 경험해 본다.\n6. 경험한 내용을 바탕으로 진로 방향을 조금씩 좁혀 간다.",
+                                        "condition":  "",
+                                        "caution":  "학생이 단계적으로 탐색할 수 있도록 안내",
+                                        "source_id":  "S01",
+                                        "source_locator":  "과목 선택 시 흥미·적성, 진로와의 연계, 과목의 위계, 학업량의 균형 등을 함께 고려하도록 안내",
+                                        "valid_from":  "",
+                                        "valid_to":  "",
+                                        "source_priority":  100,
+                                        "status":  "CURRENT",
+                                        "source_status":  "CURRENT"
                                     }
                                 ],
                     "sources":  [
@@ -89033,6 +89346,230 @@
                                          "weight":  2.5,
                                          "primary":  "N",
                                          "note":  ""
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로가 없다",
+                                         "weight":  5.5,
+                                         "primary":  "Y",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로를 못 정했다",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로가 안 정해졌다",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로 미정",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K029",
+                                         "canonical_term":  "꿈 없음",
+                                         "synonym":  "꿈이 없다",
+                                         "weight":  5.5,
+                                         "primary":  "Y",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K029",
+                                         "canonical_term":  "꿈 없음",
+                                         "synonym":  "장래희망이 없다",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K029",
+                                         "canonical_term":  "꿈 없음",
+                                         "synonym":  "희망 직업이 없다",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K030",
+                                         "canonical_term":  "관심 분야 미정",
+                                         "synonym":  "관심 영역이 없다",
+                                         "weight":  4.5,
+                                         "primary":  "Y",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K030",
+                                         "canonical_term":  "관심 분야 미정",
+                                         "synonym":  "관심 있는 분야가 없다",
+                                         "weight":  4.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K030",
+                                         "canonical_term":  "관심 분야 미정",
+                                         "synonym":  "흥미 분야를 모르겠다",
+                                         "weight":  4.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K030",
+                                         "canonical_term":  "관심 분야 미정",
+                                         "synonym":  "관심 분야를 모르겠다",
+                                         "weight":  4.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K031",
+                                         "canonical_term":  "학과 미정",
+                                         "synonym":  "희망 학과가 없다",
+                                         "weight":  4.5,
+                                         "primary":  "Y",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K031",
+                                         "canonical_term":  "학과 미정",
+                                         "synonym":  "희망 학과를 못 정했다",
+                                         "weight":  4.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K031",
+                                         "canonical_term":  "학과 미정",
+                                         "synonym":  "전공을 모르겠다",
+                                         "weight":  4.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K031",
+                                         "canonical_term":  "학과 미정",
+                                         "synonym":  "가고 싶은 학과가 없다",
+                                         "weight":  4.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K031",
+                                         "canonical_term":  "학과 미정",
+                                         "synonym":  "대학 전공을 모르겠다",
+                                         "weight":  4.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K032",
+                                         "canonical_term":  "진로 탐색",
+                                         "synonym":  "진로 찾기",
+                                         "weight":  3.5,
+                                         "primary":  "Y",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K032",
+                                         "canonical_term":  "진로 탐색",
+                                         "synonym":  "꿈 찾기",
+                                         "weight":  3.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K032",
+                                         "canonical_term":  "진로 탐색",
+                                         "synonym":  "하고 싶은 일 찾기",
+                                         "weight":  3.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K033",
+                                         "canonical_term":  "적성 미정",
+                                         "synonym":  "잘하는 것을 모르겠다",
+                                         "weight":  4,
+                                         "primary":  "Y",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K033",
+                                         "canonical_term":  "적성 미정",
+                                         "synonym":  "나에게 맞는 것을 모르겠다",
+                                         "weight":  4,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K033",
+                                         "canonical_term":  "적성 미정",
+                                         "synonym":  "적성이 뭔지 모르겠다",
+                                         "weight":  4,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K034",
+                                         "canonical_term":  "흥미 미정",
+                                         "synonym":  "좋아하는 것을 모르겠다",
+                                         "weight":  4,
+                                         "primary":  "Y",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K034",
+                                         "canonical_term":  "흥미 미정",
+                                         "synonym":  "관심 있는 것을 모르겠다",
+                                         "weight":  4,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K034",
+                                         "canonical_term":  "흥미 미정",
+                                         "synonym":  "흥미를 모르겠다",
+                                         "weight":  4,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K035",
+                                         "canonical_term":  "하고 싶은 것 없음",
+                                         "synonym":  "하고 싶은 게 없다",
+                                         "weight":  5,
+                                         "primary":  "Y",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K035",
+                                         "canonical_term":  "하고 싶은 것 없음",
+                                         "synonym":  "뭘 하고 싶은지 모르겠다",
+                                         "weight":  5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K035",
+                                         "canonical_term":  "하고 싶은 것 없음",
+                                         "synonym":  "하고 싶은 것을 모르겠다",
+                                         "weight":  5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
                                      }
                                  ],
                     "safetyRules":  [
@@ -89470,6 +90007,62 @@
                                           "expected_intent":  "F001",
                                           "expected_behavior":  "활성 답변을 순서대로 결합하고 출처 표시",
                                           "test_type":  "FAQ_EXACT"
+                                      },
+                                      {
+                                          "test_id":  "T031",
+                                          "sample_user_query":  "저 진로가 없어요.",
+                                          "expected_intent":  "F063",
+                                          "expected_behavior":  "일반 진로 미정 질문에 답변 1·2·4를 순서대로 결합",
+                                          "test_type":  "CAREER_EXPLORATION"
+                                      },
+                                      {
+                                          "test_id":  "T032",
+                                          "sample_user_query":  "꿈이 없는데 어떻게 찾아야 해?",
+                                          "expected_intent":  "F063",
+                                          "expected_behavior":  "꿈 없음 표현을 진로 탐색으로 연결",
+                                          "test_type":  "CAREER_EXPLORATION"
+                                      },
+                                      {
+                                          "test_id":  "T033",
+                                          "sample_user_query":  "고1인데 하고 싶은 게 없어요.",
+                                          "expected_intent":  "F063",
+                                          "expected_behavior":  "하고 싶은 것 없음 표현을 진로 탐색으로 연결",
+                                          "test_type":  "CAREER_EXPLORATION"
+                                      },
+                                      {
+                                          "test_id":  "T034",
+                                          "sample_user_query":  "희망 학과가 아직 없는데 괜찮나요?",
+                                          "expected_intent":  "F063",
+                                          "expected_behavior":  "학과 미정 표현을 진로 탐색으로 연결",
+                                          "test_type":  "CAREER_EXPLORATION"
+                                      },
+                                      {
+                                          "test_id":  "T035",
+                                          "sample_user_query":  "선택과목 골라야 하는데 진로가 없어요.",
+                                          "expected_intent":  "F063",
+                                          "expected_behavior":  "답변 1·2·3·4를 순서대로 결합하고 특정 과목은 임의 추천하지 않음",
+                                          "test_type":  "CAREER_EXPLORATION"
+                                      },
+                                      {
+                                          "test_id":  "T036",
+                                          "sample_user_query":  "제가 뭘 좋아하는지도 모르겠어요.",
+                                          "expected_intent":  "F063",
+                                          "expected_behavior":  "흥미 미정 표현을 진로 탐색으로 연결",
+                                          "test_type":  "CAREER_EXPLORATION"
+                                      },
+                                      {
+                                          "test_id":  "T037",
+                                          "sample_user_query":  "진로를 꼭 지금 정해야 돼요?",
+                                          "expected_intent":  "F063",
+                                          "expected_behavior":  "진로 확정을 압박하지 않고 단계적 탐색을 안내",
+                                          "test_type":  "CAREER_EXPLORATION"
+                                      },
+                                      {
+                                          "test_id":  "T038",
+                                          "sample_user_query":  "진로가 없으니까 어떤 과목을 들으면 돼?",
+                                          "expected_intent":  "F063",
+                                          "expected_behavior":  "특정 과목 대신 흥미·적성·관심 분야 중심의 선택을 안내",
+                                          "test_type":  "CAREER_EXPLORATION"
                                       }
                                   ]
                 },

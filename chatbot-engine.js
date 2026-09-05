@@ -40,6 +40,24 @@
     .map((item) => item.trim())
     .filter(Boolean);
 
+  const parseChoices = (value) => {
+    const labels = new Set();
+    return String(value ?? "")
+      .split(/[;\n]+/u)
+      .map((item) => {
+        const [label = "", ...promptParts] = item.split("|");
+        const cleanLabel = label.trim();
+        const prompt = promptParts.join("|").trim() || cleanLabel;
+        return { label: cleanLabel, prompt };
+      })
+      .filter((choice) => {
+        const key = normalize(choice.label);
+        if (!key || labels.has(key)) return false;
+        labels.add(key);
+        return true;
+      });
+  };
+
   const isActive = (row) => {
     const status = String(row?.status ?? row?.["상태"] ?? "ACTIVE").trim().toUpperCase();
     return !status || ["ACTIVE", "CURRENT", "CURRENT_WITH_CAUTION", "FOUNDATIONAL", "SUPPORTING"].includes(status);
@@ -402,10 +420,7 @@
         if (!subject) return null;
         return { subject, score: 0, terms: new Set(["교사"]), reasons: new Set(["교사 진로 공통 연관"]), sourceIds: new Set(splitValues(subject["출처ID"] || rule.source_id)) };
       }).filter(Boolean);
-      const choices = splitValues(rule.options).map((option) => {
-        const [label, prompt] = option.split("|").map((value) => value.trim());
-        return { label, prompt: prompt || label };
-      }).filter((choice) => choice.label);
+      const choices = parseChoices(rule.options);
       const sourceDetails = courseSourceDetails(results, splitValues(rule.source_id));
       return {
         kind: "clarification",
@@ -419,11 +434,21 @@
       };
     }
 
-    function faqResponse(match) {
+    function answerMatchesQuery(answer, query) {
+      const condition = String(answer.condition || "").trim();
+      if (!condition) return true;
+      const queryHasAny = condition.match(/^QUERY_HAS_ANY:(.+)$/iu);
+      if (!queryHasAny) return true;
+      const compact = normalize(query);
+      return splitValues(queryHasAny[1]).some((term) => compact.includes(normalize(term)));
+    }
+
+    function faqResponse(match, query) {
       const intent = match.best.intent;
       const intentId = String(intent.intent_id || "");
       const selectedAnswers = [...(answersByIntent.get(intentId) || [])]
         .filter((answer) => String(answer.answer_text || "").trim())
+        .filter((answer) => answerMatchesQuery(answer, query))
         .sort((a, b) => numberValue(a.answer_order, 999) - numberValue(b.answer_order, 999));
       if (!selectedAnswers.length || !selectedAnswers.some((answer) => splitValues(answer.source_id).length)) {
         return fallbackResponse("확인 가능한 공식 근거가 없어 단정해서 안내하기 어렵습니다. 해당 질문은 선생님에게 문의해 주세요.");
@@ -441,7 +466,7 @@
       const friendlyLead = /과목선택|이수순서|과목개설/u.test(String(intent.category || ""))
         ? "과목 선택 때문에 고민하고 계시는군요. DB에 확인된 기준부터 차근차근 말씀드릴게요."
         : "네, 확인된 자료를 기준으로 안내해 드릴게요.";
-      const body = selectedAnswers.map((answer) => String(answer.answer_text).trim()).join(" ");
+      const body = selectedAnswers.map((answer) => String(answer.answer_text).trim()).join("\n\n");
       return {
         kind: "faq",
         intentId,
@@ -555,17 +580,17 @@
 
       const faqMatch = scoreFaq(cleanQuery);
       const courseMatch = scoreCourses(cleanQuery);
-      if (faqMatch.accepted && faqMatch.best.exact) return faqResponse(faqMatch);
+      if (faqMatch.accepted && faqMatch.best.exact) return faqResponse(faqMatch, cleanQuery);
       if (courseMatch.exact) {
         if (courseMatch.candidateCount >= COURSE_RESULT_CLARIFICATION_THRESHOLD) return courseNarrowingResponse(cleanQuery, courseMatch);
         return courseResponse(cleanQuery, courseMatch);
       }
-      if (faqMatch.accepted && (!courseMatch.confident || !COURSE_SIGNAL.test(cleanQuery))) return faqResponse(faqMatch);
+      if (faqMatch.accepted && (!courseMatch.confident || !COURSE_SIGNAL.test(cleanQuery))) return faqResponse(faqMatch, cleanQuery);
       if (courseMatch.confident && (COURSE_SIGNAL.test(cleanQuery) || courseMatch.results.some((result) => result.keywordPoints >= 12))) {
         if (!courseMatch.exact && courseMatch.candidateCount >= COURSE_RESULT_CLARIFICATION_THRESHOLD) return courseNarrowingResponse(cleanQuery, courseMatch);
         return courseResponse(cleanQuery, courseMatch);
       }
-      if (faqMatch.accepted) return faqResponse(faqMatch);
+      if (faqMatch.accepted) return faqResponse(faqMatch, cleanQuery);
       if (faqMatch.ambiguous) return ambiguousResponse(faqMatch);
       return fallbackResponse();
     }

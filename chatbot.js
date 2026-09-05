@@ -129,24 +129,44 @@
     return state.engine ? state.engine.scoreCourses(query) : { results: [], exact: false, confident: false };
   }
 
+  function scrollBehavior() {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  }
+
+  function scrollMessagesToEnd() {
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function uniqueChoices(choices) {
+    const labels = new Set();
+    return (Array.isArray(choices) ? choices : []).filter((choice) => {
+      const key = engineApi.normalize(choice?.label);
+      if (!key || labels.has(key)) return false;
+      labels.add(key);
+      return true;
+    });
+  }
+
   function scrollMessageToTop(message) {
     if (!message) return;
     requestAnimationFrame(() => {
       messages.querySelector(".course-chatbot-scroll-spacer")?.remove();
       const styles = getComputedStyle(messages);
+      const messageStyles = getComputedStyle(message);
       const paddingTop = Number.parseFloat(styles.paddingTop) || 0;
       const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
+      const marginBottom = Number.parseFloat(messageStyles.marginBottom) || 0;
       const spacer = document.createElement("div");
       spacer.className = "course-chatbot-scroll-spacer";
       spacer.setAttribute("aria-hidden", "true");
-      spacer.style.height = `${Math.max(0, messages.clientHeight - message.getBoundingClientRect().height - paddingTop - paddingBottom)}px`;
+      spacer.style.height = `${Math.max(0, messages.clientHeight - message.getBoundingClientRect().height - paddingTop - paddingBottom + marginBottom)}px`;
       messages.append(spacer);
       requestAnimationFrame(() => {
         const messageTop = message.getBoundingClientRect().top;
         const messagesTop = messages.getBoundingClientRect().top;
         messages.scrollTo({
           top: Math.max(0, messages.scrollTop + messageTop - messagesTop - paddingTop),
-          behavior: "auto"
+          behavior: scrollBehavior()
         });
       });
     });
@@ -240,7 +260,7 @@
     paragraph.textContent = text;
     wrapper.append(paragraph);
     messages.append(wrapper);
-    if (options.scrollToEnd !== false) messages.scrollTop = messages.scrollHeight;
+    if (options.scrollToEnd !== false) scrollMessagesToEnd();
     return wrapper;
   }
 
@@ -307,10 +327,11 @@
       wrapper.append(followup);
     }
 
-    if (answerData.choices?.length) {
+    const answerChoices = uniqueChoices(answerData.choices);
+    if (answerChoices.length) {
       const choices = document.createElement("div");
       choices.className = "course-chatbot-followups";
-      answerData.choices.forEach((choice) => {
+      answerChoices.forEach((choice) => {
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = choice.label;
@@ -325,7 +346,7 @@
     source.textContent = answerData.sourceText || "[출처: 데이터베이스에 확인 가능한 자료 없음]";
     wrapper.append(source);
     messages.append(wrapper);
-    if (options.scrollToEnd !== false) messages.scrollTop = messages.scrollHeight;
+    if (options.scrollToEnd !== false) scrollMessagesToEnd();
     return wrapper;
   }
 
@@ -352,7 +373,8 @@
       }
       state.pendingChoices = [];
       const answerData = state.engine.respond(effectiveQuery);
-      if (answerData.kind === "clarification") state.pendingChoices = answerData.choices || [];
+      answerData.choices = uniqueChoices(answerData.choices);
+      if (answerData.kind === "clarification") state.pendingChoices = answerData.choices;
       const response = appendBotResponse(answerData, { scrollToEnd: false });
       scrollMessageToTop(response);
     } catch (error) {

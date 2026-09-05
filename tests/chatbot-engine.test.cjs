@@ -72,7 +72,8 @@ const broadTeacher = engine.respond("교사가 진로야");
 assert.equal(broadTeacher.kind, "clarification");
 assert.equal(broadTeacher.intentId, "CL001");
 assert.equal(broadTeacher.results.length, 3);
-assert.ok(broadTeacher.choices.length >= 2);
+assert.deepEqual(broadTeacher.choices.map((choice) => choice.label), ["국어 교사", "수학 교사"]);
+assert.deepEqual(broadTeacher.choices.map((choice) => choice.prompt), ["국어 교사", "수학 교사"]);
 assert.match(broadTeacher.sourceText, /^\[출처:/);
 
 const koreanTeacher = engine.respond("국어 교사가 되고 싶어");
