@@ -139,7 +139,7 @@ async function main() {
       answer: item.querySelector(':scope > p')?.textContent.trim() || ''
     }))`);
     assert.equal(faqItems.length, 6);
-    assert.equal(faqItems[1].answer, "아니요. 최신 정보가 반영되지 않았을 수 있으므로 꼭 검토해야 합니다.");
+    assert.equal(faqItems[1].answer, "아니요. 최신 정보가 반영되지 않았을 수 있으므로 반드시 검토해야 합니다.");
     assert.deepEqual(faqItems[3], {
       number: "04",
       question: "우리 학교에 개설된 과목 안내가 없어요.",

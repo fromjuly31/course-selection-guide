@@ -70,7 +70,7 @@
           </details>
           <details class="course-chatbot-faq-item">
             <summary><span>02</span><strong>이 프로그램의 모든 정보를 100% 신뢰해도 되나요?</strong></summary>
-            <p>아니요. 최신 정보가 반영되지 않았을 수 있으므로 꼭 검토해야 합니다.</p>
+            <p>아니요. 최신 정보가 반영되지 않았을 수 있으므로 반드시 검토해야 합니다.</p>
           </details>
           <details class="course-chatbot-faq-item">
             <summary><span>03</span><strong>이 프로그램에 쓰인 데이터들의 출처는 무엇인가요?</strong></summary>
