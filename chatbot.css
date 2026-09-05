@@ -744,6 +744,32 @@
   line-height: 1.7;
 }
 
+.course-faq-source-list {
+  display: grid;
+  gap: 7px;
+  margin: -2px 5px 10px 37px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  color: #53696c;
+  background: #f1f6f4;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.6;
+  list-style: none;
+}
+
+.course-faq-source-list > li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 3px;
+  align-items: start;
+}
+
+.course-faq-source-list > li > span:first-child {
+  color: #0d7661;
+  font-weight: 850;
+}
+
 .course-chatbot-faq-item > summary strong .icon {
   width: 18px;
   height: 18px;

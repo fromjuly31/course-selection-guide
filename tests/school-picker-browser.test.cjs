@@ -308,6 +308,31 @@ async function main() {
     await waitFor(async () => evaluate("window.SchoolStore.getSnapshot().selectedSchool === null"));
     assert.equal(await evaluate("document.querySelector('.landing-school-picker [data-school-disconnect]').hidden"), true);
 
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await client.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/section.html?tab=subjects` });
+    await waitFor(async () => evaluate("document.readyState === 'complete' && document.querySelectorAll('.course-group-card').length >= 2"));
+    const mobileCourseGroupCard = await evaluate(`(() => {
+      const cards = [...document.querySelectorAll('.course-group-card')];
+      const card = cards[0];
+      const icon = card.querySelector('.course-group-card-icon').getBoundingClientRect();
+      const copy = card.querySelector('.course-group-card-copy').getBoundingClientRect();
+      const count = card.querySelector('.course-group-card-copy > span').getBoundingClientRect();
+      const title = card.querySelector('.course-group-card-copy > strong').getBoundingClientRect();
+      return {
+        height: card.getBoundingClientRect().height,
+        copyBesideIcon: copy.left >= icon.right,
+        countBelowTitle: count.top >= title.bottom,
+        cardsShareRow: Math.abs(cards[0].getBoundingClientRect().top - cards[1].getBoundingClientRect().top) <= 1,
+        columnCount: getComputedStyle(card).gridTemplateColumns.split(' ').length
+      };
+    })()`);
+    assert.ok(mobileCourseGroupCard.height <= 100);
+    assert.equal(mobileCourseGroupCard.copyBesideIcon, true);
+    assert.equal(mobileCourseGroupCard.countBelowTitle, true);
+    assert.equal(mobileCourseGroupCard.cardsShareRow, true);
+    assert.equal(mobileCourseGroupCard.columnCount, 3);
+
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 820, deviceScaleFactor: 1, mobile: false });
     await client.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/section.html?tab=admin` });
     await waitFor(async () => evaluate("document.readyState === 'complete' && document.querySelectorAll('.curriculum-format-notice li').length === 3"));
     const uploadNotice = await evaluate(`(() => {
@@ -509,6 +534,44 @@ async function main() {
     assert.equal(unsavedDialog.pendingStillOpen, true);
     await evaluate("document.querySelector('#curriculum-leave-dialog [data-confirm-curriculum-leave]').click()");
     await waitFor(async () => evaluate("!document.querySelector('[data-curriculum-preview-overlay]')"));
+
+    await evaluate(`location.href = ${JSON.stringify(`http://127.0.0.1:${webPort}/section.html?tab=departments&school=wonju-girls&admissionYear=2026`)}`);
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await waitFor(async () => evaluate("document.querySelectorAll('.major-field-grid > .major-field-card').length === 8"));
+    const roomyDepartmentLayout = await evaluate(`(() => {
+      const grid = document.querySelector('.major-field-grid');
+      const cards = [...grid.querySelectorAll(':scope > .major-field-card')];
+      const navTop = document.querySelector('.app-bottom-nav').getBoundingClientRect().top;
+      const bottoms = cards.map((card) => card.getBoundingClientRect().bottom);
+      return {
+        cardHeight: cards[0].getBoundingClientRect().height,
+        gap: Number.parseFloat(getComputedStyle(grid).rowGap),
+        bottomSpace: navTop - Math.max(...bottoms),
+        allCardsAboveNav: bottoms.every((bottom) => bottom <= navTop + 1),
+        gridFitsWithoutScroll: grid.scrollHeight <= grid.clientHeight + 1
+      };
+    })()`);
+    assert.ok(roomyDepartmentLayout.cardHeight >= 100);
+    assert.ok(roomyDepartmentLayout.gap >= 9);
+    assert.ok(roomyDepartmentLayout.bottomSpace > 0 && roomyDepartmentLayout.bottomSpace < 115);
+    assert.equal(roomyDepartmentLayout.allCardsAboveNav, true);
+    assert.equal(roomyDepartmentLayout.gridFitsWithoutScroll, true);
+
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 667, deviceScaleFactor: 1, mobile: true });
+    const compactDepartmentLayout = await evaluate(`(() => {
+      const grid = document.querySelector('.major-field-grid');
+      const cards = [...grid.querySelectorAll(':scope > .major-field-card')];
+      const navTop = document.querySelector('.app-bottom-nav').getBoundingClientRect().top;
+      const gridBottom = grid.getBoundingClientRect().bottom;
+      return {
+        cardHeight: cards[0].getBoundingClientRect().height,
+        allCardsAboveNav: cards.every((card) => card.getBoundingClientRect().bottom <= navTop + 1),
+        allCardsInsideGrid: cards.every((card) => card.getBoundingClientRect().bottom <= gridBottom + 1)
+      };
+    })()`);
+    assert.ok(compactDepartmentLayout.cardHeight <= 86);
+    assert.equal(compactDepartmentLayout.allCardsAboveNav, true);
+    assert.equal(compactDepartmentLayout.allCardsInsideGrid, true);
     console.log("school picker and upload notice browser tests passed");
   } finally {
     if (client) {

@@ -18635,3 +18635,61 @@ body.curriculum-preview-open {
     font-size: 13px;
   }
 }
+
+/* 모바일 교과군 카드는 아이콘 옆에 제목을 두어 높이를 줄인다. */
+@media (max-width: 620px) {
+  .course-group-grid .course-group-card {
+    min-height: 94px;
+    grid-template-columns: 36px minmax(0, 1fr) 25px;
+    align-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .course-group-grid .course-group-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+
+  .course-group-grid .course-group-card-copy {
+    align-self: center;
+  }
+
+  .course-group-grid .course-group-card-copy small {
+    font-size: 8px;
+    line-height: 1.1;
+  }
+
+  .course-group-grid .course-group-card-copy strong {
+    margin-top: 2px;
+    font-size: 16px;
+    line-height: 1.15;
+  }
+
+  .course-group-grid .course-group-card-copy span {
+    margin-top: 5px;
+    font-size: 10px;
+    line-height: 1.1;
+  }
+
+  .course-group-grid .course-group-card-arrow {
+    position: static;
+    width: 25px;
+    height: 25px;
+    justify-self: end;
+  }
+}
+
+/* 모바일 학과 분야 카드는 남는 세로 공간을 활용하되 작은 화면에서는 안전하게 축소한다. */
+@media (max-width: 620px) {
+  .app-main:has(> .major-field-grid) {
+    gap: clamp(9px, 1.45dvh, 12px);
+  }
+
+  .app-main:has(> .major-field-grid) > .major-field-grid {
+    --mobile-department-row: clamp(84px, 12.2dvh, 103px);
+    gap: clamp(9px, 1.3dvh, 11px);
+  }
+}

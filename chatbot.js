@@ -70,18 +70,31 @@
           </details>
           <details class="course-chatbot-faq-item">
             <summary><span>02</span><strong>이 프로그램의 모든 정보를 100% 신뢰해도 되나요?</strong></summary>
-            <p>아니요. 선택 교과 및 추천 과목 정보가 업데이트되지 않을 수 있으므로 꼭 검토해 보세요.</p>
+            <p>아니요. 최신 정보가 반영되지 않았을 수 있으므로 꼭 검토해야 합니다.</p>
           </details>
           <details class="course-chatbot-faq-item">
             <summary><span>03</span><strong>이 프로그램에 쓰인 데이터들의 출처는 무엇인가요?</strong></summary>
-            <p>강원특별자치도교육청 「고교학점제를 위한 진로·학업 설계 안내서」, 커리어넷 「학과 정보」, 대학 어디가 「2028학년도 권역별 대학별 권장과목」 및 「2028학년도 계열별 대표 모집단위별 반영과목」의 자료를 기반으로 만들었습니다.</p>
+            <ol class="course-faq-source-list" aria-label="데이터 출처">
+              <li><span>①</span><span>강원특별자치도교육청 · 고교학점제를 위한 진로·학업 설계 안내서</span></li>
+              <li><span>②</span><span>커리어넷 · 학과 정보</span></li>
+              <li><span>③</span><span>대학 어디가 · 2028학년도 권역별 대학별 권장과목</span></li>
+              <li><span>④</span><span>대학 어디가 · 2028학년도 계열별 대표 모집단위별 반영과목</span></li>
+              <li><span>⑤</span><span>한국교육과정평가원 · 고교학점제 공식 홈페이지</span></li>
+              <li><span>⑥</span><span>인천광역시교육청 · 2025 고교학점제 이해를 위한 Q&amp;A</span></li>
+              <li><span>⑦</span><span>경기도교육청 · 2022 개정 고등학교 교육과정 Q&amp;A 도움 자료집</span></li>
+              <li><span>⑧</span><span>교육부 · 2022 개정 초·중등학교 및 특수교육 교육과정 확정·발표 및 질의응답 자료</span></li>
+            </ol>
           </details>
           <details class="course-chatbot-faq-item">
-            <summary><span>04</span><strong>제가 희망하는 학과가 없어요.</strong></summary>
+            <summary><span>04</span><strong>우리 학교에 개설된 과목 안내가 없어요.</strong></summary>
+            <p>고시 외 과목일 가능성이 높습니다. 고시 외 과목은 학교 선생님께 문의하세요.</p>
+          </details>
+          <details class="course-chatbot-faq-item">
+            <summary><span>05</span><strong>제가 희망하는 학과의 정보가 없어요.</strong></summary>
             <p>해당 학과가 커리어넷 또는 출처상 자료에 없는 학과일 수 있습니다. 자세한 내용은 해당 학과의 홈페이지를 참고해 주세요.</p>
           </details>
           <details class="course-chatbot-faq-item">
-            <summary><span>05</span><strong>학교 데이터는 어떻게 연동하나요?</strong></summary>
+            <summary><span>06</span><strong>학교 데이터는 어떻게 연동하나요?</strong></summary>
             <p>데이터 연동 탭에서 학교 편제표 표준 양식을 업로드할 수 있습니다.</p>
           </details>
         </div>

@@ -109,6 +109,47 @@ async function main() {
     assert.equal(mobileSupportDock.chatbotLabel, "none");
     assert.equal(mobileSupportDock.faqLabel, "none");
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+    const faqSources = await evaluate(`(() => {
+      document.querySelector('.course-faq-launcher').click();
+      const sourceItem = [...document.querySelectorAll('.course-chatbot-faq-item')]
+        .find((item) => item.querySelector('summary')?.textContent.includes('출처는 무엇인가요'));
+      sourceItem.open = true;
+      const rows = [...sourceItem.querySelectorAll('.course-faq-source-list > li')];
+      return {
+        texts: rows.map((row) => row.textContent.trim()),
+        displays: rows.map((row) => getComputedStyle(row).display),
+        tops: rows.map((row) => row.getBoundingClientRect().top)
+      };
+    })()`);
+    assert.deepEqual(faqSources.texts, [
+      "①강원특별자치도교육청 · 고교학점제를 위한 진로·학업 설계 안내서",
+      "②커리어넷 · 학과 정보",
+      "③대학 어디가 · 2028학년도 권역별 대학별 권장과목",
+      "④대학 어디가 · 2028학년도 계열별 대표 모집단위별 반영과목",
+      "⑤한국교육과정평가원 · 고교학점제 공식 홈페이지",
+      "⑥인천광역시교육청 · 2025 고교학점제 이해를 위한 Q&A",
+      "⑦경기도교육청 · 2022 개정 고등학교 교육과정 Q&A 도움 자료집",
+      "⑧교육부 · 2022 개정 초·중등학교 및 특수교육 교육과정 확정·발표 및 질의응답 자료"
+    ]);
+    assert.ok(faqSources.displays.every((display) => display === "grid"));
+    assert.ok(faqSources.tops.every((top, index) => index === 0 || top > faqSources.tops[index - 1]));
+    const faqItems = await evaluate(`[...document.querySelectorAll('.course-chatbot-faq-item')].map((item) => ({
+      number: item.querySelector('summary > span').textContent.trim(),
+      question: item.querySelector('summary strong').textContent.trim(),
+      answer: item.querySelector(':scope > p')?.textContent.trim() || ''
+    }))`);
+    assert.equal(faqItems.length, 6);
+    assert.equal(faqItems[1].answer, "아니요. 최신 정보가 반영되지 않았을 수 있으므로 꼭 검토해야 합니다.");
+    assert.deepEqual(faqItems[3], {
+      number: "04",
+      question: "우리 학교에 개설된 과목 안내가 없어요.",
+      answer: "고시 외 과목일 가능성이 높습니다. 고시 외 과목은 학교 선생님께 문의하세요."
+    });
+    assert.equal(faqItems[4].number, "05");
+    assert.equal(faqItems[4].question, "제가 희망하는 학과의 정보가 없어요.");
+    assert.equal(faqItems[5].number, "06");
+    assert.equal(faqItems[5].question, "학교 데이터는 어떻게 연동하나요?");
+    await evaluate("document.querySelector('[data-faq-close]').click()");
     assert.equal(await evaluate("document.querySelector('.course-chatbot-suggestions') === null"), true);
     await evaluate(`(() => {
       const messages = document.querySelector('[data-chat-messages]');
