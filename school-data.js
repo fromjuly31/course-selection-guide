@@ -432,6 +432,25 @@
     return String(value || "").replace(/\s+/g, "").toLocaleLowerCase("ko");
   }
 
+  function stableJsonValue(value) {
+    if (Array.isArray(value)) return value.map(stableJsonValue);
+    if (!value || typeof value !== "object") return value;
+    return Object.keys(value).sort().reduce((result, key) => {
+      if (value[key] !== undefined) result[key] = stableJsonValue(value[key]);
+      return result;
+    }, {});
+  }
+
+  function curriculumContentFingerprint(value) {
+    return JSON.stringify(stableJsonValue({
+      admissionYear: Number(value?.admissionYear ?? value?.admission_year) || null,
+      grades: Array.isArray(value?.grades) ? value.grades : [],
+      courseMetadata: value?.courseMetadata && typeof value.courseMetadata === "object" ? value.courseMetadata : {},
+      courseCount: Number(value?.courseCount) || 0,
+      unlistedCourseCount: Number(value?.unlistedCourseCount) || 0
+    }));
+  }
+
   function validateSchoolIdentity(input) {
     const name = String(input?.schoolName || "").trim();
     const region = String(input?.region || "").trim();
@@ -631,6 +650,7 @@
       updated_by: user.id,
       updated_at: new Date().toISOString()
     };
+    const expectedFingerprint = curriculumContentFingerprint(payload.data);
     const { data: existing, error: lookupError } = await client
       .from("curricula")
       .select("id")
@@ -639,14 +659,25 @@
       .maybeSingle();
     if (lookupError) throw lookupError;
     let action = "inserted";
+    let savedRow = null;
     if (existing?.id) {
-      const { error } = await client.from("curricula").update(payload).eq("id", existing.id);
+      const { data, error } = await client.from("curricula").update(payload).eq("id", existing.id)
+        .select("id, school_id, admission_year, data, updated_at").maybeSingle();
       if (error) throw error;
+      savedRow = data;
+      if (!savedRow?.id) {
+        throw new Error("편제표 교체 권한이 DB에 적용되지 않아 저장되지 않았습니다. Supabase의 편제표 수정 정책을 적용해 주세요.");
+      }
       action = "updated";
     } else {
-      const { error } = await client.from("curricula").insert(payload);
+      const { data, error } = await client.from("curricula").insert(payload)
+        .select("id, school_id, admission_year, data, updated_at").single();
       if (error?.code === "23505") throw new Error(`${school.name} ${admissionYear}학년도 편제표는 이미 등록되어 있습니다.`);
       if (error) throw error;
+      savedRow = data;
+    }
+    if (!savedRow?.data || curriculumContentFingerprint(savedRow.data) !== expectedFingerprint) {
+      throw new Error("DB에 저장된 편제표가 현재 작업본과 일치하지 않습니다. 다시 등록해 주세요.");
     }
     await loadSchools();
     selectedSchool = schools.find((item) => item.id === school.id) || school;
@@ -654,6 +685,9 @@
     selectionStorage().setItem(SELECTED_SCHOOL_KEY, school.id);
     selectionStorage().setItem(SELECTED_ADMISSION_YEAR_KEY, String(admissionYear));
     await loadCurriculum(school.id, admissionYear);
+    if (!curriculum || curriculumContentFingerprint(curriculum) !== expectedFingerprint) {
+      throw new Error("저장 직후 편제표를 다시 확인했지만 현재 작업본과 일치하지 않습니다.");
+    }
     emitChange("publish");
     return { ...snapshot(), action };
   }

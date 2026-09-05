@@ -302,7 +302,7 @@ async function main() {
     assert.equal(await evaluate("document.querySelector('.landing-school-picker [data-school-disconnect]').hidden"), true);
 
     await client.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/section.html?tab=admin` });
-    await waitFor(async () => evaluate("document.readyState === 'complete' && document.querySelectorAll('.curriculum-format-notice li').length === 2"));
+    await waitFor(async () => evaluate("document.readyState === 'complete' && document.querySelectorAll('.curriculum-format-notice li').length === 3"));
     const uploadNotice = await evaluate(`(() => {
       const notice = document.querySelector('.curriculum-format-notice');
       const title = notice.querySelector('header');
@@ -315,9 +315,9 @@ async function main() {
         hasLegacyMark: Boolean(notice.querySelector('mark'))
       };
     })()`);
-    assert.equal(uploadNotice.title, "업로드 자료를 확인하세요.");
+    assert.equal(uploadNotice.title, "업로드 전 확인하세요!");
     assert.equal(uploadNotice.hasIcon, true);
-    assert.equal(uploadNotice.itemCount, 2);
+    assert.equal(uploadNotice.itemCount, 3);
     assert.equal(uploadNotice.listBelowTitle, true);
     assert.equal(uploadNotice.hasLegacyMark, false);
     const uploadNoticeScreenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });

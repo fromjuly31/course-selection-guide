@@ -6595,7 +6595,7 @@ body.is-platform-image-capturing .platform-print-root {
 
 .curriculum-editor-school-fields {
   display: grid;
-  grid-template-columns: minmax(150px, 0.9fr) minmax(210px, 1.25fr) minmax(140px, 0.75fr);
+  grid-template-columns: minmax(180px, 220px) minmax(260px, 340px) minmax(180px, 1fr);
   gap: 9px;
   margin-top: 14px;
   padding: 12px;

@@ -176,6 +176,7 @@ require(path.join(__dirname, "..", "app.js"));
 async function main() {
   const schemaSql = fs.readFileSync(path.join(__dirname, "..", "supabase", "schema.sql"), "utf8");
   const draftInstallSql = fs.readFileSync(path.join(__dirname, "..", "supabase", "install-curriculum-drafts.sql"), "utf8");
+  const teacherPublishSql = fs.readFileSync(path.join(__dirname, "..", "supabase", "install-teacher-curriculum-publish.sql"), "utf8");
   const schoolStoreSource = fs.readFileSync(path.join(__dirname, "..", "school-data.js"), "utf8");
   const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   const appDataSource = fs.readFileSync(path.join(__dirname, "..", "app-data.js"), "utf8");
@@ -186,6 +187,8 @@ async function main() {
   assert.match(schemaSql, /platform users read own curriculum drafts/);
   assert.match(draftInstallSql, /create table if not exists public\.curriculum_drafts/);
   assert.match(draftInstallSql, /notify pgrst, 'reload schema'/);
+  assert.match(teacherPublishSql, /platform_users\.role in \('admin', 'teacher'\)/);
+  assert.match(teacherPublishSql, /notify pgrst, 'reload schema'/);
   assert.match(schoolStoreSource, /async function loadCurriculumDraft/);
   assert.match(schoolStoreSource, /async function saveCurriculumDraft/);
   assert.match(schoolStoreSource, /async function loadCurriculumForCopy/);
@@ -236,6 +239,7 @@ async function main() {
   assert.match(appCss, /\.common-course-block\.semester-subject-block,[\s\S]*?\.semester-elective-block\.semester-subject-block[\s\S]*?flex-direction: column/);
   assert.match(appCss, /\.recommend-result-course-items > button/);
   assert.match(appCss, /\.school-upload-card \.curriculum-format-notice li[\s\S]*?font-size: 13px/);
+  assert.match(appCss, /\.curriculum-editor-school-fields[\s\S]*?grid-template-columns: minmax\(180px, 220px\) minmax\(260px, 340px\) minmax\(180px, 1fr\)/);
   assert.match(appCss, /\.connected-schools-card \.school-admission-year-options button[\s\S]*?min-height: 42px/);
   assert.match(appSource, /PLATFORM_EXPORT_SAFE_PADDING = 32/);
   assert.match(appSource, /drawY: Math\.round\(\(outputHeight - drawHeight\) \/ 2\)/);
@@ -247,7 +251,8 @@ async function main() {
   assert.match(sectionHtml, /<dialog class="header-school-menu school-picker-dialog"/);
   assert.match(sectionHtml, /data-school-picker-label>미선택/);
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
-  assert.match(sectionHtml, /app\.js\?v=20260905-7/);
+  assert.match(sectionHtml, /school-data\.js\?v=20260905-5/);
+  assert.match(sectionHtml, /app\.js\?v=20260905-9/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 
@@ -352,6 +357,10 @@ async function main() {
     window.DatabaseApp.localizedAccessError(new Error("Unexpected authentication backend failure"), "admin"),
     /[A-Za-z]{3,}/
   );
+  assert.equal(
+    window.DatabaseApp.localizedAccessError(new Error("편제표 교체 권한이 DB에 적용되지 않아 저장되지 않았습니다. Supabase의 편제표 수정 정책을 적용해 주세요."), "publish"),
+    "편제표 교체 권한이 DB에 적용되지 않아 저장되지 않았습니다. Supabase의 편제표 수정 정책을 적용해 주세요."
+  );
 
   const simulationPrintMarkup = window.DatabaseApp.platformPrintDocumentMarkup({
     kind: "simulation",
@@ -381,7 +390,10 @@ async function main() {
   state.tab = "admin";
   state.pendingCurriculum = null;
   window.DatabaseApp.renderAdmin();
-  assert.match(root.innerHTML, /curriculum-format-notice[\s\S]*?<header>[\s\S]*?업로드 자료를 확인하세요\.[\s\S]*?<ul><li>전학년 편제표가 아닌 신입생 편제표를 업로드하세요\.<\/li><li>/);
+  assert.match(root.innerHTML, /curriculum-format-notice[\s\S]*?<header>[\s\S]*?업로드 전 확인하세요!/);
+  assert.match(root.innerHTML, /2025, 2026학년도 신입생 편제표를 업로드 하세요\. \(전학년 편제표 X\)/);
+  assert.match(root.innerHTML, /'신입생 편제표 업로드'가 안되면 왼쪽의 '직접 등록'으로 등록하세요\./);
+  assert.match(root.innerHTML, /'임시 저장'이 가능합니다\. 최종 작성 후에는 '편제표 등록'을 눌러주세요\./);
   assert.doesNotMatch(root.innerHTML, /curriculum-format-notice[\s\S]*?<mark>/);
   assert.match(root.innerHTML, /data-open-connected-school-list/);
   assert.match(root.innerHTML, /3개 학교/);
@@ -413,7 +425,7 @@ async function main() {
   assert.match(root.innerHTML, /curriculum-entry-methods/);
   assert.match(root.innerHTML, /직접 등록/);
   assert.match(root.innerHTML, /신입생 편제표 업로드/);
-  assert.match(root.innerHTML, /전학년 편제표가 아닌 신입생 편제표를 업로드하세요/);
+  assert.match(root.innerHTML, /2025, 2026학년도 신입생 편제표를 업로드 하세요/);
   assert.match(root.innerHTML, /data-create-blank-curriculum><span>[\s\S]*icons\.svg#pencil[\s\S]*<\/span><strong>직접 등록<\/strong><small>/);
   assert.match(root.innerHTML, /data-request-curriculum-upload/);
   assert.match(root.innerHTML, /data-open-admin-login/);
@@ -430,7 +442,8 @@ async function main() {
   assert.match(root.innerHTML, /data-curriculum-semester-editor/);
   assert.match(root.innerHTML, /data-save-curriculum-draft/);
   assert.ok(root.innerHTML.indexOf("curriculum-region-field") < root.innerHTML.indexOf("data-curriculum-school-name"));
-  assert.match(root.innerHTML, /school-name-affix[\s\S]*?<b>고등학교<\/b>/);
+  assert.match(root.innerHTML, /<input[^>]*placeholder="예: 우리고등학교"[^>]*data-curriculum-school-name/);
+  assert.doesNotMatch(root.innerHTML, /school-name-affix/);
   assert.match(root.innerHTML, /다른 입학년도 편제 불러오기/);
 
   state.pendingCurriculum = null;
@@ -465,9 +478,10 @@ async function main() {
   assert.ok(root.innerHTML.indexOf("data-school-auth-region-toggle") < root.innerHTML.indexOf('name="schoolName"'));
   assert.match(root.innerHTML, /data-school-auth-region-option/);
   assert.match(root.innerHTML, /name="schoolName"/);
-  assert.match(root.innerHTML, /name="schoolName" value="테스트"/);
+  assert.match(root.innerHTML, /name="schoolName" value="테스트고등학교"/);
   assert.match(root.innerHTML, /name="region"/);
-  assert.match(root.innerHTML, /school-name-affix[\s\S]*?<b>고등학교<\/b>/);
+  assert.doesNotMatch(root.innerHTML, /school-name-affix/);
+  assert.doesNotMatch(root.innerHTML, /<b>고등학교<\/b>/);
   assert.doesNotMatch(root.innerHTML, /name="password"/);
   assert.match(root.innerHTML, /마지막 임시저장본을 먼저 불러옵니다/);
   state.schoolAuthStep = 3;
@@ -488,6 +502,7 @@ async function main() {
   assert.equal(window.DatabaseApp.schoolNamePrefix("우리고등학교"), "우리");
   assert.equal(window.DatabaseApp.completeSchoolName("우리"), "우리고등학교");
   assert.equal(window.DatabaseApp.completeSchoolName("우리고등학교"), "우리고등학교");
+  assert.equal(window.DatabaseApp.completeSchoolName("우리고등학교고등학교"), "우리고등학교");
 
   const copiedCurriculum = JSON.parse(JSON.stringify(blank.curricula[1]));
   const copiedAdmissionYear = copiedCurriculum.admissionYear;
@@ -496,6 +511,14 @@ async function main() {
   assert.deepEqual(copiedCurriculum.grades, result.curricula[0].grades);
 
   state.pendingCurriculum = blank;
+  const curriculumSchoolInput = {
+    value: "원주여자고등학교고등학교",
+    matches(selector) { return selector === "[data-curriculum-school-name]"; }
+  };
+  await root.dispatchTestEvent("change", { target: curriculumSchoolInput });
+  assert.equal(curriculumSchoolInput.value, "원주여자고등학교");
+  assert.equal(blank.schoolName, "원주여자고등학교");
+  assert.ok(blank.curricula.every((curriculum) => curriculum.schoolName === "원주여자고등학교"));
   curriculumAlertDialog.close();
   await root.dispatchTestEvent("click", {
     target: {
@@ -532,6 +555,42 @@ async function main() {
   await root.dispatchTestEvent("click", { target: curriculumCopyButton, preventDefault() {} });
   assert.deepEqual(blank.curricula[1].grades, blank.curricula[0].grades);
   assert.equal(blank.curricula[1].admissionYear, 2025);
+
+  blank.region = "강원특별자치도";
+  blank.curricula.forEach((curriculum) => { curriculum.region = "강원특별자치도"; });
+  let autoSavedWorkspace = null;
+  let publishedCurriculum = null;
+  window.SchoolStore.saveCurriculumDraft = async (input) => {
+    autoSavedWorkspace = JSON.parse(JSON.stringify(input));
+    return { id: "draft-latest", updatedAt: "2026-09-05T12:00:00.000Z" };
+  };
+  window.SchoolStore.publishCurriculum = async (input) => {
+    publishedCurriculum = JSON.parse(JSON.stringify(input));
+    return {
+      schools: [{ id: "wonju-girls", name: "원주여자고등학교", region: "강원특별자치도", admissionYears: [2025] }],
+      selectedSchool: { id: "wonju-girls", name: "원주여자고등학교", region: "강원특별자치도", admissionYears: [2025] },
+      selectedAdmissionYear: 2025,
+      curriculum: JSON.parse(JSON.stringify(input)),
+      user: { id: "teacher-test" },
+      accessRole: "teacher",
+      connection: "online",
+      action: "updated"
+    };
+  };
+  const publishLatestButton = {
+    disabled: false,
+    isConnected: true,
+    textContent: "편제표 등록",
+    closest(selector) { return selector === "[data-publish-curriculum]" ? this : null; },
+    matches() { return false; }
+  };
+  await root.dispatchTestEvent("click", { target: publishLatestButton });
+  assert.equal(autoSavedWorkspace.data.curricula.length, 2);
+  assert.deepEqual(autoSavedWorkspace.data.curricula[1].grades, blank.curricula[1].grades);
+  assert.equal(publishedCurriculum.admissionYear, 2025);
+  assert.deepEqual(publishedCurriculum.grades, blank.curricula[1].grades);
+  assert.equal(state.curriculumDraftId, "draft-latest");
+  assert.match(curriculumAlertMessage.textContent, /마지막 작업본을 함께 저장했습니다/);
 
   state.pendingCurriculum = result;
   state.curriculumCoursePicker = {

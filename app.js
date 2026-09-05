@@ -436,6 +436,7 @@
     if (/failed to fetch|network|load failed/.test(normalized)) {
       return "서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.";
     }
+    if (/편제표 교체 권한|현재 작업본과 일치하지 않습니다/.test(message)) return message;
     if (/[A-Za-z]{3,}/.test(message)) {
       if (context === "teacher") return "등록 비밀번호를 확인하지 못했습니다. 비밀번호를 다시 확인해 주세요.";
       if (context === "admin") return "관리자 로그인을 확인하지 못했습니다. 이메일, 비밀번호와 관리자 권한을 다시 확인해 주세요.";
@@ -469,7 +470,7 @@
 
   function schoolNamePrefix(value) {
     const schoolName = compactText(value);
-    return schoolName.endsWith("고등학교") ? schoolName.slice(0, -"고등학교".length).trim() : schoolName;
+    return schoolName.replace(/(?:\s*고등학교)+$/u, "").trim();
   }
 
   function completeSchoolName(value) {
@@ -4253,7 +4254,7 @@
       : "아직 임시저장하지 않았습니다.";
     const publishLabel = state.curriculumBusy ? "DB에 저장 중"
       : isAdminEdit ? "편제표 수정"
-        : "편제표 등록 · 교체";
+        : "편제표 등록";
     const pageTabs = curricula.map((curriculum, curriculumIndex) => {
       const gradeLabel = curriculum.grades.map((grade) => grade.grade).join("·");
       const editStatus = curriculum.courseCount ? `${gradeLabel}학년 편제 작성됨` : "아직 작성하지 않음";
@@ -4269,7 +4270,7 @@
       <nav class="curriculum-preview-pages" aria-label="파싱된 입학년도">${pageTabs}</nav>
       <div class="curriculum-editor-school-fields">
         <div class="curriculum-region-field"><span>지역</span><div class="curriculum-region-picker"><button type="button" data-curriculum-region-toggle aria-haspopup="listbox" aria-expanded="${state.curriculumRegionPickerOpen}" ${isAdminEdit ? "disabled" : ""}><span>${escapeHtml(selectedRegion || "지역을 선택하세요")}</span>${icon("arrow")}</button><div class="curriculum-region-options" role="listbox" ${state.curriculumRegionPickerOpen ? "" : "hidden"}>${regionOptions}</div></div></div>
-        <label><span>학교명</span><div class="school-name-affix"><input type="text" value="${escapeHtml(schoolNamePrefix(curricula[0]?.schoolName || pending.schoolName))}" placeholder="예: 우리" aria-label="학교명 앞부분" data-curriculum-school-name ${isAdminEdit ? "readonly aria-readonly=\"true\"" : ""}><b>고등학교</b></div></label>
+        <label><span>학교명</span><input type="text" value="${escapeHtml(completeSchoolName(curricula[0]?.schoolName || pending.schoolName))}" placeholder="예: 우리고등학교" aria-label="학교명" data-curriculum-school-name ${isAdminEdit ? "readonly aria-readonly=\"true\"" : ""}></label>
         <div><span>${isManual ? "작성 현황" : isAdminEdit ? "등록 현황" : "파싱 현황"}</span><strong data-curriculum-total-summary>총 ${pending.courseCount.toLocaleString("ko-KR")}과목</strong><small data-curriculum-unlisted-summary>${pending.unlistedCourseCount ? `고시 외 ${pending.unlistedCourseCount.toLocaleString("ko-KR")}과목` : "모든 과목이 앱 DB와 연결됨"}</small></div>
       </div>
       ${!isManual && Array.isArray(pending.parseWarnings) && pending.parseWarnings.length ? `<aside class="curriculum-parse-warning" role="status">${icon("warning")}<div><strong>유연 분석 결과를 확인하세요.</strong>${pending.parseWarnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div></aside>` : ""}
@@ -4279,7 +4280,7 @@
         <nav class="curriculum-preview-grade-pages" aria-label="학년별 편제 페이지">${gradeTabs}</nav>
         <div class="curriculum-editor-grades"><section class="curriculum-grade-editor"><header><strong>${activeGrade.grade}학년 편제</strong><span data-curriculum-grade-editor-summary>${activeGrade.common.length + activeGrade.electives.length}과목 · 선택 옵션 ${activeGrade.options.length}</span></header><div>${activeGrade.semesters.map((semester) => curriculumEditorSemesterMarkup(activeCurriculum, state.curriculumPreviewIndex, activeGrade, semester)).join("")}</div></section></div>
       </article></div>
-      <aside class="curriculum-editor-legend"><span><i></i> 앱 과목 안내와 연결</span><span class="is-unlisted"><i></i> 고시 외 과목 · 입력명 그대로 저장</span><small>작성 중인 내용은 임시저장할 수 있으며, 등록·교체를 눌러야 학생 모의 수강신청에 공개됩니다.</small></aside>
+      <aside class="curriculum-editor-legend"><span><i></i> 앱 과목 안내와 연결</span><span class="is-unlisted"><i></i> 고시 외 과목 · 입력명 그대로 저장</span><small>작성 중인 내용은 임시저장할 수 있으며, ‘편제표 등록’을 눌러야 학생 모의 수강신청에 공개됩니다.</small></aside>
       ${isAdminEdit ? "" : `<p class="curriculum-draft-status" data-curriculum-draft-status>${escapeHtml(draftStatus)}</p>`}
       <div class="admin-button-row"><button class="primary-action" type="button" data-publish-curriculum ${state.curriculumBusy || !canPublish ? "disabled" : ""}>${publishLabel}</button>${isAdminEdit ? "" : `<button class="secondary-action" type="button" data-save-curriculum-draft ${state.curriculumBusy || !canPublish ? "disabled" : ""}>임시저장</button>`}<button class="text-action" type="button" data-clear-curriculum-preview>취소</button></div>
       ${!canPublish ? '<small class="preview-help">등록 비밀번호를 확인하면 편제표 등록과 임시저장을 사용할 수 있습니다.</small>' : `<small class="preview-help">현재 열린 ${activeCurriculum.admissionYear}년 입학생 편제표 한 건만 등록됩니다. 다른 입학년도는 해당 탭에서 별도로 등록하세요.</small>`}
@@ -4308,7 +4309,7 @@
     </form>`;
     const teacherIdentityForm = `<form class="school-auth-form" data-teacher-school-form>
       <div class="school-auth-region-field"><span>지역</span><button type="button" data-school-auth-region-toggle aria-haspopup="listbox" aria-expanded="${state.schoolAuthRegionOpen}"><span>${escapeHtml(state.schoolAuthRegion || "지역을 선택하세요")}</span>${icon("arrow")}</button><input type="hidden" name="region" value="${escapeHtml(state.schoolAuthRegion)}"><div class="school-auth-region-options" role="listbox" ${state.schoolAuthRegionOpen ? "" : "hidden"}>${authRegionOptions}</div></div>
-      <label><span>학교명</span><div class="school-name-affix"><input type="text" name="schoolName" value="${escapeHtml(schoolNamePrefix(state.schoolAuthSchoolName))}" autocomplete="organization" required placeholder="예: 우리" aria-label="학교명 앞부분"><b>고등학교</b></div></label>
+      <label><span>학교명</span><input type="text" name="schoolName" value="${escapeHtml(completeSchoolName(state.schoolAuthSchoolName))}" autocomplete="organization" required placeholder="예: 우리고등학교" aria-label="학교명"></label>
       <p class="school-auth-draft-help">동일한 지역·학교명으로 저장한 작업이 있으면 마지막 임시저장본을 먼저 불러옵니다.</p>
       <button class="primary-action" type="submit">학교 확인 후 ${actionLabel} 계속</button>
     </form>`;
@@ -4346,7 +4347,7 @@
               <small>등록할 입학년도의 3개년 편제표를 1~3개 분석합니다.</small>
             </button>
           </div>
-          <aside class="curriculum-format-notice" role="note"><header>${icon("warning")}<strong>업로드 자료를 확인하세요.</strong></header><ul><li>전학년 편제표가 아닌 신입생 편제표를 업로드하세요.</li><li>학교별 셀 위치가 달라도 교과군·과목 유형·학년·학기·옵션·선택 수 머리글과 ‘택 N’ 표시를 찾아 분석합니다.</li></ul></aside>
+          <aside class="curriculum-format-notice" role="note"><header>${icon("warning")}<strong>업로드 전 확인하세요!</strong></header><ul><li>2025, 2026학년도 신입생 편제표를 업로드 하세요. (전학년 편제표 X)</li><li>'신입생 편제표 업로드'가 안되면 왼쪽의 '직접 등록'으로 등록하세요.</li><li>'임시 저장'이 가능합니다. 최종 작성 후에는 '편제표 등록'을 눌러주세요.</li></ul></aside>
           ${state.curriculumImportMessage ? `<p class="import-message ${state.pendingCurriculum ? "" : "is-error"}" role="status">${escapeHtml(state.curriculumImportMessage)}</p>` : ""}
           ${curriculumPreviewMarkup()}
         </section>
@@ -5925,15 +5926,31 @@
         showCurriculumAlert("등록 전 확인할 항목이 있습니다", validationMessage, "편제표 등록 확인");
         return;
       }
-      const publishingCurriculum = pendingCurricula[0];
+      const publishingCurriculum = JSON.parse(JSON.stringify(pendingCurricula[0]));
+      const workspaceSnapshot = JSON.parse(JSON.stringify(state.pendingCurriculum));
+      const workspaceCurricula = Array.isArray(workspaceSnapshot.curricula) ? workspaceSnapshot.curricula : [workspaceSnapshot];
+      const schoolName = compactText(publishingCurriculum.schoolName || workspaceSnapshot.schoolName);
+      const region = publishingCurriculum.region || workspaceSnapshot.region || "";
+      const entryMode = workspaceSnapshot.sourceFormat === "manual"
+        || workspaceCurricula.every((curriculum) => curriculum.sourceFormat === "manual") ? "manual" : "upload";
       state.curriculumBusy = true;
-      state.curriculumImportMessage = `DB에 ${publishingCurriculum.admissionYear}년 입학생 편제표를 저장하고 있습니다.`;
+      state.curriculumImportMessage = `현재 작업본을 보관하고 DB에 ${publishingCurriculum.admissionYear}년 입학생 편제표를 저장하고 있습니다.`;
       const originalPublishText = publishCurriculumButton.textContent;
       const draftButton = root.querySelector("[data-save-curriculum-draft]");
       publishCurriculumButton.disabled = true;
       publishCurriculumButton.textContent = "DB에 저장 중";
       if (draftButton) draftButton.disabled = true;
       try {
+        if (!schoolStore.saveCurriculumDraft) throw new Error("현재 작업본 저장 기능을 사용할 수 없습니다.");
+        const savedDraft = await schoolStore.saveCurriculumDraft({
+          id: state.curriculumDraftId,
+          schoolName,
+          region,
+          entryMode,
+          data: workspaceSnapshot
+        });
+        state.curriculumDraftId = savedDraft.id;
+        state.curriculumDraftUpdatedAt = savedDraft.updatedAt;
         const result = await schoolStore.publishCurriculum(publishingCurriculum);
         syncSchoolState(result);
         syncSchoolSimulationSubjects(true);
@@ -5943,7 +5960,7 @@
         refreshCurriculumPreviewSelectionInPlace({ pageChanged: true });
         showCurriculumAlert(
           `${publishingCurriculum.admissionYear}년 입학생 편제표 ${actionLabel} 완료`,
-          "현재 입학년도 편제표를 저장했습니다. 확인을 누르면 편제표 등록 화면으로 돌아갑니다.",
+          "현재 입학년도 편제표와 마지막 작업본을 함께 저장했습니다. 확인을 누르면 편제표 등록 화면으로 돌아갑니다.",
           "편제표 저장 완료",
           "success",
           closeCurriculumPreview
@@ -6333,7 +6350,7 @@
       pendingCurriculumItems().forEach((curriculum) => { curriculum.schoolName = schoolName; });
       if (state.pendingCurriculum) state.pendingCurriculum.schoolName = schoolName;
       preparePendingCurriculumForEditing();
-      event.target.value = schoolNamePrefix(schoolName);
+      event.target.value = schoolName;
       return;
     }
     if (event.target.matches("[data-curriculum-region-edit]")) {
