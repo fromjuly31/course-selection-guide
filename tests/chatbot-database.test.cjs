@@ -82,6 +82,58 @@ assert.match(undecidedCareer.text, /진로검사, 진로상담, 독서, 동아�
 assert.doesNotMatch(undecidedCareer.text, /선택과목을 정해야 하는데/u);
 assert.match(undecidedCareer.text, /1\. 내가 좋아하거나 관심 있는 것은/u);
 
+[
+  "꿈이 없어",
+  "하고 싶은 게 없어",
+  "뭘 하고 싶은지 모르겠어"
+].forEach((query) => {
+  const result = engine.respond(query);
+  assert.equal(result.intentId, "F063", `${query}: 반말·붙여쓰기 질문도 F063으로 연결해야 합니다.`);
+  assert.equal(result.kind, "faq");
+  assert.equal(result.results.length, 0, `${query}: 과목 추천 카드를 표시하지 않아야 합니다.`);
+});
+
+const overlappingCareerQueries = ["진로가없어", "희망 학과를 못 정했어", "관심 분야를 모르겠어"];
+overlappingCareerQueries.forEach((query) => {
+  const result = engine.respond(query);
+  assert.equal(result.intentId, "FAQ_CLARIFY", `${query}: FAQ와 과목 추천이 겹치면 의도를 먼저 물어야 합니다.`);
+  assert.equal(result.kind, "clarification");
+  assert.equal(result.results.length, 0);
+  assert.equal(result.choices.length, 2);
+  assert.match(result.choices[1].label, /과목을 추천받고 싶어요/u);
+});
+
+const ambiguousCareerPurpose = engine.respond(overlappingCareerQueries[0]);
+assert.match(ambiguousCareerPurpose.choices[0].label, /진로가 아직 없는데/u);
+
+[
+  "진로가 불확실해",
+  "진로가 애매해",
+  "진로가 고민이야",
+  "진로 때문에 고민 중이야",
+  "진로가 모호해",
+  "진로가 아직 확실하지 않아",
+  "진로가 정해지지 않았어",
+  "진로가 헷갈려"
+].forEach((query) => {
+  const result = engine.respond(query);
+  assert.equal(result.intentId, "FAQ_CLARIFY", `${query}: 진로 미정 표현은 의도 확인을 먼저 해야 합니다.`);
+  assert.equal(result.kind, "clarification");
+  assert.equal(result.results.length, 0, `${query}: 의도 확인 전에는 과목 카드를 표시하지 않아야 합니다.`);
+  assert.equal(result.choices.length, 2);
+});
+
+const confirmedNoCareer = engine.respond(ambiguousCareerPurpose.choices[0].prompt);
+assert.equal(confirmedNoCareer.intentId, "F063");
+assert.equal(confirmedNoCareer.kind, "faq");
+assert.equal(confirmedNoCareer.results.length, 0);
+
+const requestedCareerCourses = engine.respond(ambiguousCareerPurpose.choices[1].prompt);
+assert.equal(requestedCareerCourses.intentId, "COURSE_DETAIL_CLARIFY");
+assert.equal(requestedCareerCourses.kind, "clarification");
+assert.equal(requestedCareerCourses.results.length, 0);
+assert.match(requestedCareerCourses.followupText, /희망 직업·학과·관심 분야/u);
+
 const undecidedCourseChoice = engine.respond("선택과목 골라야 하는데 진로가 없어요.");
 assert.equal(undecidedCourseChoice.intentId, "F063");
 assert.equal(undecidedCourseChoice.results.length, 0);

@@ -46,6 +46,7 @@ const recommendNoticeDialog = elementStub();
 const curriculumAlertDialog = elementStub();
 const curriculumAlertTitle = elementStub();
 const curriculumAlertMessage = elementStub();
+const curriculumLeaveDialog = elementStub();
 const toast = elementStub();
 const body = elementStub();
 
@@ -69,6 +70,7 @@ global.document = {
       "#curriculum-alert-dialog": curriculumAlertDialog,
       "#curriculum-alert-title": curriculumAlertTitle,
       "#curriculum-alert-message": curriculumAlertMessage,
+      "#curriculum-leave-dialog": curriculumLeaveDialog,
       "[data-app-toast]": toast
     })[selector] || null;
   },
@@ -217,8 +219,18 @@ async function main() {
   assert.match(appDataSource, /INDEXED_DB_OPEN_TIMEOUT = 2500/);
   assert.match(appDataSource, /fetchWithTimeout/);
   assert.match(appDataSource, /STATIC_DATA_VERSION = "20260905-3"/);
-  assert.match(appSource, /"success",\s*closeCurriculumPreview\s*\)/);
+  assert.match(appSource, /"success",\s*\(\) => requestCurriculumLeave\(closeCurriculumPreview\)\s*\)/);
   assert.match(appSource, /if \(confirmAction\) await confirmAction\(\)/);
+  assert.match(appSource, /requestCurriculumLeave\(\(\) => location\.assign/);
+  assert.match(appSource, /requestCurriculumLeave\(closeCurriculumPreview\)/);
+  assert.match(appSource, /@ssabrojs\/hwpxjs@0\.4\.0\/dist\/browser\/hwpxjs\.browser\.mjs/);
+  assert.match(appSource, /\["xlsx", "xls", "hwp", "hwpx"\]/);
+  assert.match(appSource, /if \(pendingAction === "upload"\)[\s\S]*?state\.schoolAuthStep = 3/);
+  assert.match(appSource, /OO 고등학교 형식으로 작성해 주세요/);
+  assert.match(sectionHtml, /작업 중인 편제표가 저장되지 않았습니다\. 그래도 나가시겠습니까\?/);
+  assert.match(sectionHtml, /data-confirm-curriculum-leave>저장하지 않고 나가기/);
+  assert.match(appCss, /\.curriculum-leave-dialog[\s\S]*?z-index: 11000/);
+  assert.match(appCss, /\.curriculum-current-year-panel strong b[\s\S]*?font-size: 31px/);
   assert.doesNotMatch(appSource, /기이수 과목/);
   assert.match(appSource, /data-semester-lock-info/);
   assert.doesNotMatch(appSource, /semester-lock-notice/);
@@ -253,7 +265,8 @@ async function main() {
   assert.match(sectionHtml, /data-school-picker-label>미선택/);
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
   assert.match(sectionHtml, /school-data\.js\?v=20260905-6/);
-  assert.match(sectionHtml, /app\.js\?v=20260905-10/);
+  assert.match(sectionHtml, /app\.css\?v=20260905-20/);
+  assert.match(sectionHtml, /app\.js\?v=20260905-14/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 
@@ -317,6 +330,13 @@ async function main() {
   assert.equal(grade2.semesters[1].options[0].choose, 1);
   assert.deepEqual(grade2.semesters[1].options[0].courses, ["물리학", "화학"]);
   assert.deepEqual(result.curricula[0].grades[2].semesters[0].common, ["3학년 미래 과목"]);
+  await assert.rejects(
+    window.DatabaseApp.parseCurriculumFile({
+      name: "2026학년도_신입생_3개년.xlsx",
+      arrayBuffer: async () => new ArrayBuffer(0)
+    }, { admissionYear: 2025 }),
+    /2026학년도 자료로 확인됩니다.*2025학년도 파일 선택란/
+  );
 
   activeWorkbook = freshmanWorkbook;
   const freshmanResult = await window.DatabaseApp.parseCurriculumFile({
@@ -415,7 +435,7 @@ async function main() {
   window.DatabaseApp.renderAdmin();
   assert.match(root.innerHTML, /curriculum-preview-overlay/);
   assert.match(root.innerHTML, /data-curriculum-region-toggle/);
-  assert.match(root.innerHTML, /2026년 입학생/);
+  assert.match(root.innerHTML, /2026학년도 신입생/);
   assert.match(root.innerHTML, /공통·학교 지정과목/);
   assert.match(root.innerHTML, /COMMON · SCHOOL DESIGNATED/);
   assert.match(root.innerHTML, /공통·학교 지정 과목/);
@@ -432,7 +452,15 @@ async function main() {
   assert.match(root.innerHTML, /data-open-admin-login/);
   assert.doesNotMatch(root.innerHTML, /school-access-login/);
   assert.ok(root.innerHTML.indexOf("curriculum-entry-methods") < root.innerHTML.indexOf("curriculum-format-notice"));
-  const previewNavigation = root.innerHTML.match(/<nav class="curriculum-preview-pages"[\s\S]*?<\/nav>/)?.[0] || "";
+  assert.match(root.innerHTML, /data-curriculum-year-toggle/);
+  assert.match(root.innerHTML, /data-curriculum-year-option="0"/);
+  assert.match(root.innerHTML, /CURRENT ADMISSION YEAR/);
+  assert.match(root.innerHTML, /아래 ‘편제표 등록’은 현재 2026학년도 편제표 한 건만 저장합니다/);
+  assert.doesNotMatch(root.innerHTML, /data-curriculum-preview-page/);
+  assert.doesNotMatch(root.innerHTML, /data-curriculum-year-select/);
+  assert.doesNotMatch(root.innerHTML, /data-curriculum-admission-year/);
+  assert.ok(root.innerHTML.indexOf("curriculum-editor-school-fields") < root.innerHTML.indexOf("curriculum-year-workspace-selector"));
+  assert.ok(root.innerHTML.indexOf("curriculum-year-workspace-selector") < root.innerHTML.indexOf("curriculum-current-year-panel"));
   assert.doesNotMatch(root.innerHTML, /data-curriculum-region-edit/);
 
   state.pendingCurriculum = window.DatabaseApp.createBlankCurriculumImport();
@@ -447,6 +475,27 @@ async function main() {
   assert.doesNotMatch(root.innerHTML, /school-name-affix/);
   assert.match(root.innerHTML, /다른 입학년도 편제 불러오기/);
   assert.match(root.innerHTML, /data-reset-curriculum[^>]*disabled[^>]*>초기화<\/button>/);
+
+  const blankForYearSwitch = state.pendingCurriculum;
+  state.curriculumPreviewIndex = 0;
+  window.DatabaseApp.markPendingCurriculaSaved();
+  blankForYearSwitch.curricula[0].grades[0].semesters[0].common.push("공통국어1");
+  const admissionYearOption = {
+    dataset: { curriculumYearOption: "1" },
+    matches() { return false; },
+    closest(selector) { return selector === "[data-curriculum-year-option]" ? this : null; }
+  };
+  await root.dispatchTestEvent("click", { target: admissionYearOption });
+  assert.equal(state.curriculumPreviewIndex, 0, "저장하지 않은 변경이 있으면 바로 입학년도를 전환하지 않아야 합니다.");
+  assert.equal(curriculumLeaveDialog.open, true);
+  await curriculumLeaveDialog.dispatchTestEvent("click", {
+    target: {
+      closest(selector) { return selector === "[data-confirm-curriculum-leave]" ? this : null; }
+    }
+  });
+  assert.equal(state.curriculumPreviewIndex, 1, "경고에서 나가기를 확인한 뒤 선택한 입학년도로 전환해야 합니다.");
+  assert.equal(curriculumLeaveDialog.open, false);
+  state.curriculumPreviewIndex = 0;
 
   state.pendingCurriculum = null;
   state.schoolUser = null;
@@ -485,15 +534,20 @@ async function main() {
   assert.doesNotMatch(root.innerHTML, /school-name-affix/);
   assert.doesNotMatch(root.innerHTML, /<b>고등학교<\/b>/);
   assert.doesNotMatch(root.innerHTML, /name="password"/);
-  assert.match(root.innerHTML, /마지막 임시저장본을 먼저 불러옵니다/);
+  assert.match(root.innerHTML, /다음 화면에서 신입생 입학년도마다 업로드할 파일을 선택합니다/);
   state.schoolAuthStep = 3;
   window.DatabaseApp.renderAdmin();
   assert.match(root.innerHTML, /data-teacher-upload-form/);
-  assert.match(root.innerHTML, /신입생 편제표 선택/);
-  assert.match(root.innerHTML, /data-auth-curriculum-file/);
-  assert.match(root.innerHTML, /multiple/);
-  assert.match(root.innerHTML, /선택한 편제표 분석 시작/);
-  assert.match(root.innerHTML, /신입생 편제표 1~3개/);
+  assert.match(root.innerHTML, /입학년도별 신입생 편제표 업로드/);
+  assert.equal((root.innerHTML.match(/data-auth-curriculum-file/g) || []).length, 2);
+  assert.match(root.innerHTML, /data-upload-admission-year="2026"/);
+  assert.match(root.innerHTML, /data-upload-admission-year="2025"/);
+  assert.match(root.innerHTML, /data-upload-year-jump="2026"/);
+  assert.match(root.innerHTML, /data-upload-year-jump="2025"/);
+  assert.match(root.innerHTML, /\.hwp,\.hwpx/);
+  assert.doesNotMatch(root.innerHTML, /\smultiple(?:\s|>)/);
+  assert.match(root.innerHTML, />업로드 확인<\/button>/);
+  assert.match(root.innerHTML, /‘편제표 등록’을 눌러야 연동됩니다/);
   state.schoolAuthDialogMode = "";
   state.schoolAuthStep = 1;
   state.pendingCurriculumAction = "";
@@ -540,7 +594,7 @@ async function main() {
   state.accessRole = "teacher";
   window.DatabaseApp.renderAdmin();
   assert.match(root.innerHTML, /value="pending:0">2026년 입학생 · 현재 작성 중/);
-  assert.match(root.innerHTML, /현재 열린 2025년 입학생 편제표 한 건만 등록됩니다/);
+  assert.match(root.innerHTML, /현재 선택한 2025학년도 신입생 편제표 한 건만 등록됩니다/);
   const curriculumCopySelect = { value: "pending:0", selectedOptions: [{ textContent: "2026년 입학생 · 현재 작성 중" }] };
   const curriculumCopyTools = { querySelector() { return curriculumCopySelect; } };
   const curriculumCopyButton = {
@@ -606,7 +660,7 @@ async function main() {
     updatedAt: "2026-09-05T12:00:00.000Z",
     data: autoSavedWorkspace.data
   }, { schoolName: "원주여자고등학교", region: "강원특별자치도" });
-  assert.equal(state.curriculumPreviewIndex, 1, "다시 접속하면 마지막으로 등록한 2025 편제 탭을 열어야 합니다.");
+  assert.equal(state.curriculumPreviewIndex, 1, "다시 접속하면 마지막으로 등록한 2025학년도 편집 화면을 열어야 합니다.");
   assert.ok(state.pendingCurriculum.curricula[1].grades.some((grade) => grade.options.length > 0));
 
   let publishedWithoutDraft = 0;

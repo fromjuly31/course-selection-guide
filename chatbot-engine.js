@@ -12,7 +12,9 @@
   ]);
   const PARTICLES = ["이에요", "예요", "입니다", "이라서", "라서", "으로", "에서", "에게", "한테", "처럼", "까지", "부터", "이랑", "랑", "으로는", "에는", "은", "는", "이", "가", "을", "를", "의", "도", "만", "야"];
   const COURSE_SIGNAL = /진로|직업|되고\s*싶|희망|관심|적성|추천|교사|선생님|교육과|사범대|교대/u;
+  const CAREER_UNCERTAINTY_SIGNAL = /(?:진로|꿈|장래희망|희망직업|희망학과|관심분야|전공|적성|흥미).{0,12}(?:없|미정|불확실|확실하지않|애매|모호|고민|막막|모르|못정|안정|정해지지않|결정하지못|헷갈)/u;
   const COURSE_RESULT_CLARIFICATION_THRESHOLD = 6;
+  const COURSE_DETAIL_REQUEST_PROMPT = "희망 진로나 학과에 맞는 과목을 추천받고 싶어요.";
   const SELECTION_TYPES = ["공통과목", "일반선택", "진로선택", "융합선택"];
   const COURSE_GROUP_ALIASES = [
     ["제2외국어", ["제2외국어", "제이외국어"]],
@@ -128,6 +130,7 @@
     const keywordWeights = (Array.isArray(chatbot.keywordWeights) ? chatbot.keywordWeights : []).filter(isActive);
     const settings = new Map((Array.isArray(chatbot.searchSettings) ? chatbot.searchSettings : []).map((row) => [String(row["항목"] || "").trim(), row]));
     const faqIntents = (Array.isArray(chatbot.faqIntents) ? chatbot.faqIntents : []).filter(isActive);
+    const careerUncertainIntent = faqIntents.find((intent) => String(intent.intent_id || "") === "F063") || null;
     const questionVariants = (Array.isArray(chatbot.questionVariants) ? chatbot.questionVariants : []).filter(isActive);
     const answers = (Array.isArray(chatbot.answers) ? chatbot.answers : []).filter(isActive);
     const faqSynonyms = (Array.isArray(chatbot.synonyms) ? chatbot.synonyms : []).filter(isActive);
@@ -543,6 +546,36 @@
       };
     }
 
+    function faqCourseClarificationResponse(match) {
+      const faqQuestion = String(match.best?.intent?.canonical_question || "FAQ 안내를 확인하고 싶어요.").trim();
+      return {
+        kind: "clarification",
+        intentId: "FAQ_CLARIFY",
+        text: "질문에 두 가지 뜻으로 해석될 수 있는 표현이 함께 있어요. 바로 답을 정하지 않고 먼저 어떤 도움을 원하는지 확인할게요.",
+        followupText: "아래에서 가장 가까운 경우를 선택해 주세요.",
+        results: [],
+        choices: [
+          { label: faqQuestion, prompt: faqQuestion },
+          { label: "진로·관심사에 맞는 과목을 추천받고 싶어요.", prompt: COURSE_DETAIL_REQUEST_PROMPT }
+        ],
+        sourceDetails: [],
+        sourceText: "[출처: FAQ 질문 분류 DB / 과목 키워드 DB]"
+      };
+    }
+
+    function courseDetailRequestResponse() {
+      return {
+        kind: "clarification",
+        intentId: "COURSE_DETAIL_CLARIFY",
+        text: "관련 과목은 희망 진로나 학과가 구체적일수록 더 신중하게 찾을 수 있어요. 아직은 특정 과목을 제시하지 않을게요.",
+        followupText: "희망 직업·학과·관심 분야 중 하나를 구체적으로 입력해 주세요. 예: 간호사, 컴퓨터공학과, 생명과학 연구",
+        results: [],
+        choices: [],
+        sourceDetails: [],
+        sourceText: "[출처: 질문 범위 확인 단계]"
+      };
+    }
+
     function ambiguousResponse(match) {
       const choices = match.candidates.filter((candidate) => candidate.score > 0).map((candidate) => ({
         label: String(candidate.intent.canonical_question || "").trim(),
@@ -575,16 +608,26 @@
     function respond(query) {
       const cleanQuery = String(query || "").trim();
       if (!cleanQuery) return fallbackResponse();
+      if (normalize(cleanQuery) === normalize(COURSE_DETAIL_REQUEST_PROMPT)) return courseDetailRequestResponse();
       const clarification = findClarification(cleanQuery);
       if (clarification) return clarificationResponse(clarification);
 
       const faqMatch = scoreFaq(cleanQuery);
       const courseMatch = scoreCourses(cleanQuery);
       if (faqMatch.accepted && faqMatch.best.exact) return faqResponse(faqMatch, cleanQuery);
+      const explicitCareerUncertainty = Boolean(careerUncertainIntent && CAREER_UNCERTAINTY_SIGNAL.test(normalize(cleanQuery)));
+      if (explicitCareerUncertainty && courseMatch.confident) {
+        return faqCourseClarificationResponse({ best: { intent: careerUncertainIntent } });
+      }
+      if (explicitCareerUncertainty) return faqResponse({ best: { intent: careerUncertainIntent } }, cleanQuery);
       if (courseMatch.exact) {
         if (courseMatch.candidateCount >= COURSE_RESULT_CLARIFICATION_THRESHOLD) return courseNarrowingResponse(cleanQuery, courseMatch);
         return courseResponse(cleanQuery, courseMatch);
       }
+      const courseRecommendationLikely = courseMatch.confident
+        && (COURSE_SIGNAL.test(cleanQuery) || courseMatch.results.some((result) => result.keywordPoints >= 12));
+      if ((faqMatch.accepted || faqMatch.ambiguous) && courseRecommendationLikely) return faqCourseClarificationResponse(faqMatch);
+      if (faqMatch.accepted && String(faqMatch.best?.intent?.intent_id || "") === "F063") return faqResponse(faqMatch, cleanQuery);
       if (faqMatch.accepted && (!courseMatch.confident || !COURSE_SIGNAL.test(cleanQuery))) return faqResponse(faqMatch, cleanQuery);
       if (courseMatch.confident && (COURSE_SIGNAL.test(cleanQuery) || courseMatch.results.some((result) => result.keywordPoints >= 12))) {
         if (!courseMatch.exact && courseMatch.candidateCount >= COURSE_RESULT_CLARIFICATION_THRESHOLD) return courseNarrowingResponse(cleanQuery, courseMatch);

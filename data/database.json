@@ -4,8 +4,8 @@
                  "schemaVersion":  2,
                  "sourceType":  "default",
                  "sourceName":  "2022개정교육과정_과목선택_FAQ_챗봇DB.xlsx",
-                 "sourceUpdatedAt":  "2026-09-05T13:50:03.6338831+09:00",
-                 "generatedAt":  "2026-09-05T13:50:06.0874193+09:00",
+                 "sourceUpdatedAt":  "2026-09-05T17:43:06.2743571+09:00",
+                 "generatedAt":  "2026-09-05T17:43:19.5505438+09:00",
                  "regularSubjectCount":  155,
                  "specialSubjectCount":  135,
                  "subjectCount":  290,
@@ -89375,6 +89375,134 @@
                                          "group_id":  "K028",
                                          "canonical_term":  "진로 없음",
                                          "synonym":  "진로 미정",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로가 불확실",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로가 확실하지 않",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로가 애매",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로가 모호",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로가 정해지지 않",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로를 아직 못 정",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로를 결정하지 못",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로가 고민",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로 때문에 고민",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로를 고민 중",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로가 막막",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로를 모르",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로 방향을 모르",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로가 헷갈",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로 선택이 고민",
+                                         "weight":  5.5,
+                                         "primary":  "N",
+                                         "note":  "F063 진로 미정 표현 매칭"
+                                     },
+                                     {
+                                         "group_id":  "K028",
+                                         "canonical_term":  "진로 없음",
+                                         "synonym":  "진로 선택을 고민",
                                          "weight":  5.5,
                                          "primary":  "N",
                                          "note":  "F063 진로 미정 표현 매칭"

@@ -7,7 +7,7 @@
   <title>학과·선택과목 조회 · 선택 과목 안내 플랫폼</title>
   <meta name="description" content="학교별 편제표와 연동되는 과목 선택 안내 플랫폼">
   <link rel="stylesheet" href="styles.css?v=20260905-5">
-  <link rel="stylesheet" href="app.css?v=20260905-14">
+  <link rel="stylesheet" href="app.css?v=20260905-20">
   <link rel="stylesheet" href="chatbot.css?v=20260905-6">
 </head>
 <body class="app-page">
@@ -74,6 +74,18 @@
     <button class="curriculum-alert-confirm" type="button" data-curriculum-alert-close>확인</button>
   </dialog>
 
+  <dialog class="curriculum-leave-dialog" id="curriculum-leave-dialog" aria-labelledby="curriculum-leave-title" aria-describedby="curriculum-leave-message">
+    <button class="curriculum-leave-close" type="button" data-cancel-curriculum-leave aria-label="계속 작업하기">×</button>
+    <div class="curriculum-leave-symbol" aria-hidden="true"><svg class="icon"><use href="icons.svg#warning"></use></svg></div>
+    <p class="curriculum-leave-kicker">UNSAVED CHANGES</p>
+    <h2 id="curriculum-leave-title">저장되지 않은 변경사항</h2>
+    <p class="curriculum-leave-message" id="curriculum-leave-message">작업 중인 편제표가 저장되지 않았습니다. 그래도 나가시겠습니까?</p>
+    <div class="curriculum-leave-actions">
+      <button class="curriculum-leave-stay" type="button" data-cancel-curriculum-leave>계속 작업</button>
+      <button class="curriculum-leave-confirm" type="button" data-confirm-curriculum-leave>저장하지 않고 나가기</button>
+    </div>
+  </dialog>
+
   <div class="app-toast" role="status" aria-live="polite" data-app-toast></div>
 
   <nav class="bottom-nav app-bottom-nav" aria-label="주요 메뉴">
@@ -91,8 +103,8 @@
   <script src="supabase-config.js?v=20260905-2"></script>
   <script src="school-data.js?v=20260905-6"></script>
   <script src="app-data.js?v=20260905-3"></script>
-  <script src="app.js?v=20260905-10"></script>
-  <script src="chatbot-engine.js?v=20260905-6"></script>
+  <script src="app.js?v=20260905-14"></script>
+  <script src="chatbot-engine.js?v=20260905-8"></script>
   <script src="chatbot.js?v=20260905-7"></script>
 </body>
 </html>

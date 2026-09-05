@@ -2778,6 +2778,14 @@ body.is-platform-image-capturing .platform-print-root {
   font-weight: 800;
 }
 
+.school-auth-form label > small {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .school-auth-form input {
   width: 100%;
   min-height: 50px;
@@ -2883,6 +2891,257 @@ body.is-platform-image-capturing .platform-print-root {
   font-size: 14px;
 }
 
+.school-auth-dialog.is-upload-workspace {
+  width: min(920px, calc(100vw - 48px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+}
+
+.curriculum-year-upload-form {
+  gap: 16px;
+}
+
+.curriculum-upload-draft-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 15px;
+  border: 1px solid #e3c47b;
+  border-radius: 15px;
+  color: #624b1c;
+  background: linear-gradient(135deg, #fffaf0, #fff5d9);
+}
+
+.curriculum-upload-draft-resume > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.curriculum-upload-draft-resume span {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.curriculum-upload-draft-resume strong {
+  font-size: 11px;
+}
+
+.curriculum-upload-draft-resume small {
+  color: #806d46;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.curriculum-upload-draft-resume button {
+  display: inline-flex;
+  min-height: 43px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid #b58b2d;
+  border-radius: 11px;
+  color: #fff;
+  background: #9a7121;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.curriculum-upload-draft-resume button:hover,
+.curriculum-upload-draft-resume button:focus-visible {
+  background: #7e5a17;
+}
+
+.curriculum-upload-draft-resume button .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.curriculum-upload-year-picker {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.72fr) minmax(0, 1.28fr);
+  align-items: center;
+  gap: 16px;
+  padding: 15px;
+  border: 1px solid #c9e1d8;
+  border-radius: 16px;
+  background: #f3faf7;
+}
+
+.curriculum-upload-year-picker > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.curriculum-upload-year-picker > div:first-child > span {
+  color: #244c41;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.curriculum-upload-year-picker > div:first-child > small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.curriculum-upload-year-picker > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.curriculum-upload-year-picker button {
+  display: grid;
+  min-height: 66px;
+  grid-template-columns: auto 1fr;
+  align-content: center;
+  align-items: baseline;
+  gap: 1px 5px;
+  padding: 10px 12px;
+  border: 1px solid #c8dcd5;
+  border-radius: 13px;
+  color: #38584f;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.curriculum-upload-year-picker button strong {
+  font-size: 15px;
+}
+
+.curriculum-upload-year-picker button > span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.curriculum-upload-year-picker button small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.curriculum-upload-year-picker button.is-selected {
+  border-color: var(--primary);
+  color: var(--primary-dark);
+  background: #e9f7f2;
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.curriculum-upload-year-picker button.has-file small {
+  color: var(--primary);
+  font-weight: 850;
+}
+
+.curriculum-year-upload-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.curriculum-year-upload-slot {
+  padding: 15px;
+  border: 1px solid #d4e2dd;
+  border-radius: 16px;
+  background: #fbfdfc;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.curriculum-year-upload-slot.is-active {
+  border-color: #88c8b5;
+  box-shadow: 0 0 0 3px rgba(8, 116, 91, 0.08);
+}
+
+.curriculum-year-upload-slot.has-file {
+  border-color: var(--primary);
+  background: #f2faf7;
+}
+
+.curriculum-year-upload-slot > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.curriculum-year-upload-slot > header div {
+  display: grid;
+  gap: 3px;
+}
+
+.curriculum-year-upload-slot > header small {
+  color: var(--primary);
+  font: 800 8px Consolas, monospace;
+  letter-spacing: 0.11em;
+}
+
+.curriculum-year-upload-slot > header strong {
+  color: #21483d;
+  font-size: 17px;
+}
+
+.curriculum-year-upload-slot > header > span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #6a7c77;
+  background: #eef2f1;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.curriculum-year-upload-slot > header > span.is-linked {
+  color: #08745b;
+  background: #def3eb;
+}
+
+.curriculum-year-upload-slot .school-auth-file {
+  display: block;
+  padding: 12px;
+  border: 1px dashed #a9c9be;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.curriculum-year-upload-slot .school-auth-file input {
+  min-height: 46px;
+  font-size: 12px;
+}
+
+.curriculum-year-upload-slot [data-upload-file-name] {
+  display: block;
+  margin-top: 8px;
+  overflow: hidden;
+  color: #536a63;
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.curriculum-year-upload-slot.has-file [data-upload-file-name] {
+  color: var(--primary-dark);
+}
+
+.curriculum-upload-review-help {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  color: #4c665e;
+  background: #eef7f3;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
 .school-auth-unavailable {
   display: grid;
   justify-items: center;
@@ -2953,6 +3212,15 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 @media (max-width: 720px) {
+  .curriculum-upload-draft-resume {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .curriculum-upload-draft-resume button {
+    width: 100%;
+  }
+
   .school-upload-head {
     align-items: stretch;
   }
@@ -2971,6 +3239,16 @@ body.is-platform-image-capturing .platform-print-root {
     width: 100%;
     padding: 27px 20px max(24px, env(safe-area-inset-bottom));
     border-radius: 24px 24px 0 0;
+  }
+
+  .school-auth-dialog.is-upload-workspace {
+    width: 100%;
+    max-height: 96dvh;
+  }
+
+  .curriculum-upload-year-picker,
+  .curriculum-year-upload-list {
+    grid-template-columns: 1fr;
   }
 
   .school-auth-dialog > header {
@@ -5139,8 +5417,117 @@ body.is-platform-image-capturing .platform-print-root {
   background: var(--primary-dark);
 }
 
+.curriculum-leave-dialog {
+  position: fixed;
+  z-index: 11000;
+  width: min(calc(100% - 32px), 500px);
+  margin: auto;
+  padding: 32px;
+  overflow: hidden;
+  border: 1px solid rgba(184, 76, 85, 0.3);
+  border-radius: 26px;
+  color: #293b37;
+  background: #fff;
+  box-shadow: 0 34px 110px rgba(4, 17, 22, 0.42);
+  text-align: center;
+}
+
+.curriculum-leave-dialog::backdrop {
+  z-index: 10999;
+  background: rgba(4, 17, 22, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.curriculum-leave-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 12px;
+  color: #7a8582;
+  background: #f2f4f3;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.curriculum-leave-symbol {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  margin: 0 auto 15px;
+  border-radius: 21px;
+  color: #ad3541;
+  background: #fce9eb;
+}
+
+.curriculum-leave-symbol .icon {
+  width: 30px;
+  height: 30px;
+}
+
+.curriculum-leave-kicker {
+  margin: 0;
+  color: #ad3541;
+  font: 850 10px Consolas, monospace;
+  letter-spacing: 0.16em;
+}
+
+.curriculum-leave-dialog h2 {
+  margin: 8px 0 0;
+  color: #2b2627;
+  font-size: 25px;
+  letter-spacing: -0.05em;
+}
+
+.curriculum-leave-message {
+  margin: 18px 0 0;
+  padding: 18px;
+  border-radius: 15px;
+  color: #79434a;
+  background: #fff3f4;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.7;
+}
+
+.curriculum-leave-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.curriculum-leave-actions button {
+  min-height: 50px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.curriculum-leave-stay {
+  border: 1px solid #cfdcd8;
+  color: #34564d;
+  background: #f4f8f6;
+}
+
+.curriculum-leave-confirm {
+  color: #fff;
+  background: #b84c55;
+  box-shadow: 0 12px 28px rgba(184, 76, 85, 0.22);
+}
+
+.curriculum-leave-confirm:hover,
+.curriculum-leave-confirm:focus-visible {
+  background: #9d3540;
+}
+
 @media (max-width: 540px) {
-  .curriculum-alert-dialog {
+  .curriculum-alert-dialog,
+  .curriculum-leave-dialog {
     width: calc(100% - 24px);
     padding: 25px 20px 20px;
     border-radius: 21px;
@@ -5164,6 +5551,24 @@ body.is-platform-image-capturing .platform-print-root {
 
   .curriculum-alert-message {
     font-size: 12px;
+  }
+
+  .curriculum-leave-symbol {
+    width: 54px;
+    height: 54px;
+    border-radius: 17px;
+  }
+
+  .curriculum-leave-dialog h2 {
+    font-size: 22px;
+  }
+
+  .curriculum-leave-message {
+    font-size: 13px;
+  }
+
+  .curriculum-leave-actions {
+    grid-template-columns: 1fr;
   }
 
   .recommend-notice-dialog {
@@ -15626,40 +16031,188 @@ body.curriculum-preview-open {
   padding-right: 52px;
 }
 
-.curriculum-preview-pages {
+.curriculum-year-workspace-selector {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 9px;
-  margin-top: 18px;
+  grid-template-columns: minmax(210px, 270px) minmax(320px, 1fr);
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 2px solid #b9dcd0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f7fcfa, #edf8f4);
 }
 
-.curriculum-preview-pages button {
-  display: grid;
-  gap: 4px;
-  min-height: 62px;
-  padding: 11px 14px;
-  border: 1px solid #cddfd9;
+.curriculum-year-workspace-selector > span {
+  color: #49675e;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.curriculum-year-custom-select {
+  position: relative;
+  width: min(100%, 560px);
+  justify-self: start;
+}
+
+.curriculum-year-custom-select > button {
+  display: flex;
+  width: 100%;
+  min-height: 60px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 15px;
+  border: 1px solid #9bcbbd;
   border-radius: 13px;
-  color: #526860;
+  outline: none;
+  color: #173f34;
   background: #fff;
+  font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.curriculum-preview-pages button strong {
-  color: #183f34;
-  font-size: 13px;
+.curriculum-year-custom-select > button > span,
+.curriculum-year-options button > span {
+  display: grid;
+  gap: 3px;
 }
 
-.curriculum-preview-pages button span {
+.curriculum-year-custom-select > button strong,
+.curriculum-year-options button strong {
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.curriculum-year-custom-select > button small,
+.curriculum-year-options button small {
+  color: #60766f;
   font-size: 10px;
+  font-weight: 700;
 }
 
-.curriculum-preview-pages button.is-selected {
+.curriculum-year-custom-select > button > .icon {
+  width: 18px;
+  height: 18px;
+  transition: transform 160ms ease;
+}
+
+.curriculum-year-custom-select > button[aria-expanded="true"] {
   border-color: var(--primary);
-  color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(8, 116, 91, 0.12);
+}
+
+.curriculum-year-custom-select > button[aria-expanded="true"] > .icon {
+  transform: rotate(90deg);
+}
+
+.curriculum-year-options {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #bcd7ce;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 44px rgba(7, 48, 38, 0.2);
+}
+
+.curriculum-year-options[hidden] {
+  display: none;
+}
+
+.curriculum-year-options button {
+  display: flex;
+  min-height: 55px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: #284d43;
+  background: #f6faf8;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.curriculum-year-options button:hover,
+.curriculum-year-options button:focus-visible,
+.curriculum-year-options button.is-selected {
+  border-color: #9bcfbe;
+  color: var(--primary-dark);
   background: #e9f7f2;
-  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.curriculum-year-options button .icon {
+  width: 17px;
+  height: 17px;
+  color: var(--primary);
+}
+
+.curriculum-current-year-panel {
+  display: grid;
+  align-content: center;
+  min-height: 88px;
+  margin-top: 10px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, #0a6653, #08745b 58%, #159375);
+  box-shadow: 0 12px 26px rgba(8, 116, 91, 0.17);
+}
+
+.curriculum-current-year-panel small {
+  color: #bff3df;
+  font: 800 9px Consolas, monospace;
+  letter-spacing: 0.13em;
+}
+
+.curriculum-current-year-panel strong {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 2px;
+  font-size: 21px;
+  letter-spacing: -0.045em;
+}
+
+.curriculum-current-year-panel strong b {
+  font-size: 31px;
+  letter-spacing: -0.04em;
+}
+
+.curriculum-current-year-panel p {
+  margin: 5px 0 0;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.curriculum-current-cohort-title {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 6px !important;
+}
+
+.curriculum-current-cohort-title strong {
+  color: #133f34;
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: -0.055em;
+}
+
+.curriculum-editor-cohort h4.curriculum-current-cohort-title span {
+  color: #31594e;
+  font-size: 16px;
+  font-weight: 800;
 }
 
 .curriculum-region-field {
@@ -15786,6 +16339,14 @@ body.curriculum-preview-open {
   .curriculum-fixed-grid {
     grid-template-columns: 1fr;
   }
+
+  .curriculum-year-workspace-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .curriculum-year-custom-select {
+    width: 100%;
+  }
 }
 
 @media (max-width: 520px) {
@@ -15793,8 +16354,39 @@ body.curriculum-preview-open {
     padding: 14px;
   }
 
-  .curriculum-preview-pages {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .curriculum-year-workspace-selector {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .curriculum-year-custom-select > button {
+    min-height: 55px;
+  }
+
+  .curriculum-year-custom-select > button strong,
+  .curriculum-year-options button strong {
+    font-size: 14px;
+  }
+
+  .curriculum-current-year-panel {
+    min-height: 82px;
+    padding: 12px 14px;
+  }
+
+  .curriculum-current-year-panel strong {
+    font-size: 18px;
+  }
+
+  .curriculum-current-year-panel strong b {
+    font-size: 27px;
+  }
+
+  .curriculum-current-cohort-title strong {
+    font-size: 22px;
+  }
+
+  .curriculum-editor-cohort h4.curriculum-current-cohort-title span {
+    font-size: 14px;
   }
 
   .curriculum-region-options {
@@ -15936,7 +16528,7 @@ body.curriculum-preview-open {
 .curriculum-preview-overlay .curriculum-editor-school-fields > label > span,
 .curriculum-preview-overlay .curriculum-editor-school-fields > div > span,
 .curriculum-preview-overlay .curriculum-option-editor label > span {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .curriculum-preview-overlay .curriculum-editor-school-fields input,
@@ -16094,6 +16686,43 @@ body.curriculum-preview-open {
 .curriculum-preview-overlay .curriculum-course-remove {
   padding: 0 14px;
   font-size: 20px;
+}
+
+@media (min-width: 821px) {
+  .curriculum-preview-overlay .curriculum-course-dropzone {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .curriculum-preview-overlay .curriculum-course-dropzone > p {
+    grid-column: 1 / -1;
+  }
+
+  .curriculum-preview-overlay .curriculum-option-editor > header {
+    grid-template-columns: minmax(220px, 420px) 120px auto;
+    justify-content: start;
+  }
+}
+
+.curriculum-preview-overlay .curriculum-choose-input {
+  min-height: 44px;
+  border: 2px solid #65bca6;
+  background: #f0faf6;
+  box-shadow: 0 3px 10px rgba(8, 116, 91, 0.08);
+}
+
+.curriculum-preview-overlay .curriculum-choose-input b {
+  padding-left: 11px;
+  color: #08745b;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.curriculum-preview-overlay .curriculum-choose-input input {
+  min-height: 40px;
+  color: #073e32;
+  background: transparent;
+  font-size: 18px;
+  font-weight: 950;
 }
 
 .curriculum-preview-overlay .curriculum-add-option {
@@ -17613,9 +18242,15 @@ body.curriculum-preview-open {
 .curriculum-entry-methods > .curriculum-upload-zone {
   min-height: 172px;
   align-content: center;
+  justify-items: center;
   gap: 8px;
   padding: 26px;
   border-radius: 19px;
+  text-align: center;
+}
+
+.curriculum-entry-methods > .curriculum-upload-zone > * {
+  justify-self: center;
 }
 
 .curriculum-entry-methods > .curriculum-create-blank > span,
@@ -17651,6 +18286,14 @@ body.curriculum-preview-open {
   letter-spacing: -0.035em;
   line-height: 1.5;
   white-space: nowrap;
+}
+
+.curriculum-entry-methods > .curriculum-upload-zone small {
+  width: 100%;
+  max-width: 330px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 @media (min-width: 1200px) {

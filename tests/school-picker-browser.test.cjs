@@ -314,12 +314,19 @@ async function main() {
       const notice = document.querySelector('.curriculum-format-notice');
       const title = notice.querySelector('header');
       const firstItem = notice.querySelector('li');
+      const uploadCard = document.querySelector('.curriculum-upload-zone');
+      const uploadCenter = uploadCard.getBoundingClientRect().left + (uploadCard.getBoundingClientRect().width / 2);
+      const elementCenter = (element) => element.getBoundingClientRect().left + (element.getBoundingClientRect().width / 2);
       return {
         title: title.querySelector('strong')?.textContent,
         hasIcon: Boolean(title.querySelector('.icon')),
         itemCount: notice.querySelectorAll('li').length,
         listBelowTitle: firstItem.getBoundingClientRect().top > title.getBoundingClientRect().bottom,
-        hasLegacyMark: Boolean(notice.querySelector('mark'))
+        hasLegacyMark: Boolean(notice.querySelector('mark')),
+        uploadSubtitle: uploadCard.querySelector('small').textContent.trim(),
+        uploadIconOffset: Math.abs(elementCenter(uploadCard.querySelector('.upload-icon')) - uploadCenter),
+        uploadTitleOffset: Math.abs(elementCenter(uploadCard.querySelector('strong')) - uploadCenter),
+        uploadSubtitleAlignment: getComputedStyle(uploadCard.querySelector('small')).textAlign
       };
     })()`);
     assert.equal(uploadNotice.title, "업로드 전 확인하세요.");
@@ -327,27 +334,181 @@ async function main() {
     assert.equal(uploadNotice.itemCount, 3);
     assert.equal(uploadNotice.listBelowTitle, true);
     assert.equal(uploadNotice.hasLegacyMark, false);
+    assert.equal(uploadNotice.uploadSubtitle, "엑셀, 한글 편제표를 입학년도별로 선택합니다.");
+    assert.ok(uploadNotice.uploadIconOffset <= 1);
+    assert.ok(uploadNotice.uploadTitleOffset <= 1);
+    assert.equal(uploadNotice.uploadSubtitleAlignment, "center");
     const uploadNoticeScreenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     fs.writeFileSync(path.join(projectRoot, "previews", "upload-format-notice.png"), Buffer.from(uploadNoticeScreenshot.data, "base64"));
     assert.equal(await evaluate("window.SchoolStore.getSnapshot().schools.some((school) => school.id === 'draft-only')"), false);
+
+    const schoolNameFormatWarning = await evaluate(`(async () => {
+      window.SchoolStore.isConfigured = () => true;
+      const state = window.DatabaseApp.getState();
+      state.schoolAuthDialogMode = 'teacher';
+      state.pendingCurriculumAction = 'upload';
+      state.schoolAuthStep = 2;
+      state.schoolAuthRegion = '강원특별자치도';
+      state.schoolAuthSchoolName = '';
+      window.DatabaseApp.renderAdmin();
+      const form = document.querySelector('[data-teacher-school-form]');
+      form.querySelector('input[name="schoolName"]').value = '원주여자';
+      form.requestSubmit();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return {
+        open: document.querySelector('#curriculum-alert-dialog').open,
+        message: document.querySelector('#curriculum-alert-message').textContent.trim()
+      };
+    })()`, true);
+    assert.equal(schoolNameFormatWarning.open, true);
+    assert.equal(schoolNameFormatWarning.message, "OO 고등학교 형식으로 작성해 주세요");
+    await evaluate("document.querySelector('#curriculum-alert-dialog [data-curriculum-alert-close]').click()");
+
+    const uploadWorkspace = await evaluate(`(() => {
+      const state = window.DatabaseApp.getState();
+      state.schoolAuthDialogMode = 'teacher';
+      state.pendingCurriculumAction = 'upload';
+      state.schoolAuthStep = 3;
+      state.schoolAuthRegion = '강원특별자치도';
+      state.schoolAuthSchoolName = '원주여자고등학교';
+      state.pendingCurriculumIdentity = { schoolName: '원주여자고등학교', region: '강원특별자치도' };
+      state.uploadCurriculumDraft = {
+        id: 'upload-draft-test',
+        updatedAt: '2026-09-05T03:30:00.000Z',
+        storage: 'remote',
+        data: window.DatabaseApp.createBlankCurriculumImport()
+      };
+      window.DatabaseApp.renderAdmin();
+      const dialog = document.querySelector('[data-school-auth-dialog]');
+      const inputs = [...dialog.querySelectorAll('[data-auth-curriculum-file]')];
+      const draftButton = dialog.querySelector('[data-load-upload-curriculum-draft]');
+      return {
+        title: dialog.querySelector('h3').textContent.trim(),
+        inputCount: inputs.length,
+        years: inputs.map((input) => Number(input.dataset.uploadAdmissionYear)),
+        acceptsHwp: inputs.every((input) => input.accept.includes('.hwp') && input.accept.includes('.hwpx')),
+        draftButton: draftButton?.textContent.replace(/\s+/g, ' ').trim() || '',
+        draftNotice: dialog.querySelector('.curriculum-upload-draft-resume')?.textContent.replace(/\s+/g, ' ').trim() || '',
+        confirmation: dialog.querySelector('button[type="submit"]').textContent.trim(),
+        helper: dialog.querySelector('.curriculum-upload-review-help').textContent.trim(),
+        width: dialog.getBoundingClientRect().width
+      };
+    })()`);
+    assert.equal(uploadWorkspace.title, "입학년도별 신입생 편제표 업로드");
+    assert.equal(uploadWorkspace.inputCount, 2);
+    assert.deepEqual(uploadWorkspace.years, [2026, 2025]);
+    assert.equal(uploadWorkspace.acceptsHwp, true);
+    assert.equal(uploadWorkspace.draftButton, "임시저장 불러오기");
+    assert.match(uploadWorkspace.draftNotice, /임시저장본이 있습니다/);
+    assert.equal(uploadWorkspace.confirmation, "업로드 확인");
+    assert.match(uploadWorkspace.helper, /마지막에 ‘편제표 등록’을 눌러야 연동됩니다/);
+    assert.ok(uploadWorkspace.width >= 800);
+
+    await evaluate("document.querySelector('[data-load-upload-curriculum-draft]').click()");
+    await waitFor(async () => evaluate("Boolean(document.querySelector('[data-curriculum-preview-overlay]'))"));
+    const resumedUploadDraft = await evaluate(`(() => {
+      const state = window.DatabaseApp.getState();
+      return {
+        authClosed: !document.querySelector('[data-school-auth-overlay]'),
+        draftId: state.curriculumDraftId,
+        schoolName: state.pendingCurriculum.curricula[0].schoolName,
+        message: state.curriculumImportMessage
+      };
+    })()`);
+    assert.equal(resumedUploadDraft.authClosed, true);
+    assert.equal(resumedUploadDraft.draftId, "upload-draft-test");
+    assert.equal(resumedUploadDraft.schoolName, "원주여자고등학교");
+    assert.equal(resumedUploadDraft.message, "마지막 임시저장본을 불러왔습니다.");
+
     const resetButtonUi = await evaluate(`(() => {
       const state = window.DatabaseApp.getState();
+      state.schoolAuthDialogMode = '';
+      state.schoolAuthStep = 1;
+      state.pendingCurriculumAction = '';
       state.pendingCurriculum = window.DatabaseApp.createBlankCurriculumImport();
-      state.pendingCurriculum.curricula[0].grades[0].semesters[0].common.push('공통국어1');
+      state.curriculumSavedFingerprints = {};
+      const firstSemester = state.pendingCurriculum.curricula[0].grades[0].semesters[0];
+      firstSemester.common.push('공통국어1', '공통수학1');
+      firstSemester.options.push({ label: '옵션 1', choose: 1, courses: ['문학', '대수'] });
       window.DatabaseApp.renderAdmin();
       const copyButton = document.querySelector('[data-copy-curriculum-year]');
       const resetButton = document.querySelector('[data-reset-curriculum]');
+      const yearToggle = document.querySelector('[data-curriculum-year-toggle]');
+      const currentYearPanel = document.querySelector('.curriculum-current-year-panel');
+      const cohortYear = document.querySelector('.curriculum-current-cohort-title strong');
+      const schoolFields = document.querySelector('.curriculum-editor-school-fields');
+      const yearPicker = document.querySelector('.curriculum-year-workspace-selector');
+      const commonCourses = [...document.querySelectorAll('.curriculum-common-section .curriculum-editor-course')];
+      const optionNameField = document.querySelector('.curriculum-option-editor > header > label');
+      const choosePrefix = document.querySelector('.curriculum-choose-input b');
+      const chooseValue = document.querySelector('.curriculum-choose-input input');
       const copyRect = copyButton.getBoundingClientRect();
       const resetRect = resetButton.getBoundingClientRect();
       return {
         label: resetButton.textContent.trim(),
         background: getComputedStyle(resetButton).backgroundColor,
-        isRightOfCopy: resetRect.left >= copyRect.right
+        isRightOfCopy: resetRect.left >= copyRect.right,
+        hasYearTabs: Boolean(document.querySelector('[data-curriculum-preview-page]')),
+        hasNativeYearSelect: Boolean(document.querySelector('[data-curriculum-year-select]')),
+        yearSelectLabel: document.querySelector('.curriculum-year-workspace-selector > span').textContent.trim(),
+        yearOptionCount: document.querySelectorAll('[data-curriculum-year-option]').length,
+        selectedYearText: yearToggle.textContent.replace(/\s+/g, ' ').trim(),
+        yearToggleWidth: yearToggle.getBoundingClientRect().width,
+        currentYearText: currentYearPanel.textContent.replace(/\s+/g, ' ').trim(),
+        currentYearBackground: getComputedStyle(currentYearPanel).backgroundImage,
+        cohortYearText: cohortYear.textContent.trim(),
+        cohortYearFontSize: Number.parseFloat(getComputedStyle(cohortYear).fontSize),
+        labelsMatch: Number.parseFloat(getComputedStyle(schoolFields.querySelector(':scope > div > span')).fontSize) === Number.parseFloat(getComputedStyle(document.querySelector('.curriculum-year-workspace-selector > span')).fontSize),
+        schoolFieldsBeforeYearPicker: schoolFields.getBoundingClientRect().top < yearPicker.getBoundingClientRect().top,
+        yearPickerBeforeCurrentPanel: yearPicker.getBoundingClientRect().top < currentYearPanel.getBoundingClientRect().top,
+        commonCoursesShareRow: commonCourses.length === 2 && Math.abs(commonCourses[0].getBoundingClientRect().top - commonCourses[1].getBoundingClientRect().top) <= 1,
+        commonCoursesUseTwoColumns: commonCourses.length === 2 && commonCourses[1].getBoundingClientRect().left > commonCourses[0].getBoundingClientRect().right,
+        optionNameWidth: optionNameField.getBoundingClientRect().width,
+        choosePrefixFontSize: Number.parseFloat(getComputedStyle(choosePrefix).fontSize),
+        chooseValueFontSize: Number.parseFloat(getComputedStyle(chooseValue).fontSize),
+        chooseValueFontWeight: Number.parseInt(getComputedStyle(chooseValue).fontWeight, 10)
       };
     })()`);
     assert.equal(resetButtonUi.label, "초기화");
     assert.equal(resetButtonUi.background, "rgb(184, 76, 85)");
     assert.equal(resetButtonUi.isRightOfCopy, true);
+    assert.equal(resetButtonUi.hasYearTabs, false);
+    assert.equal(resetButtonUi.hasNativeYearSelect, false);
+    assert.equal(resetButtonUi.yearSelectLabel, "작업할 신입생 입학년도");
+    assert.equal(resetButtonUi.yearOptionCount, 2);
+    assert.match(resetButtonUi.selectedYearText, /2026학년도 신입생/);
+    assert.ok(resetButtonUi.yearToggleWidth <= 560);
+    assert.match(resetButtonUi.currentYearText, /현재 2026학년도 편제표 한 건만 저장합니다/);
+    assert.notEqual(resetButtonUi.currentYearBackground, "none");
+    assert.equal(resetButtonUi.cohortYearText, "2026학년도");
+    assert.ok(resetButtonUi.cohortYearFontSize >= 24);
+    assert.equal(resetButtonUi.labelsMatch, true);
+    assert.equal(resetButtonUi.schoolFieldsBeforeYearPicker, true);
+    assert.equal(resetButtonUi.yearPickerBeforeCurrentPanel, true);
+    assert.equal(resetButtonUi.commonCoursesShareRow, true);
+    assert.equal(resetButtonUi.commonCoursesUseTwoColumns, true);
+    assert.ok(resetButtonUi.optionNameWidth <= 420);
+    assert.ok(resetButtonUi.choosePrefixFontSize >= 15);
+    assert.ok(resetButtonUi.chooseValueFontSize >= 18);
+    assert.ok(resetButtonUi.chooseValueFontWeight >= 900);
+
+    await evaluate("document.querySelector('[data-clear-curriculum-preview]').click()");
+    await waitFor(async () => evaluate("document.querySelector('#curriculum-leave-dialog').open"));
+    const unsavedDialog = await evaluate(`(() => {
+      const dialog = document.querySelector('#curriculum-leave-dialog');
+      return {
+        message: dialog.querySelector('#curriculum-leave-message').textContent.trim(),
+        confirmText: dialog.querySelector('[data-confirm-curriculum-leave]').textContent.trim(),
+        zIndex: Number.parseInt(getComputedStyle(dialog).zIndex, 10),
+        pendingStillOpen: Boolean(document.querySelector('[data-curriculum-preview-overlay]'))
+      };
+    })()`);
+    assert.equal(unsavedDialog.message, "작업 중인 편제표가 저장되지 않았습니다. 그래도 나가시겠습니까?");
+    assert.equal(unsavedDialog.confirmText, "저장하지 않고 나가기");
+    assert.ok(unsavedDialog.zIndex >= 11000);
+    assert.equal(unsavedDialog.pendingStillOpen, true);
+    await evaluate("document.querySelector('#curriculum-leave-dialog [data-confirm-curriculum-leave]').click()");
+    await waitFor(async () => evaluate("!document.querySelector('[data-curriculum-preview-overlay]')"));
     console.log("school picker and upload notice browser tests passed");
   } finally {
     if (client) {

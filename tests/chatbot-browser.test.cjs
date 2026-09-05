@@ -221,6 +221,36 @@ async function main() {
     assert.equal(faqChoices.fillsRow, true);
     assert.ok(faqChoices.fontSize >= 12);
 
+    await evaluate("window.CourseChatbot.answer('진로가없어')", true);
+    const careerPurposeChoices = await evaluate(`(() => {
+      const item = [...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1);
+      const list = item.querySelector('.course-chatbot-followups');
+      const buttons = [...list.querySelectorAll('button')];
+      return {
+        resultCount: item.querySelectorAll('.course-chatbot-result').length,
+        markedAsFaqClarification: item.classList.contains('is-faq-clarification'),
+        choices: buttons.map((button) => button.textContent.trim()),
+        topPositions: buttons.map((button) => Math.round(button.getBoundingClientRect().top))
+      };
+    })()`);
+    assert.equal(careerPurposeChoices.resultCount, 0);
+    assert.equal(careerPurposeChoices.markedAsFaqClarification, true);
+    assert.equal(careerPurposeChoices.choices.length, 2);
+    assert.match(careerPurposeChoices.choices[0], /진로가 아직 없는데/);
+    assert.match(careerPurposeChoices.choices[1], /과목을 추천받고 싶어요/);
+    assert.equal(new Set(careerPurposeChoices.topPositions).size, 2);
+
+    await evaluate("window.CourseChatbot.answer('진로·관심사에 맞는 과목을 추천받고 싶어요.')", true);
+    const careerDetailQuestion = await evaluate(`(() => {
+      const item = [...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1);
+      return {
+        resultCount: item.querySelectorAll('.course-chatbot-result').length,
+        text: item.textContent
+      };
+    })()`);
+    assert.equal(careerDetailQuestion.resultCount, 0);
+    assert.match(careerDetailQuestion.text, /희망 직업·학과·관심 분야/);
+
     const screenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     fs.writeFileSync(path.join(projectRoot, "previews", "chatbot-teacher.png"), Buffer.from(screenshot.data, "base64"));
     console.log("chatbot browser tests passed");
