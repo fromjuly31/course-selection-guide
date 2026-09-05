@@ -283,6 +283,9 @@ async function main() {
   assert.match(appSource, /class="recommend-major-selection-item" type="button" data-recommend-department-choice=/);
   assert.match(appSource, /class="recommend-selection-confirm" type="button" data-recommend-next>학과 선택 확인 바로가기/);
   assert.match(appSource, /function openCourseGuideByName\(courseName\)/);
+  assert.match(appSource, /function captureDialogParentView\(courseName\)/);
+  assert.match(appSource, /function restoreDialogParentView\(\)/);
+  assert.match(appSource, /function closeDetailDialog\(\)/);
   assert.match(appSource, /class="common-course-chip is-fixed-selected"/);
   assert.match(appSource, /data-simulation-stage-start tabindex="-1"/);
   assert.match(appSource, /function focusSimulationStageStart\(\)/);
@@ -300,8 +303,8 @@ async function main() {
   assert.match(sectionHtml, /data-school-picker-label>미선택/);
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
   assert.match(sectionHtml, /school-data\.js\?v=20260905-6/);
-  assert.match(sectionHtml, /app\.css\?v=20260905-42/);
-  assert.match(sectionHtml, /app\.js\?v=20260905-25/);
+  assert.match(sectionHtml, /app\.css\?v=20260905-43/);
+  assert.match(sectionHtml, /app\.js\?v=20260905-26/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 
@@ -883,6 +886,33 @@ async function main() {
   assert.match(detailContent.innerHTML, /course-dialog-head/);
   assert.match(detailContent.innerHTML, /course-dialog-sections/);
   assert.equal(detailDialog.classList.contains("is-course-dialog"), true);
+
+  state.dialogParentView = {
+    markup: '<section data-restored-department>수학과 안내</section>',
+    modeClasses: ["is-major-dialog"],
+    scrollTop: 87,
+    focusCourseName: recommendedCourseName,
+    dialogDepartmentId: "department-math",
+    dialogSubjectKind: "reflectedSubjects",
+    dialogSubjectName: recommendedCourseName,
+    dialogBookIndex: -1,
+    dialogRecordIndex: -1,
+    dialogReturnToRecommend: false,
+    recommendField: "자연",
+    recommendDepartmentId: "",
+    recommendSection: "",
+    comparisonOpen: false
+  };
+  const returnedToDepartment = window.DatabaseApp.closeDetailDialog();
+  assert.equal(returnedToDepartment, false);
+  assert.equal(detailDialog.open, true);
+  assert.equal(detailDialog.classList.contains("is-course-dialog"), false);
+  assert.equal(detailDialog.classList.contains("is-major-dialog"), true);
+  assert.match(detailContent.innerHTML, /data-restored-department/);
+  assert.equal(detailDialog.scrollTop, 87);
+  assert.equal(state.dialogDepartmentId, "department-math");
+  assert.equal(window.DatabaseApp.closeDetailDialog(), true);
+  assert.equal(detailDialog.open, false);
 
   console.log("curriculum parser tests passed");
 }

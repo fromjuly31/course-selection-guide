@@ -114,6 +114,7 @@
     dialogBookIndex: -1,
     dialogRecordIndex: -1,
     dialogReturnToRecommend: false,
+    dialogParentView: null,
     simulationResultOpen: false,
     simulationGradeStep: 1,
     simulationMaxGradeStep: 1,
@@ -5035,9 +5036,74 @@
     }
   }
 
-  function openRecord(index) {
+  const DETAIL_DIALOG_MODE_CLASSES = [
+    "is-course-dialog",
+    "is-major-dialog",
+    "is-recommend-field-dialog",
+    "is-comparison-picker-dialog",
+    "is-comparison-result-dialog",
+    "is-department-common-dialog"
+  ];
+
+  function captureDialogParentView(courseName) {
+    if (!detailDialog.open || detailDialog.classList.contains("is-course-dialog")) return null;
+    const modeClasses = DETAIL_DIALOG_MODE_CLASSES.filter((className) => detailDialog.classList.contains(className));
+    if (!modeClasses.length) return null;
+    return {
+      markup: detailContent.innerHTML,
+      modeClasses,
+      scrollTop: detailDialog.scrollTop || 0,
+      focusCourseName: compactText(courseName),
+      dialogDepartmentId: state.dialogDepartmentId,
+      dialogSubjectKind: state.dialogSubjectKind,
+      dialogSubjectName: state.dialogSubjectName,
+      dialogBookIndex: state.dialogBookIndex,
+      dialogRecordIndex: state.dialogRecordIndex,
+      dialogReturnToRecommend: state.dialogReturnToRecommend,
+      recommendField: state.recommendField,
+      recommendDepartmentId: state.recommendDepartmentId,
+      recommendSection: state.recommendSection,
+      comparisonOpen: state.comparisonOpen
+    };
+  }
+
+  function restoreDialogParentView() {
+    const parentView = state.dialogParentView;
+    if (!parentView) return false;
+    state.dialogParentView = null;
+    state.dialogDepartmentId = parentView.dialogDepartmentId;
+    state.dialogSubjectKind = parentView.dialogSubjectKind;
+    state.dialogSubjectName = parentView.dialogSubjectName;
+    state.dialogBookIndex = parentView.dialogBookIndex;
+    state.dialogRecordIndex = parentView.dialogRecordIndex;
+    state.dialogReturnToRecommend = parentView.dialogReturnToRecommend;
+    state.recommendField = parentView.recommendField;
+    state.recommendDepartmentId = parentView.recommendDepartmentId;
+    state.recommendSection = parentView.recommendSection;
+    state.comparisonOpen = parentView.comparisonOpen;
+    detailDialog.classList.remove(...DETAIL_DIALOG_MODE_CLASSES);
+    detailDialog.classList.add(...parentView.modeClasses);
+    detailContent.innerHTML = parentView.markup;
+    requestAnimationFrame(() => {
+      detailDialog.scrollTop = parentView.scrollTop;
+      const returnTarget = [...detailContent.querySelectorAll("[data-major-course], [data-recommend-course]")]
+        .find((element) => compactText(element.dataset.majorCourse || element.dataset.recommendCourse) === parentView.focusCourseName);
+      returnTarget?.focus({ preventScroll: true });
+    });
+    return true;
+  }
+
+  function closeDetailDialog() {
+    if (detailDialog.classList.contains("is-course-dialog") && restoreDialogParentView()) return false;
+    state.dialogParentView = null;
+    detailDialog.close();
+    return true;
+  }
+
+  function openRecord(index, options = {}) {
     const row = state.dataset.rows[index];
     if (!row) return;
+    if (!options.preserveParentView) state.dialogParentView = null;
     state.dialogRecordIndex = index;
     state.dialogDepartmentId = "";
     state.dialogBookIndex = -1;
@@ -5093,7 +5159,9 @@
       showToast(`${courseName || "선택한"} 과목의 안내 정보를 찾지 못했습니다.`);
       return false;
     }
-    openRecord(reference.index);
+    const parentView = captureDialogParentView(courseName);
+    state.dialogParentView = parentView;
+    openRecord(reference.index, { preserveParentView: Boolean(parentView) });
     detailDialog.scrollTop = 0;
     return true;
   }
@@ -7040,7 +7108,10 @@
       if (!isExpanded) requestAnimationFrame(() => detailContent.querySelector(".university-reveal")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
       return;
     }
-    if (event.target.closest("[data-dialog-close]")) detailDialog.close();
+    if (event.target.closest("[data-dialog-close]")) {
+      closeDetailDialog();
+      return;
+    }
     const picker = document.querySelector(".header-school-picker");
     const trigger = event.target.closest(".header-school-picker [data-school-trigger]");
     const menu = picker?.querySelector("[data-school-menu]");
@@ -7151,7 +7222,13 @@
   });
 
   detailDialog.addEventListener("click", (event) => {
-    if (event.target === detailDialog) detailDialog.close();
+    if (event.target === detailDialog) closeDetailDialog();
+  });
+
+  detailDialog.addEventListener("cancel", (event) => {
+    if (!detailDialog.classList.contains("is-course-dialog") || !state.dialogParentView) return;
+    event.preventDefault();
+    restoreDialogParentView();
   });
 
   detailDialog.addEventListener("close", () => {
@@ -7169,6 +7246,7 @@
     state.dialogBookIndex = -1;
     state.dialogRecordIndex = -1;
     state.dialogReturnToRecommend = false;
+    state.dialogParentView = null;
     if (closedRecommendFlow && state.tab === "recommend") {
       state.recommendField = "";
       state.recommendDepartmentId = "";
@@ -7259,6 +7337,7 @@
     normalizeCurriculumCourseNames: uniqueCourseNames,
     getCurriculumGrades: curriculumGrades,
     departmentCommonDisclosureMarkup,
+    closeDetailDialog,
     openRecord,
     renderAdmin,
     renderSimulation,
