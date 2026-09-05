@@ -22,6 +22,14 @@ async function main() {
     is_active: true,
     updated_at: "2026-09-05T00:00:00.000Z"
   };
+  const draftOnlySchool = {
+    id: "draft-only",
+    slug: "draft-only",
+    name: "임시저장고등학교",
+    region: "강원특별자치도",
+    is_active: true,
+    updated_at: "2026-09-05T00:00:00.000Z"
+  };
   let allowUpdate = false;
   let storedRow = {
     id: "curriculum-2025",
@@ -74,7 +82,7 @@ async function main() {
     }
 
     response() {
-      if (this.table === "schools") return { data: [{ ...school }], error: null };
+      if (this.table === "schools") return { data: [{ ...school }, { ...draftOnlySchool }], error: null };
       if (this.table === "platform_users") return { data: { role: "teacher" }, error: null };
       if (this.table !== "curricula") return { data: null, error: null };
 
@@ -124,7 +132,9 @@ async function main() {
 
   vm.runInNewContext(source, context, { filename: "school-data.js" });
   const store = context.window.SchoolStore;
-  await store.init();
+  const initialized = await store.init();
+  assert.equal(initialized.schools.length, 1, "등록 편제표가 없는 학교는 연동 목록에서 숨겨야 합니다.");
+  assert.equal(initialized.schools[0].name, "원주여자고등학교");
   const latest = {
     version: 8,
     sourceFormat: "manual",
@@ -133,14 +143,21 @@ async function main() {
     admissionYear: 2025,
     grades: [{
       grade: 1,
-      semesters: [{ semester: 1, common: ["공통국어1"], designated: [], standalone: [], electives: [], options: [] }],
+      semesters: [{
+        semester: 1,
+        common: ["공통국어1"],
+        designated: [],
+        standalone: [],
+        electives: ["물리학", "화학"],
+        options: [{ id: "science-choice", label: "과학 선택", choose: 1, semester: 1, courses: ["물리학", "화학"] }]
+      }],
       common: ["공통국어1"],
       designated: [],
-      electives: [],
-      options: []
+      electives: ["물리학", "화학"],
+      options: [{ id: "science-choice", label: "과학 선택", choose: 1, semester: 1, courses: ["물리학", "화학"] }]
     }],
     courseMetadata: {},
-    courseCount: 1,
+    courseCount: 3,
     unlistedCourseCount: 0
   };
 
@@ -153,10 +170,13 @@ async function main() {
   allowUpdate = true;
   const result = await store.publishCurriculum(latest);
   assert.equal(result.action, "updated");
+  assert.equal(result.schools.length, 1);
   assert.equal(result.curriculum.admissionYear, 2025);
-  assert.equal(result.curriculum.courseCount, 1);
+  assert.equal(result.curriculum.courseCount, 3);
   assert.equal(result.curriculum.grades[0].common.join(","), "공통국어1");
-  assert.equal(storedRow.data.courseCount, 1);
+  assert.equal(result.curriculum.grades[0].semesters[0].options[0].courses.join(","), "물리학,화학");
+  assert.equal(storedRow.data.grades[0].semesters[0].options[0].courses.join(","), "물리학,화학");
+  assert.equal(storedRow.data.courseCount, 3);
   console.log("Curriculum publish verification passed.");
 }
 

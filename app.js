@@ -3570,6 +3570,17 @@
     return true;
   }
 
+  function resetCurriculumStructure(curriculum) {
+    if (!curriculum) return false;
+    curriculum.grades = [1, 2, 3].map(blankCurriculumGrade);
+    curriculum.courseMetadata = {};
+    curriculum.courseCount = 0;
+    curriculum.unlistedCourseCount = 0;
+    delete curriculum.copiedFromAdmissionYear;
+    delete curriculum.copiedAt;
+    return true;
+  }
+
   function curriculumCourseGroupIndex(course, courseMetadata = {}) {
     const metadata = courseMetadata[curriculumCourseAliasKey(course)] || {};
     const reference = curriculumCourseReference(course);
@@ -3638,6 +3649,14 @@
       pending.region = curricula[0]?.region || pending.region;
     }
     return curricula;
+  }
+
+  function pendingCurriculumWorkspaceSnapshot() {
+    if (!state.pendingCurriculum) return null;
+    const snapshot = JSON.parse(JSON.stringify(state.pendingCurriculum));
+    const activeCurriculum = pendingCurriculumItems()[state.curriculumPreviewIndex];
+    snapshot.lastEditedAdmissionYear = Number(activeCurriculum?.admissionYear) || null;
+    return snapshot;
   }
 
   function curriculumEditorContext(curriculumIndex, gradeNumber, semesterNumber) {
@@ -3764,10 +3783,13 @@
 
   function openStoredCurriculumDraft(draft, identity) {
     state.pendingCurriculumIdentity = { schoolName: identity.schoolName, region: identity.region };
-    state.pendingCurriculum = applyPendingCurriculumIdentity(JSON.parse(JSON.stringify(draft.data)), state.pendingCurriculumIdentity);
+    const storedWorkspace = JSON.parse(JSON.stringify(draft.data));
+    const lastEditedAdmissionYear = Number(storedWorkspace.lastEditedAdmissionYear) || null;
+    state.pendingCurriculum = applyPendingCurriculumIdentity(storedWorkspace, state.pendingCurriculumIdentity);
     state.curriculumDraftId = draft.id || "";
     state.curriculumDraftUpdatedAt = draft.updatedAt || "";
-    state.curriculumPreviewIndex = 0;
+    const savedCurriculumIndex = pendingCurriculumItems().findIndex((curriculum) => Number(curriculum.admissionYear) === lastEditedAdmissionYear);
+    state.curriculumPreviewIndex = savedCurriculumIndex >= 0 ? savedCurriculumIndex : 0;
     state.curriculumPreviewGradeIndex = 0;
     state.curriculumRegionPickerOpen = false;
     state.curriculumCoursePicker = null;
@@ -4243,7 +4265,7 @@
     const copySourceOptions = copySources.map((source) => `<option value="${escapeHtml(source.value)}">${escapeHtml(source.label)}</option>`).join("");
     const copyTools = `<aside class="curriculum-copy-tools">
       <div><strong>다른 입학년도 편제 불러오기</strong><small>선택한 입학년도의 1·2·3학년 전체 편제를 현재 ${activeCurriculum.admissionYear}년 입학생 편제로 복사합니다.</small></div>
-      <div><select data-curriculum-copy-source aria-label="복사할 입학년도" ${copySources.length && !state.curriculumBusy ? "" : "disabled"}>${copySourceOptions || '<option value="">불러올 다른 입학년도 없음</option>'}</select><button type="button" data-copy-curriculum-year data-curriculum-index="${state.curriculumPreviewIndex}" ${copySources.length && !state.curriculumBusy ? "" : "disabled"}>편제 불러오기</button></div>
+      <div><select data-curriculum-copy-source aria-label="복사할 입학년도" ${copySources.length && !state.curriculumBusy ? "" : "disabled"}>${copySourceOptions || '<option value="">불러올 다른 입학년도 없음</option>'}</select><button type="button" data-copy-curriculum-year data-curriculum-index="${state.curriculumPreviewIndex}" ${copySources.length && !state.curriculumBusy ? "" : "disabled"}>편제 불러오기</button><button class="curriculum-reset-button" type="button" data-reset-curriculum data-curriculum-index="${state.curriculumPreviewIndex}" ${activeCurriculum.courseCount && !state.curriculumBusy ? "" : "disabled"}>초기화</button></div>
     </aside>`;
     const canPublish = Boolean(state.schoolUser && state.accessRole);
     const isAdminEdit = activeCurriculum?.sourceFormat === "admin-edit" || pending?.sourceFormat === "admin-edit";
@@ -4347,7 +4369,7 @@
               <small>등록할 입학년도의 3개년 편제표를 1~3개 분석합니다.</small>
             </button>
           </div>
-          <aside class="curriculum-format-notice" role="note"><header>${icon("warning")}<strong>업로드 전 확인하세요!</strong></header><ul><li>2025, 2026학년도 신입생 편제표를 업로드 하세요. (전학년 편제표 X)</li><li>'신입생 편제표 업로드'가 안되면 왼쪽의 '직접 등록'으로 등록하세요.</li><li>'임시 저장'이 가능합니다. 최종 작성 후에는 '편제표 등록'을 눌러주세요.</li></ul></aside>
+          <aside class="curriculum-format-notice" role="note"><header>${icon("warning")}<strong>업로드 전 확인하세요.</strong></header><ul><li>2025, 2026학년도 신입생 편제표를 업로드 하세요. (전학년 편제표 X)</li><li>편제표가 업로드되지 않으면 '직접 등록'으로 등록하세요.</li><li>'임시 저장' 및 불러오기 기능을 활용하세요.</li></ul></aside>
           ${state.curriculumImportMessage ? `<p class="import-message ${state.pendingCurriculum ? "" : "is-error"}" role="status">${escapeHtml(state.curriculumImportMessage)}</p>` : ""}
           ${curriculumPreviewMarkup()}
         </section>
@@ -5657,6 +5679,22 @@
       return;
     }
 
+    const resetCurriculumButton = event.target.closest("[data-reset-curriculum]");
+    if (resetCurriculumButton) {
+      const curriculumIndex = Number(resetCurriculumButton.dataset.curriculumIndex);
+      const targetCurriculum = pendingCurriculumItems()[curriculumIndex];
+      if (!targetCurriculum || !targetCurriculum.courseCount) return;
+      if (!confirm(`${targetCurriculum.admissionYear}년 입학생 편제의 모든 학년·학기 과목과 선택 옵션을 초기화할까요?`)) return;
+      resetCurriculumStructure(targetCurriculum);
+      state.curriculumPreviewGradeIndex = 0;
+      preparePendingCurriculumForEditing();
+      state.curriculumImportMessage = `${targetCurriculum.admissionYear}년 입학생 편제의 모든 내용을 초기화했습니다.`;
+      refreshCurriculumPreviewSelectionInPlace({ pageChanged: true });
+      showToast(state.curriculumImportMessage, 4200);
+      requestAnimationFrame(() => root.querySelector(`[data-reset-curriculum][data-curriculum-index="${curriculumIndex}"]`)?.focus({ preventScroll: true }));
+      return;
+    }
+
     const editCurriculumCourseMeta = event.target.closest("[data-edit-curriculum-course-meta]");
     if (editCurriculumCourseMeta) {
       const courseChip = editCurriculumCourseMeta.closest("[data-curriculum-course-drag]");
@@ -5888,7 +5926,7 @@
           schoolName,
           region,
           entryMode,
-          data: JSON.parse(JSON.stringify(state.pendingCurriculum))
+          data: pendingCurriculumWorkspaceSnapshot()
         });
         state.curriculumDraftId = savedDraft.id;
         state.curriculumDraftUpdatedAt = savedDraft.updatedAt;
@@ -5927,31 +5965,38 @@
         return;
       }
       const publishingCurriculum = JSON.parse(JSON.stringify(pendingCurricula[0]));
-      const workspaceSnapshot = JSON.parse(JSON.stringify(state.pendingCurriculum));
+      const workspaceSnapshot = pendingCurriculumWorkspaceSnapshot();
       const workspaceCurricula = Array.isArray(workspaceSnapshot.curricula) ? workspaceSnapshot.curricula : [workspaceSnapshot];
       const schoolName = compactText(publishingCurriculum.schoolName || workspaceSnapshot.schoolName);
       const region = publishingCurriculum.region || workspaceSnapshot.region || "";
       const entryMode = workspaceSnapshot.sourceFormat === "manual"
         || workspaceCurricula.every((curriculum) => curriculum.sourceFormat === "manual") ? "manual" : "upload";
       state.curriculumBusy = true;
-      state.curriculumImportMessage = `현재 작업본을 보관하고 DB에 ${publishingCurriculum.admissionYear}년 입학생 편제표를 저장하고 있습니다.`;
+      state.curriculumImportMessage = `현재 작업 화면의 ${publishingCurriculum.admissionYear}년 입학생 편제표를 DB에 저장하고 있습니다.`;
       const originalPublishText = publishCurriculumButton.textContent;
       const draftButton = root.querySelector("[data-save-curriculum-draft]");
       publishCurriculumButton.disabled = true;
       publishCurriculumButton.textContent = "DB에 저장 중";
       if (draftButton) draftButton.disabled = true;
       try {
-        if (!schoolStore.saveCurriculumDraft) throw new Error("현재 작업본 저장 기능을 사용할 수 없습니다.");
-        const savedDraft = await schoolStore.saveCurriculumDraft({
-          id: state.curriculumDraftId,
-          schoolName,
-          region,
-          entryMode,
-          data: workspaceSnapshot
-        });
-        state.curriculumDraftId = savedDraft.id;
-        state.curriculumDraftUpdatedAt = savedDraft.updatedAt;
         const result = await schoolStore.publishCurriculum(publishingCurriculum);
+        let workspaceSaved = false;
+        if (schoolStore.saveCurriculumDraft) {
+          try {
+            const savedDraft = await schoolStore.saveCurriculumDraft({
+              id: state.curriculumDraftId,
+              schoolName,
+              region,
+              entryMode,
+              data: workspaceSnapshot
+            });
+            state.curriculumDraftId = savedDraft.id;
+            state.curriculumDraftUpdatedAt = savedDraft.updatedAt;
+            workspaceSaved = true;
+          } catch (draftError) {
+            console.warn("편제표 등록 후 작업본 보관 실패:", draftError);
+          }
+        }
         syncSchoolState(result);
         syncSchoolSimulationSubjects(true);
         const actionLabel = result.action === "updated" ? "교체" : "등록";
@@ -5960,7 +6005,9 @@
         refreshCurriculumPreviewSelectionInPlace({ pageChanged: true });
         showCurriculumAlert(
           `${publishingCurriculum.admissionYear}년 입학생 편제표 ${actionLabel} 완료`,
-          "현재 입학년도 편제표와 마지막 작업본을 함께 저장했습니다. 확인을 누르면 편제표 등록 화면으로 돌아갑니다.",
+          workspaceSaved
+            ? "현재 작업 화면의 편제표를 그대로 등록하고 마지막 작업본도 함께 보관했습니다. 확인을 누르면 편제표 등록 화면으로 돌아갑니다."
+            : "현재 작업 화면의 편제표는 정상적으로 등록했습니다. 다만 마지막 작업본은 별도로 보관하지 못했습니다.",
           "편제표 저장 완료",
           "success",
           closeCurriculumPreview
@@ -6812,6 +6859,7 @@
     renderAdmin,
     renderSimulation,
     createBlankCurriculumImport,
+    openStoredCurriculumDraft,
     renderRecommend,
     recommendKeywordResults,
     recommendFinalGroups,

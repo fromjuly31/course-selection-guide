@@ -27,6 +27,13 @@ async function main() {
       region: "강원특별자치도",
       admissionYears: [2026],
       curricula: [{ admissionYear: 2026, grades: [] }]
+    }, {
+      id: "draft-only",
+      slug: "draft-only",
+      name: "임시저장고등학교",
+      region: "강원특별자치도",
+      admissionYears: [],
+      curricula: []
     }]
   };
   const context = {
@@ -57,6 +64,8 @@ async function main() {
   const connected = await store.init();
   assert.equal(connected.selectedSchool.name, "원주여자고등학교");
   assert.equal(connected.selectedAdmissionYear, 2026);
+  assert.equal(connected.schools.length, 1, "공개 등록 편제표가 없는 학교는 연동 목록에서 숨겨야 합니다.");
+  assert.equal(connected.schools[0].name, "원주여자고등학교");
 
   const disconnected = await store.disconnectSchool();
   assert.equal(disconnected.selectedSchool, null);

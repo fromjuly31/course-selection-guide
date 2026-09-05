@@ -239,6 +239,7 @@ async function main() {
   assert.match(appCss, /\.common-course-block\.semester-subject-block,[\s\S]*?\.semester-elective-block\.semester-subject-block[\s\S]*?flex-direction: column/);
   assert.match(appCss, /\.recommend-result-course-items > button/);
   assert.match(appCss, /\.school-upload-card \.curriculum-format-notice li[\s\S]*?font-size: 13px/);
+  assert.match(appCss, /\.curriculum-copy-tools \.curriculum-reset-button[\s\S]*?background: #b84c55/);
   assert.match(appCss, /\.curriculum-editor-school-fields[\s\S]*?grid-template-columns: minmax\(180px, 220px\) minmax\(260px, 340px\) minmax\(180px, 1fr\)/);
   assert.match(appCss, /\.connected-schools-card \.school-admission-year-options button[\s\S]*?min-height: 42px/);
   assert.match(appSource, /PLATFORM_EXPORT_SAFE_PADDING = 32/);
@@ -251,8 +252,8 @@ async function main() {
   assert.match(sectionHtml, /<dialog class="header-school-menu school-picker-dialog"/);
   assert.match(sectionHtml, /data-school-picker-label>미선택/);
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
-  assert.match(sectionHtml, /school-data\.js\?v=20260905-5/);
-  assert.match(sectionHtml, /app\.js\?v=20260905-9/);
+  assert.match(sectionHtml, /school-data\.js\?v=20260905-6/);
+  assert.match(sectionHtml, /app\.js\?v=20260905-10/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 
@@ -390,10 +391,10 @@ async function main() {
   state.tab = "admin";
   state.pendingCurriculum = null;
   window.DatabaseApp.renderAdmin();
-  assert.match(root.innerHTML, /curriculum-format-notice[\s\S]*?<header>[\s\S]*?업로드 전 확인하세요!/);
+  assert.match(root.innerHTML, /curriculum-format-notice[\s\S]*?<header>[\s\S]*?업로드 전 확인하세요\./);
   assert.match(root.innerHTML, /2025, 2026학년도 신입생 편제표를 업로드 하세요\. \(전학년 편제표 X\)/);
-  assert.match(root.innerHTML, /'신입생 편제표 업로드'가 안되면 왼쪽의 '직접 등록'으로 등록하세요\./);
-  assert.match(root.innerHTML, /'임시 저장'이 가능합니다\. 최종 작성 후에는 '편제표 등록'을 눌러주세요\./);
+  assert.match(root.innerHTML, /편제표가 업로드되지 않으면 '직접 등록'으로 등록하세요\./);
+  assert.match(root.innerHTML, /'임시 저장' 및 불러오기 기능을 활용하세요\./);
   assert.doesNotMatch(root.innerHTML, /curriculum-format-notice[\s\S]*?<mark>/);
   assert.match(root.innerHTML, /data-open-connected-school-list/);
   assert.match(root.innerHTML, /3개 학교/);
@@ -445,6 +446,7 @@ async function main() {
   assert.match(root.innerHTML, /<input[^>]*placeholder="예: 우리고등학교"[^>]*data-curriculum-school-name/);
   assert.doesNotMatch(root.innerHTML, /school-name-affix/);
   assert.match(root.innerHTML, /다른 입학년도 편제 불러오기/);
+  assert.match(root.innerHTML, /data-reset-curriculum[^>]*disabled[^>]*>초기화<\/button>/);
 
   state.pendingCurriculum = null;
   state.schoolUser = null;
@@ -560,11 +562,14 @@ async function main() {
   blank.curricula.forEach((curriculum) => { curriculum.region = "강원특별자치도"; });
   let autoSavedWorkspace = null;
   let publishedCurriculum = null;
+  const publishOrder = [];
   window.SchoolStore.saveCurriculumDraft = async (input) => {
+    publishOrder.push("workspace-backup");
     autoSavedWorkspace = JSON.parse(JSON.stringify(input));
     return { id: "draft-latest", updatedAt: "2026-09-05T12:00:00.000Z" };
   };
   window.SchoolStore.publishCurriculum = async (input) => {
+    publishOrder.push("publish-current-screen");
     publishedCurriculum = JSON.parse(JSON.stringify(input));
     return {
       schools: [{ id: "wonju-girls", name: "원주여자고등학교", region: "강원특별자치도", admissionYears: [2025] }],
@@ -585,12 +590,58 @@ async function main() {
     matches() { return false; }
   };
   await root.dispatchTestEvent("click", { target: publishLatestButton });
+  assert.deepEqual(publishOrder, ["publish-current-screen", "workspace-backup"]);
   assert.equal(autoSavedWorkspace.data.curricula.length, 2);
+  assert.equal(autoSavedWorkspace.data.lastEditedAdmissionYear, 2025);
   assert.deepEqual(autoSavedWorkspace.data.curricula[1].grades, blank.curricula[1].grades);
+  assert.ok(autoSavedWorkspace.data.curricula[1].grades.some((grade) => grade.options.length > 0));
   assert.equal(publishedCurriculum.admissionYear, 2025);
   assert.deepEqual(publishedCurriculum.grades, blank.curricula[1].grades);
+  assert.ok(publishedCurriculum.grades.some((grade) => grade.options.length > 0));
   assert.equal(state.curriculumDraftId, "draft-latest");
-  assert.match(curriculumAlertMessage.textContent, /마지막 작업본을 함께 저장했습니다/);
+  assert.match(curriculumAlertMessage.textContent, /현재 작업 화면의 편제표를 그대로 등록/);
+
+  window.DatabaseApp.openStoredCurriculumDraft({
+    id: "draft-latest",
+    updatedAt: "2026-09-05T12:00:00.000Z",
+    data: autoSavedWorkspace.data
+  }, { schoolName: "원주여자고등학교", region: "강원특별자치도" });
+  assert.equal(state.curriculumPreviewIndex, 1, "다시 접속하면 마지막으로 등록한 2025 편제 탭을 열어야 합니다.");
+  assert.ok(state.pendingCurriculum.curricula[1].grades.some((grade) => grade.options.length > 0));
+
+  let publishedWithoutDraft = 0;
+  window.SchoolStore.publishCurriculum = async (input) => {
+    publishedWithoutDraft += 1;
+    return {
+      schools: [{ id: "wonju-girls", name: "원주여자고등학교", region: "강원특별자치도", admissionYears: [2025] }],
+      selectedSchool: { id: "wonju-girls", name: "원주여자고등학교", region: "강원특별자치도", admissionYears: [2025] },
+      selectedAdmissionYear: 2025,
+      curriculum: JSON.parse(JSON.stringify(input)),
+      user: { id: "teacher-test" },
+      accessRole: "teacher",
+      connection: "online",
+      action: "updated"
+    };
+  };
+  window.SchoolStore.saveCurriculumDraft = async () => { throw new Error("draft unavailable"); };
+  await root.dispatchTestEvent("click", { target: publishLatestButton });
+  assert.equal(publishedWithoutDraft, 1, "임시저장 실패와 관계없이 현재 작업 화면은 등록해야 합니다.");
+  assert.match(curriculumAlertMessage.textContent, /현재 작업 화면의 편제표는 정상적으로 등록했습니다/);
+
+  const resetCurriculumButton = {
+    dataset: { curriculumIndex: "1" },
+    closest(selector) { return selector === "[data-reset-curriculum]" ? this : null; },
+    matches() { return false; }
+  };
+  await root.dispatchTestEvent("click", { target: resetCurriculumButton });
+  assert.equal(state.pendingCurriculum.curricula[1].courseCount, 0);
+  assert.equal(state.pendingCurriculum.curricula[1].unlistedCourseCount, 0);
+  assert.ok(state.pendingCurriculum.curricula[1].grades.every((grade) => grade.semesters.every((semester) => (
+    semester.common.length === 0
+      && semester.standalone.length === 0
+      && semester.electives.length === 0
+      && semester.options.length === 0
+  ))));
 
   state.pendingCurriculum = result;
   state.curriculumCoursePicker = {

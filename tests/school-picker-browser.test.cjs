@@ -16,6 +16,13 @@ const schoolPayload = JSON.stringify({
     region: "강원특별자치도",
     admissionYears: [2026],
     curricula: [{ admissionYear: 2026, grades: [] }]
+  }, {
+    id: "draft-only",
+    slug: "draft-only",
+    name: "임시저장고등학교",
+    region: "강원특별자치도",
+    admissionYears: [],
+    curricula: []
   }]
 });
 
@@ -315,13 +322,32 @@ async function main() {
         hasLegacyMark: Boolean(notice.querySelector('mark'))
       };
     })()`);
-    assert.equal(uploadNotice.title, "업로드 전 확인하세요!");
+    assert.equal(uploadNotice.title, "업로드 전 확인하세요.");
     assert.equal(uploadNotice.hasIcon, true);
     assert.equal(uploadNotice.itemCount, 3);
     assert.equal(uploadNotice.listBelowTitle, true);
     assert.equal(uploadNotice.hasLegacyMark, false);
     const uploadNoticeScreenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     fs.writeFileSync(path.join(projectRoot, "previews", "upload-format-notice.png"), Buffer.from(uploadNoticeScreenshot.data, "base64"));
+    assert.equal(await evaluate("window.SchoolStore.getSnapshot().schools.some((school) => school.id === 'draft-only')"), false);
+    const resetButtonUi = await evaluate(`(() => {
+      const state = window.DatabaseApp.getState();
+      state.pendingCurriculum = window.DatabaseApp.createBlankCurriculumImport();
+      state.pendingCurriculum.curricula[0].grades[0].semesters[0].common.push('공통국어1');
+      window.DatabaseApp.renderAdmin();
+      const copyButton = document.querySelector('[data-copy-curriculum-year]');
+      const resetButton = document.querySelector('[data-reset-curriculum]');
+      const copyRect = copyButton.getBoundingClientRect();
+      const resetRect = resetButton.getBoundingClientRect();
+      return {
+        label: resetButton.textContent.trim(),
+        background: getComputedStyle(resetButton).backgroundColor,
+        isRightOfCopy: resetRect.left >= copyRect.right
+      };
+    })()`);
+    assert.equal(resetButtonUi.label, "초기화");
+    assert.equal(resetButtonUi.background, "rgb(184, 76, 85)");
+    assert.equal(resetButtonUi.isRightOfCopy, true);
     console.log("school picker and upload notice browser tests passed");
   } finally {
     if (client) {

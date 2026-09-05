@@ -91,6 +91,10 @@
       || String(a.name || "").localeCompare(String(b.name || ""), "ko", { sensitivity: "base" }));
   }
 
+  function schoolHasPublishedCurriculum(school) {
+    return (school?.admissionYears || []).some((year) => SUPPORTED_ADMISSION_YEARS.includes(Number(year)));
+  }
+
   function isMissingCurriculumDraftTableError(error) {
     const code = String(error?.code || "").trim().toUpperCase();
     const detail = [error?.message, error?.details, error?.hint].filter(Boolean).join(" ").toLowerCase();
@@ -111,14 +115,16 @@
   }
 
   function snapshot() {
+    const connectedSchools = schools.filter(schoolHasPublishedCurriculum);
+    const connectedSelectedSchool = schoolHasPublishedCurriculum(selectedSchool) ? selectedSchool : null;
     return {
       configured,
       connection,
       message,
-      schools: schools.map(schoolSnapshot),
-      selectedSchool: schoolSnapshot(selectedSchool),
-      selectedAdmissionYear,
-      curriculum: curriculum ? JSON.parse(JSON.stringify(curriculum)) : null,
+      schools: connectedSchools.map(schoolSnapshot),
+      selectedSchool: schoolSnapshot(connectedSelectedSchool),
+      selectedAdmissionYear: connectedSelectedSchool ? selectedAdmissionYear : null,
+      curriculum: connectedSelectedSchool && curriculum ? JSON.parse(JSON.stringify(curriculum)) : null,
       user: user ? { id: user.id, email: user.email || "" } : null,
       accessRole
     };

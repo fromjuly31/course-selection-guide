@@ -6763,6 +6763,17 @@ body.is-platform-image-capturing .platform-print-root {
   background: var(--primary);
 }
 
+.curriculum-copy-tools .curriculum-reset-button {
+  border-color: #b84c55;
+  color: #fff;
+  background: #b84c55;
+}
+
+.curriculum-copy-tools .curriculum-reset-button:hover:not(:disabled) {
+  border-color: #9d3540;
+  background: #9d3540;
+}
+
 .curriculum-copy-tools button:disabled,
 .curriculum-copy-tools select:disabled {
   cursor: not-allowed;
@@ -15527,7 +15538,7 @@ button.major-subject-chip:hover {
 
   .curriculum-copy-tools > div:last-child {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 
   .curriculum-copy-tools select {
