@@ -48,7 +48,12 @@ const evaluatedCases = chatbot.testCases.filter((testCase) => {
 });
 evaluatedCases.forEach((testCase) => {
   const result = engine.respond(testCase.sample_user_query);
-  assert.equal(result.intentId, testCase.expected_intent, `${testCase.test_id}: ${testCase.sample_user_query}`);
+  if (String(testCase.expected_intent).startsWith("COURSE:") && result.intentId === "COURSE_SCOPE_CLARIFY") {
+    assert.equal(result.results.length, 0, `${testCase.test_id}: 범위 확인 전에는 카드를 표시하지 않아야 합니다.`);
+    assert.ok(result.candidateCount >= 6, `${testCase.test_id}: 후보가 6개 이상이어야 합니다.`);
+  } else {
+    assert.equal(result.intentId, testCase.expected_intent, `${testCase.test_id}: ${testCase.sample_user_query}`);
+  }
   assert.match(result.sourceText, /^\[출처:.+\]$/u, `${testCase.test_id}: 출처 형식 오류`);
 });
 
@@ -57,8 +62,9 @@ assert.equal(broadTeacher.results.length, 3);
 assert.ok(broadTeacher.choices.length >= 10);
 
 const koreanTeacher = engine.respond("국어 교사가 되고 싶어");
-assert.ok(koreanTeacher.results.length > 1);
-assert.ok(koreanTeacher.results.some((result) => result.subject["과목명"] === "교육의 이해"));
-assert.ok(koreanTeacher.results.filter((result) => result.subject["교과군"] === "국어").length > 1);
+assert.equal(koreanTeacher.intentId, "COURSE_SCOPE_CLARIFY");
+assert.equal(koreanTeacher.results.length, 0);
+assert.ok(koreanTeacher.candidateCount >= 6);
+assert.ok(koreanTeacher.choices.some((choice) => choice.label.startsWith("진로선택")));
 
 console.log(`chatbot database tests passed (${evaluatedCases.length} DB cases)`);

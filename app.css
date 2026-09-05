@@ -5837,6 +5837,14 @@ body.is-platform-image-capturing .platform-print-root {
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.055);
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.header-school-picker:hover,
+.header-school-picker:focus-within {
+  border-color: rgba(114, 224, 189, 0.42);
+  background: rgba(114, 224, 189, 0.12);
+  box-shadow: 0 0 0 3px rgba(114, 224, 189, 0.08);
 }
 
 .header-school-picker > [data-school-trigger] {
@@ -5919,7 +5927,7 @@ body.is-platform-image-capturing .platform-print-root {
   color: white;
   background: rgba(194, 67, 78, 0.78);
   box-shadow: none;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 850;
   white-space: nowrap;
   transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
@@ -6105,11 +6113,12 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 .school-course-toggle {
-  display: flex;
-  min-width: 150px;
-  align-items: center;
-  gap: 9px;
-  padding: 0 13px;
+  display: grid;
+  min-width: 210px;
+  min-height: 68px;
+  align-content: center;
+  gap: 7px;
+  padding: 9px 13px;
   border: 1px solid var(--line);
   border-radius: 14px;
   color: #536469;
@@ -6117,26 +6126,30 @@ body.is-platform-image-capturing .platform-print-root {
   text-align: left;
 }
 
-.school-course-toggle > .icon {
+.school-course-toggle-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.school-course-toggle-title > .icon {
   width: 18px;
   height: 18px;
+  flex: 0 0 auto;
   padding: 3px;
   border-radius: 50%;
   color: white;
   background: #b4bfbc;
 }
 
-.school-course-toggle strong,
-.school-course-toggle small {
-  display: block;
-}
-
-.school-course-toggle strong {
-  font-size: 10px;
+.school-course-toggle-title strong {
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: -0.025em;
 }
 
 .school-course-toggle small {
-  max-width: 110px;
+  max-width: 170px;
   margin-top: 2px;
   overflow: hidden;
   color: var(--muted);
@@ -6145,13 +6158,50 @@ body.is-platform-image-capturing .platform-print-root {
   white-space: nowrap;
 }
 
+.school-course-toggle .school-course-school-badge {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 184px;
+  min-height: 25px;
+  align-items: center;
+  gap: 5px;
+  margin-top: 0;
+  padding: 4px 9px;
+  border: 1px solid #a8ddca;
+  border-radius: 999px;
+  color: #0d6654;
+  background: #e3f5ef;
+  box-shadow: 0 4px 10px rgb(8 116 91 / 10%);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.school-course-toggle .school-course-school-badge .icon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+.school-course-toggle .school-course-school-badge b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.school-course-toggle .school-course-school-badge.is-empty {
+  border-color: transparent;
+  color: var(--muted);
+  background: transparent;
+  box-shadow: none;
+}
+
 .school-course-toggle.is-active {
   border-color: var(--primary);
   color: var(--primary-dark);
   background: var(--brand-bg);
 }
 
-.school-course-toggle.is-active > .icon {
+.school-course-toggle.is-active .school-course-toggle-title > .icon {
   background: var(--primary);
 }
 
@@ -10927,24 +10977,24 @@ button.major-subject-chip:hover {
   .comparison-tray.has-items,
   .comparison-tray:not(.has-items) {
     right: 14px;
-    bottom: calc(202px + env(safe-area-inset-bottom));
-    width: 118px;
-    height: 52px;
+    bottom: calc(190px + env(safe-area-inset-bottom));
+    width: 46px;
+    height: 46px;
   }
 
   .comparison-launcher {
-    gap: 6px;
-    padding: 0 11px;
-    font-size: 11px;
+    gap: 0;
+    padding: 0;
   }
 
   .comparison-launcher .icon {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
   }
 
+  .comparison-launcher strong,
   .comparison-launcher em {
-    font-size: 9px;
+    display: none;
   }
 }
 
@@ -11434,7 +11484,7 @@ button.major-subject-chip:hover {
 
 .app-brand strong {
   color: #f7f6ef;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: -0.035em;
   white-space: nowrap;
@@ -11445,6 +11495,10 @@ button.major-subject-chip:hover {
     gap: 10px;
   }
 
+  .header-school-picker {
+    border-radius: 12px;
+  }
+
   .app-brand-mark {
     width: 38px;
     height: 38px;
@@ -11452,7 +11506,35 @@ button.major-subject-chip:hover {
   }
 
   .header-school-picker > [data-school-trigger] {
-    min-width: min(155px, calc(100vw - 180px));
+    width: clamp(104px, calc(100vw - 247px), 128px);
+    min-width: 0;
+    min-height: 42px;
+    gap: 7px;
+    padding: 5px 8px;
+    border-radius: 12px;
+  }
+
+  .header-school-picker > [data-school-trigger] small {
+    margin-top: 2px;
+    font-size: 8px;
+  }
+
+  .header-school-picker > [data-school-trigger] strong {
+    font-size: 10.5px;
+  }
+
+  .header-school-picker .school-cohort-badge {
+    min-height: 18px;
+    padding: 1px 6px;
+    font-size: 8px;
+  }
+
+  .header-school-picker > .school-disconnect-button {
+    min-height: 26px;
+    margin: 4px 5px 4px 0;
+    padding: 3px 5px;
+    border-radius: 10px;
+    font-size: 9.5px;
   }
 }
 
@@ -11473,7 +11555,7 @@ button.major-subject-chip:hover {
   }
 
   .app-brand strong {
-    font-size: 10px;
+    font-size: 12px;
   }
 }
 

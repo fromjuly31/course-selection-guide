@@ -89,12 +89,34 @@ async function main() {
     };
 
     await waitFor(async () => evaluate("document.readyState === 'complete' && Boolean(window.CourseChatbot)") );
+    const initialSupportDock = await evaluate(`(() => ({
+      collapsed: document.querySelector('.course-chatbot').classList.contains('is-collapsed'),
+      launchersVisible: getComputedStyle(document.querySelector('.course-support-launchers')).visibility,
+      expanded: document.querySelector('[data-support-collapse]').getAttribute('aria-expanded')
+    }))()`);
+    assert.equal(initialSupportDock.collapsed, false);
+    assert.equal(initialSupportDock.launchersVisible, "visible");
+    assert.equal(initialSupportDock.expanded, "true");
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    const mobileSupportDock = await evaluate(`(() => ({
+      chatbotWidth: document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width,
+      faqWidth: document.querySelector('.course-faq-launcher').getBoundingClientRect().width,
+      chatbotLabel: getComputedStyle(document.querySelector('.course-chatbot-launcher > span')).display,
+      faqLabel: getComputedStyle(document.querySelector('.course-faq-launcher > span')).display
+    }))()`);
+    assert.equal(mobileSupportDock.chatbotWidth, 46);
+    assert.equal(mobileSupportDock.faqWidth, 46);
+    assert.equal(mobileSupportDock.chatbotLabel, "none");
+    assert.equal(mobileSupportDock.faqLabel, "none");
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+    assert.equal(await evaluate("document.querySelector('.course-chatbot-suggestions') === null"), true);
     await evaluate(`(async () => {
-      document.querySelector('[data-support-collapse]').click();
       document.querySelector('.course-chatbot-launcher').click();
       await window.CourseChatbot.answer('교사가 진로야');
       return true;
     })()`, true);
+    const desktopPanelWidth = await evaluate("document.querySelector('.course-chatbot-panel').getBoundingClientRect().width");
+    assert.ok(desktopPanelWidth >= 465, `PC 챗봇 너비: ${desktopPanelWidth}px`);
     const broad = await evaluate(`(() => {
       const item = [...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1);
       return {
@@ -110,21 +132,76 @@ async function main() {
     assert.equal(broad.sourceIsLast, true);
 
     await evaluate("window.CourseChatbot.answer('국어 교사')", true);
-    const specific = await evaluate(`(() => {
+    const narrowedQuestion = await evaluate(`(() => {
       const item = [...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1);
       return {
         resultCount: item.querySelectorAll('.course-chatbot-result').length,
-        names: [...item.querySelectorAll('.course-chatbot-result strong')].map((node) => node.textContent),
-        scoreLabels: [...item.querySelectorAll('.course-chatbot-result div:last-child span')].map((node) => node.textContent),
+        choices: [...item.querySelectorAll('.course-chatbot-followups button')].map((button) => button.textContent),
         source: item.querySelector('.course-chatbot-source')?.textContent || '',
         sourceIsLast: item.lastElementChild?.classList.contains('course-chatbot-source') || false
       };
     })()`);
-    assert.ok(specific.resultCount > 1);
-    assert.ok(specific.names.includes("교육의 이해"));
-    assert.ok(specific.scoreLabels.every((label) => !label.includes("추천 점수")));
-    assert.match(specific.source, /^\[출처:/);
-    assert.equal(specific.sourceIsLast, true);
+    assert.equal(narrowedQuestion.resultCount, 0);
+    assert.ok(narrowedQuestion.choices.some((choice) => choice.startsWith("일반선택")));
+    assert.match(narrowedQuestion.source, /^\[출처:/);
+    assert.equal(narrowedQuestion.sourceIsLast, true);
+
+    await evaluate("window.CourseChatbot.answer('교육의 이해는 어떤 과목이야?')", true);
+    await wait(800);
+    const exactCourse = await evaluate(`(() => {
+      const item = [...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1);
+      const messageArea = document.querySelector('[data-chat-messages]');
+      const expectedTop = messageArea.getBoundingClientRect().top + (Number.parseFloat(getComputedStyle(messageArea).paddingTop) || 0);
+      return {
+        resultCount: item.querySelectorAll('.course-chatbot-result').length,
+        name: item.querySelector('.course-chatbot-result strong')?.textContent,
+        sourceFontSize: Number.parseFloat(getComputedStyle(item.querySelector('.course-chatbot-source')).fontSize),
+        answerStartDelta: Math.abs(item.getBoundingClientRect().top - expectedTop),
+        location: location.href
+      };
+    })()`);
+    assert.equal(exactCourse.resultCount, 1);
+    assert.equal(exactCourse.name, "교육의 이해");
+    assert.ok(exactCourse.sourceFontSize >= 10);
+    assert.ok(exactCourse.answerStartDelta <= 4, JSON.stringify(exactCourse));
+
+    await evaluate("[...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1).querySelector('.course-chatbot-result-detail').click()");
+    const detail = await evaluate(`(() => ({
+      open: document.querySelector('[data-chat-detail-dialog]').open,
+      title: document.querySelector('#course-chatbot-detail-title')?.textContent,
+      hasDescription: document.querySelector('[data-chat-detail-content]').textContent.includes('어떤 과목인가요?'),
+      chatOpen: window.CourseChatbot.getState().open,
+      location: location.href
+    }))()`);
+    assert.equal(detail.open, true);
+    assert.equal(detail.title, "교육의 이해");
+    assert.equal(detail.hasDescription, true);
+    assert.equal(detail.chatOpen, true);
+    assert.equal(detail.location, exactCourse.location);
+    await evaluate("document.querySelector('[data-chat-detail-close]').click()");
+    assert.equal(await evaluate("window.CourseChatbot.getState().open"), true);
+
+    await evaluate("window.CourseChatbot.answer('성적 평가')", true);
+    await wait(100);
+    const faqChoices = await evaluate(`(() => {
+      const item = [...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1);
+      const list = item.querySelector('.course-chatbot-followups');
+      const buttons = [...list.querySelectorAll('button')];
+      return {
+        markedAsFaqClarification: item.classList.contains('is-faq-clarification'),
+        layout: getComputedStyle(list).display,
+        count: buttons.length,
+        topPositions: buttons.map((button) => Math.round(button.getBoundingClientRect().top)),
+        fillsRow: buttons.every((button) => Math.abs(button.getBoundingClientRect().width - list.getBoundingClientRect().width) <= 1),
+        fontSize: Number.parseFloat(getComputedStyle(buttons[0]).fontSize)
+      };
+    })()`);
+    assert.equal(faqChoices.markedAsFaqClarification, true);
+    assert.equal(faqChoices.layout, "grid");
+    assert.equal(faqChoices.count, 3);
+    assert.equal(new Set(faqChoices.topPositions).size, faqChoices.count);
+    assert.equal(faqChoices.fillsRow, true);
+    assert.ok(faqChoices.fontSize >= 12);
 
     const screenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     fs.writeFileSync(path.join(projectRoot, "previews", "chatbot-teacher.png"), Buffer.from(screenshot.data, "base64"));

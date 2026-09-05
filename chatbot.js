@@ -10,6 +10,12 @@
     const text = String(value ?? "").replace(/\s*\/\s*/g, " · ").replace(/\s+/g, " ").trim();
     return text.length > maximum ? `${text.slice(0, maximum).trim()}…` : text;
   };
+  const escapeHtml = (value) => String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 
   const state = {
     database: null,
@@ -18,11 +24,11 @@
     readyPromise: null,
     open: false,
     faqOpen: false,
-    collapsed: true
+    collapsed: false
   };
 
   const shell = document.createElement("div");
-  shell.className = "course-chatbot is-collapsed";
+  shell.className = "course-chatbot";
   shell.innerHTML = `
     <div class="course-support-launchers">
       <button class="course-chatbot-launcher" type="button" aria-label="챗봇 문의 열기" aria-expanded="false">
@@ -32,7 +38,7 @@
         ${icon("help")}<span>FAQ</span>
       </button>
     </div>
-    <button class="course-support-collapse" type="button" data-support-collapse aria-label="학과 비교와 도움 버튼 펼치기" aria-expanded="false" title="버튼 펼치기">
+    <button class="course-support-collapse" type="button" data-support-collapse aria-label="학과 비교와 도움 버튼 접기" aria-expanded="true" title="버튼 접기">
       <span class="course-support-collapse-glyph" aria-hidden="true"></span>
     </button>
     <section class="course-chatbot-panel" role="dialog" aria-modal="false" aria-labelledby="course-chatbot-title" hidden>
@@ -44,17 +50,6 @@
         <div class="course-chatbot-message is-bot">
           <p>안녕하세요. 관심 분야나 희망 진로를 말씀해 주세요. 확인된 DB 안에서 관련 과목을 함께 찾아보고, 질문이 넓으면 먼저 몇 가지를 여쭤볼게요.</p>
         </div>
-      </div>
-      <div class="course-chatbot-suggestions" aria-label="대학교 관심 분야 빠른 선택">
-        <span class="course-chatbot-suggestion-label">대학교 관심 분야</span>
-        <button type="button" data-chat-prompt="인문 분야 학과와 과목을 추천해 주세요">인문</button>
-        <button type="button" data-chat-prompt="사회 분야 학과와 과목을 추천해 주세요">사회</button>
-        <button type="button" data-chat-prompt="자연 분야 학과와 과목을 추천해 주세요">자연</button>
-        <button type="button" data-chat-prompt="공학 분야 학과와 과목을 추천해 주세요">공학</button>
-        <button type="button" data-chat-prompt="의학 분야 학과와 과목을 추천해 주세요">의학</button>
-        <button type="button" data-chat-prompt="교육 분야 학과와 과목을 추천해 주세요">교육</button>
-        <button type="button" data-chat-prompt="예체능 분야 학과와 과목을 추천해 주세요">예체능</button>
-        <button type="button" data-chat-prompt="기타 분야 학과와 과목을 추천해 주세요">기타</button>
       </div>
       <form class="course-chatbot-form" data-chat-form>
         <label><span class="sr-only">과목 또는 학과 추천 질문</span><input type="text" data-chat-input maxlength="200" autocomplete="off" placeholder="관심 분야 혹은 희망 진로를 입력하세요"></label>
@@ -91,8 +86,11 @@
           </details>
         </div>
       </div>
-    </section>`;
-  document.documentElement.classList.add("support-launchers-collapsed");
+    </section>
+    <dialog class="course-chatbot-detail-dialog" data-chat-detail-dialog aria-labelledby="course-chatbot-detail-title">
+      <button class="course-chatbot-detail-close" type="button" data-chat-detail-close aria-label="상세 정보 닫기">${icon("close")}</button>
+      <div data-chat-detail-content></div>
+    </dialog>`;
   document.body.append(shell);
 
   const launcher = shell.querySelector(".course-chatbot-launcher");
@@ -102,6 +100,9 @@
   const collapseControl = shell.querySelector("[data-support-collapse]");
   const messages = shell.querySelector("[data-chat-messages]");
   const input = shell.querySelector("[data-chat-input]");
+  const detailDialog = shell.querySelector("[data-chat-detail-dialog]");
+  const detailContent = shell.querySelector("[data-chat-detail-content]");
+  let detailReturnFocus = null;
 
   async function prepareDatabase() {
     if (state.database) return state.database;
@@ -131,17 +132,108 @@
   function scrollMessageToTop(message) {
     if (!message) return;
     requestAnimationFrame(() => {
-      const messageTop = message.getBoundingClientRect().top;
-      const messagesTop = messages.getBoundingClientRect().top;
-      const paddingTop = Number.parseFloat(getComputedStyle(messages).paddingTop) || 0;
-      messages.scrollTo({
-        top: Math.max(0, messages.scrollTop + messageTop - messagesTop - paddingTop),
-        behavior: "smooth"
+      messages.querySelector(".course-chatbot-scroll-spacer")?.remove();
+      const styles = getComputedStyle(messages);
+      const paddingTop = Number.parseFloat(styles.paddingTop) || 0;
+      const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
+      const spacer = document.createElement("div");
+      spacer.className = "course-chatbot-scroll-spacer";
+      spacer.setAttribute("aria-hidden", "true");
+      spacer.style.height = `${Math.max(0, messages.clientHeight - message.getBoundingClientRect().height - paddingTop - paddingBottom)}px`;
+      messages.append(spacer);
+      requestAnimationFrame(() => {
+        const messageTop = message.getBoundingClientRect().top;
+        const messagesTop = messages.getBoundingClientRect().top;
+        messages.scrollTo({
+          top: Math.max(0, messages.scrollTop + messageTop - messagesTop - paddingTop),
+          behavior: "auto"
+        });
       });
     });
   }
 
+  function clearMessageScrollSpacer() {
+    messages.querySelector(".course-chatbot-scroll-spacer")?.remove();
+  }
+
+  function splitCourseTopics(value) {
+    return String(value || "")
+      .split(/\r?\n|[•●▪]/u)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function resultSourceLabel(result) {
+    const ids = [...(result.sourceIds || [])];
+    const labels = ids.map((id) => {
+      const source = state.engine?.sourceById?.get(String(id));
+      if (!source) return String(id);
+      const institution = String(source.institution || source["기관"] || "").trim();
+      const title = String(source.title || source["자료명"] || source["주소/자료"] || "").trim();
+      return [institution, title && `「${title}」`].filter(Boolean).join(", ");
+    }).filter(Boolean);
+    return labels.length ? `[출처: ${labels.join(" / ")}]` : "[출처: 과목선택 데이터베이스]";
+  }
+
+  function courseDetailMarkup(result) {
+    const subject = result.subject;
+    const name = subject["과목명"] || "과목 상세 정보";
+    const badges = [subject["과목유형"], subject["교과군"], subject["선택과목의 종류"] || subject["과목 구분"]].filter(Boolean);
+    const facts = [
+      ["과목 구분", subject["과목 구분"]],
+      ["성취도", subject["성취도"]],
+      ["석차등급", subject["석차등급"]],
+      ["수능 출제", subject["수능 출제 여부"]]
+    ].filter(([, value]) => String(value || "").trim());
+    const topics = splitCourseTopics(subject["과목의 주요 내용"]);
+    return `<article class="course-chatbot-detail">
+      <header class="course-chatbot-detail-head">
+        <span>${icon("book-open")}</span>
+        <div><small>COURSE GUIDE</small><h2 id="course-chatbot-detail-title">${escapeHtml(name)}</h2><div>${badges.map((badge) => `<em>${escapeHtml(badge)}</em>`).join("")}</div></div>
+      </header>
+      ${facts.length ? `<dl class="course-chatbot-detail-facts">${facts.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>` : ""}
+      <div class="course-chatbot-detail-sections">
+        ${subject["이 과목은 어떤 과목인가요?"] ? `<section><h3>어떤 과목인가요?</h3><p>${escapeHtml(subject["이 과목은 어떤 과목인가요?"])}</p></section>` : ""}
+        ${subject["이 과목을 누구에게 추천하나요?"] ? `<section class="is-recommendation"><h3>누구에게 추천하나요?</h3><p>${escapeHtml(subject["이 과목을 누구에게 추천하나요?"])}</p></section>` : ""}
+        ${topics.length ? `<section><h3>주요 내용</h3><ul>${topics.map((topic) => `<li>${escapeHtml(topic)}</li>`).join("")}</ul></section>` : ""}
+      </div>
+      <p class="course-chatbot-detail-source">${escapeHtml(resultSourceLabel(result))}</p>
+    </article>`;
+  }
+
+  function departmentDetailMarkup(result) {
+    const department = result.department;
+    const guide = department.guide || {};
+    const subjects = Array.isArray(department.relatedSubjects) ? department.relatedSubjects : [];
+    return `<article class="course-chatbot-detail">
+      <header class="course-chatbot-detail-head">
+        <span>${icon("graduation")}</span>
+        <div><small>DEPARTMENT GUIDE</small><h2 id="course-chatbot-detail-title">${escapeHtml(department.name || "학과 상세 정보")}</h2>${department.field ? `<div><em>${escapeHtml(department.field)} 분야</em></div>` : ""}</div>
+      </header>
+      <div class="course-chatbot-detail-sections">
+        ${guide.overview ? `<section><h3>학과 소개</h3><p>${escapeHtml(guide.overview)}</p></section>` : ""}
+        ${guide.aptitude ? `<section class="is-recommendation"><h3>어떤 학생에게 맞나요?</h3><p>${escapeHtml(guide.aptitude)}</p></section>` : ""}
+        ${guide.careers ? `<section><h3>관련 진로</h3><p>${escapeHtml(guide.careers)}</p></section>` : ""}
+        ${subjects.length ? `<section><h3>관련 과목</h3><ul>${subjects.map((subject) => `<li>${escapeHtml(subject)}</li>`).join("")}</ul></section>` : ""}
+      </div>
+    </article>`;
+  }
+
+  function openRecommendationDetail(result, trigger) {
+    if (!result?.subject && !result?.department) return;
+    detailReturnFocus = trigger || document.activeElement;
+    detailContent.innerHTML = result.subject ? courseDetailMarkup(result) : departmentDetailMarkup(result);
+    if (!detailDialog.open) detailDialog.showModal();
+    detailDialog.scrollTop = 0;
+    requestAnimationFrame(() => detailDialog.querySelector("[data-chat-detail-close]")?.focus({ preventScroll: true }));
+  }
+
+  function closeRecommendationDetail() {
+    if (detailDialog.open) detailDialog.close();
+  }
+
   function appendTextMessage(text, role = "bot", options = {}) {
+    clearMessageScrollSpacer();
     const wrapper = document.createElement("div");
     wrapper.className = `course-chatbot-message is-${role}`;
     const paragraph = document.createElement("p");
@@ -153,43 +245,57 @@
   }
 
   function appendBotResponse(answerData, options = {}) {
+    clearMessageScrollSpacer();
     const wrapper = document.createElement("div");
     wrapper.className = `course-chatbot-message is-bot${answerData.results?.length ? " has-results" : ""}`;
+    if (answerData.intentId === "FAQ_CLARIFY") wrapper.classList.add("is-faq-clarification");
     const introduction = document.createElement("p");
     introduction.textContent = answerData.text;
     wrapper.append(introduction);
 
     (answerData.results || []).forEach((result, index) => {
       const subject = result.subject;
+      const department = result.department;
+      if (!subject && !department) return;
+      const entityType = department ? "학과" : "과목";
+      const entityName = department?.name || subject["과목명"];
       const card = document.createElement("article");
       card.className = "course-chatbot-result";
 
       const heading = document.createElement("div");
       const rank = document.createElement("span");
-      rank.textContent = answerData.exact ? "과목 정보" : `추천 ${String(index + 1).padStart(2, "0")}`;
+      rank.textContent = answerData.exact ? `${entityType} 정보` : `추천 ${String(index + 1).padStart(2, "0")}`;
       const name = document.createElement("strong");
-      name.textContent = subject["과목명"];
+      name.textContent = entityName;
       const meta = document.createElement("small");
-      meta.textContent = [subject["과목유형"], subject["교과군"], subject["선택과목의 종류"]].filter(Boolean).join(" · ");
+      meta.textContent = department
+        ? [department.field, "학과"].filter(Boolean).join(" · ")
+        : [subject["과목유형"], subject["교과군"], subject["선택과목의 종류"] || subject["과목 구분"]].filter(Boolean).join(" · ");
       heading.append(rank, name, meta);
 
       const description = document.createElement("p");
-      description.textContent = shorten(subject["이 과목은 어떤 과목인가요?"], answerData.exact ? 260 : 170) || "DB에 등록된 과목 설명을 확인해 보세요.";
+      description.textContent = department
+        ? shorten(department.guide?.overview, answerData.exact ? 260 : 170) || "DB에 등록된 학과 설명을 확인해 보세요."
+        : shorten(subject["이 과목은 어떤 과목인가요?"], answerData.exact ? 260 : 170) || "DB에 등록된 과목 설명을 확인해 보세요.";
       const recommendation = document.createElement("p");
       recommendation.className = "course-chatbot-reason";
       const relation = [...(result.reasons || [])].filter((reason) => reason !== "과목명 정확 일치").slice(0, 2).join(" · ");
-      recommendation.textContent = subject["이 과목을 누구에게 추천하나요?"]
-        ? `이런 학생에게 잘 맞아요: ${shorten(subject["이 과목을 누구에게 추천하나요?"], 170)}`
-        : `DB 연결 근거: ${relation || "과목명과 교과 정보"}`;
+      const recommendationText = department?.guide?.aptitude || subject?.["이 과목을 누구에게 추천하나요?"];
+      recommendation.textContent = recommendationText
+        ? `이런 학생에게 잘 맞아요: ${shorten(recommendationText, 170)}`
+        : `DB 연결 근거: ${relation || `${entityType} 정보`}`;
 
       const footer = document.createElement("div");
       const keywords = document.createElement("span");
       const linkedTerms = [...(result.terms || [])].slice(0, 4);
-      keywords.textContent = linkedTerms.length ? `연결 키워드 · ${linkedTerms.join(" · ")}` : "DB 과목 프로필 연계";
-      const link = document.createElement("a");
-      link.href = `section.html?tab=subjects&q=${encodeURIComponent(subject["과목명"])}`;
-      link.textContent = "상세 보기";
-      footer.append(keywords, link);
+      keywords.textContent = linkedTerms.length ? `연결 키워드 · ${linkedTerms.join(" · ")}` : `DB ${entityType} 프로필 연계`;
+      const detailButton = document.createElement("button");
+      detailButton.type = "button";
+      detailButton.className = "course-chatbot-result-detail";
+      detailButton.setAttribute("aria-haspopup", "dialog");
+      detailButton.textContent = "상세 보기";
+      detailButton.addEventListener("click", () => openRecommendationDetail(result, detailButton));
+      footer.append(keywords, detailButton);
       card.append(heading, description, recommendation, footer);
       wrapper.append(card);
     });
@@ -208,7 +314,7 @@
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = choice.label;
-        button.addEventListener("click", () => answer(choice.prompt, { alignAnswerTop: true }));
+        button.addEventListener("click", () => answer(choice.prompt));
         choices.append(button);
       });
       wrapper.append(choices);
@@ -223,10 +329,9 @@
     return wrapper;
   }
 
-  async function answer(query, options = {}) {
+  async function answer(query) {
     const cleanQuery = String(query || "").trim();
     if (!cleanQuery) return;
-    const alignAnswerTop = options.alignAnswerTop === true;
     appendTextMessage(cleanQuery, "user");
     input.value = "";
     input.disabled = true;
@@ -248,8 +353,8 @@
       state.pendingChoices = [];
       const answerData = state.engine.respond(effectiveQuery);
       if (answerData.kind === "clarification") state.pendingChoices = answerData.choices || [];
-      const response = appendBotResponse(answerData, { scrollToEnd: !alignAnswerTop });
-      if (alignAnswerTop) scrollMessageToTop(response);
+      const response = appendBotResponse(answerData, { scrollToEnd: false });
+      scrollMessageToTop(response);
     } catch (error) {
       console.error("챗봇 데이터 로딩 실패:", error);
       loading.remove();
@@ -259,8 +364,8 @@
         results: [],
         choices: [],
         sourceText: "[출처: 데이터베이스 연결 실패]"
-      }, { scrollToEnd: !alignAnswerTop });
-      if (alignAnswerTop) scrollMessageToTop(response);
+      }, { scrollToEnd: false });
+      scrollMessageToTop(response);
     } finally {
       input.disabled = false;
       input.focus();
@@ -323,12 +428,20 @@
   collapseControl.addEventListener("click", () => setSupportCollapsed(!state.collapsed));
   shell.querySelector("[data-chat-close]").addEventListener("click", () => setOpen(false));
   shell.querySelector("[data-faq-close]").addEventListener("click", () => setFaqOpen(false));
+  shell.querySelector("[data-chat-detail-close]").addEventListener("click", closeRecommendationDetail);
+  detailDialog.addEventListener("click", (event) => {
+    if (event.target !== detailDialog) return;
+    const bounds = detailDialog.getBoundingClientRect();
+    const inside = event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
+    if (!inside) closeRecommendationDetail();
+  });
+  detailDialog.addEventListener("close", () => {
+    detailReturnFocus?.focus?.({ preventScroll: true });
+    detailReturnFocus = null;
+  });
   shell.querySelector("[data-chat-form]").addEventListener("submit", (event) => {
     event.preventDefault();
     answer(input.value);
-  });
-  shell.querySelectorAll("[data-chat-prompt]").forEach((button) => {
-    button.addEventListener("click", () => answer(button.dataset.chatPrompt, { alignAnswerTop: true }));
   });
   shell.querySelectorAll(".course-chatbot-faq-item").forEach((item) => {
     item.addEventListener("toggle", () => {
@@ -339,6 +452,7 @@
     });
   });
   document.addEventListener("keydown", (event) => {
+    if (detailDialog.open) return;
     if (event.key === "Escape" && state.open) setOpen(false);
     else if (event.key === "Escape" && state.faqOpen) setFaqOpen(false);
   });

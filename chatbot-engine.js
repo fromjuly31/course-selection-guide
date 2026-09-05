@@ -8,10 +8,26 @@
   const GENERIC_WORDS = new Set([
     "나는", "제가", "저는", "우리", "학생", "과목", "수업", "추천", "추천해줘", "추천해주세요", "알려줘", "알려주세요",
     "어떤", "무슨", "관련", "관심", "있어", "있어요", "하고", "싶어", "싶어요", "좋아", "좋아요", "대한", "위한", "되는",
-    "배우는", "배우고", "공부", "선택", "고등학교", "궁금해", "궁금해요", "인가요", "뭔가요", "어떻게", "할까요", "분야"
+    "배우는", "배우고", "공부", "선택", "진로", "진로와", "고등학교", "궁금해", "궁금해요", "인가요", "뭔가요", "어떻게", "할까요", "분야"
   ]);
   const PARTICLES = ["이에요", "예요", "입니다", "이라서", "라서", "으로", "에서", "에게", "한테", "처럼", "까지", "부터", "이랑", "랑", "으로는", "에는", "은", "는", "이", "가", "을", "를", "의", "도", "만", "야"];
   const COURSE_SIGNAL = /진로|직업|되고\s*싶|희망|관심|적성|추천|교사|선생님|교육과|사범대|교대/u;
+  const COURSE_RESULT_CLARIFICATION_THRESHOLD = 6;
+  const SELECTION_TYPES = ["공통과목", "일반선택", "진로선택", "융합선택"];
+  const COURSE_GROUP_ALIASES = [
+    ["제2외국어", ["제2외국어", "제이외국어"]],
+    ["기술·가정", ["기술가정", "기술·가정"]],
+    ["사회(역사/도덕 포함)", ["사회", "역사", "도덕"]],
+    ["과학", ["과학"]],
+    ["수학", ["수학"]],
+    ["국어", ["국어"]],
+    ["영어", ["영어"]],
+    ["체육", ["체육", "스포츠"]],
+    ["예술", ["예술", "미술", "음악", "무용", "연극"]],
+    ["정보", ["정보", "컴퓨터", "인공지능"]],
+    ["한문", ["한문"]],
+    ["교양", ["교양"]]
+  ];
 
   const normalize = (value) => String(value ?? "")
     .normalize("NFKC")
@@ -64,6 +80,26 @@
   function numberValue(value, fallback) {
     const number = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
     return Number.isFinite(number) ? number : fallback;
+  }
+
+  function selectionTypeFromQuery(query) {
+    const compact = normalize(query);
+    return SELECTION_TYPES.find((type) => compact.includes(normalize(type))) || "";
+  }
+
+  function subjectSelectionType(subject) {
+    const selectionType = String(subject?.["선택과목의 종류"] || "").trim();
+    if (selectionType) return selectionType;
+    return subject?.["과목 구분"] === "공통과목" ? "공통과목" : "";
+  }
+
+  function courseGroupFromQuery(query) {
+    const compact = normalize(query);
+    return COURSE_GROUP_ALIASES.find(([, aliases]) => aliases.some((alias) => compact.includes(normalize(alias))))?.[0] || "";
+  }
+
+  function withoutSelectionType(query) {
+    return String(query ?? "").replace(/공통\s*과목|(?:일반|진로|융합)\s*선택/gu, " ").replace(/\s+/g, " ").trim();
   }
 
   function createEngine(database) {
@@ -217,8 +253,11 @@
     }
 
     function scoreCourses(query) {
-      const compact = normalize(query);
-      const queryTokens = tokens(query);
+      const requestedSelectionType = selectionTypeFromQuery(query);
+      const scoringQuery = withoutSelectionType(query);
+      const requestedCourseGroup = courseGroupFromQuery(scoringQuery);
+      const compact = normalize(scoringQuery);
+      const queryTokens = tokens(scoringQuery);
       const scores = new Map();
       const exactNames = new Set();
       const exactBonus = setting("과목명 정확 일치 보너스", 100);
@@ -295,14 +334,56 @@
 
       const sorted = [...scores.values()].sort((a, b) => b.score - a.score || String(a.subject["과목명"]).localeCompare(String(b.subject["과목명"]), "ko"));
       const exactResults = sorted.filter((result) => exactNames.has(String(result.subject["과목명"])));
-      if (exactResults.length) return { results: exactResults, exact: true, confident: true, maximumScore: exactResults[0].score };
+      if (exactResults.length) return {
+        results: exactResults,
+        narrowingResults: exactResults,
+        candidateCount: exactResults.length,
+        exact: true,
+        confident: true,
+        maximumScore: exactResults[0].score,
+        requestedSelectionType,
+        requestedCourseGroup
+      };
 
       const maximumScore = sorted[0]?.score || 0;
       const minimumScore = setting("최소 과목 추천 점수", 12);
       const strongRatio = setting("강한 연관 점수 비율", 0.65);
       const maximumCount = Math.max(1, setting("최대 추천 개수", 80));
-      const results = sorted.filter((result) => result.score >= minimumScore && (result.directCourseMatch || result.score >= maximumScore * strongRatio)).slice(0, maximumCount);
-      return { results, exact: false, confident: Boolean(results.length && maximumScore >= minimumScore), maximumScore };
+      let results = sorted.filter((result) => result.score >= minimumScore && (result.directCourseMatch || result.score >= maximumScore * strongRatio));
+      if (requestedSelectionType) results = results.filter((result) => subjectSelectionType(result.subject) === requestedSelectionType);
+      if (requestedCourseGroup) results = results.filter((result) => result.subject["교과군"] === requestedCourseGroup);
+
+      let confident = Boolean(results.length && maximumScore >= minimumScore);
+      if (!confident && (requestedSelectionType || requestedCourseGroup) && /과목|추천/u.test(String(query))) {
+        results = subjects.filter((subject) => {
+          if (requestedSelectionType && subjectSelectionType(subject) !== requestedSelectionType) return false;
+          if (requestedCourseGroup && subject["교과군"] !== requestedCourseGroup) return false;
+          return true;
+        }).map((subject) => ({
+          subject,
+          score: minimumScore,
+          keywordPoints: 0,
+          terms: new Set([requestedSelectionType, requestedCourseGroup].filter(Boolean)),
+          canonicalTerms: new Set(),
+          directCanonicalTerms: new Set(),
+          reasons: new Set(["선택 조건 일치"]),
+          sourceIds: new Set(splitValues(subject["출처ID"])),
+          directCourseMatch: false
+        }));
+        confident = Boolean(results.length);
+      }
+
+      const narrowingResults = results;
+      return {
+        results: results.slice(0, maximumCount),
+        narrowingResults,
+        candidateCount: narrowingResults.length,
+        exact: false,
+        confident,
+        maximumScore,
+        requestedSelectionType,
+        requestedCourseGroup
+      };
     }
 
     function courseSourceDetails(results, extraSourceIds = []) {
@@ -393,6 +474,50 @@
       };
     }
 
+    function courseNarrowingResponse(query, scored) {
+      const candidates = scored.narrowingResults || scored.results;
+      const sourceDetails = courseSourceDetails(candidates);
+      const selectionCounts = new Map();
+      const groupCounts = new Map();
+      candidates.forEach((result) => {
+        const selectionType = subjectSelectionType(result.subject);
+        const courseGroup = String(result.subject["교과군"] || "").trim();
+        if (selectionType) selectionCounts.set(selectionType, (selectionCounts.get(selectionType) || 0) + 1);
+        if (courseGroup) groupCounts.set(courseGroup, (groupCounts.get(courseGroup) || 0) + 1);
+      });
+
+      let choices = [];
+      let followupText = "희망하는 세부 진로나 학과를 조금 더 구체적으로 입력해 주세요. 예: 생명과학 연구원, 시각디자인, 경제·금융";
+      if (!scored.requestedSelectionType && selectionCounts.size > 1) {
+        followupText = "어떤 선택과목 유형을 찾고 있나요?";
+        choices = SELECTION_TYPES.filter((type) => selectionCounts.has(type)).map((type) => ({
+          label: `${type} (${selectionCounts.get(type)}개)`,
+          prompt: `${query} 중 ${type === "공통과목" ? "공통과목만" : `${type} 과목만`} 추천해 주세요`
+        }));
+      } else if (!scored.requestedCourseGroup && groupCounts.size > 1) {
+        followupText = "어느 교과 영역을 중심으로 찾을까요?";
+        choices = [...groupCounts]
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
+          .slice(0, 6)
+          .map(([group, count]) => ({
+            label: `${group} (${count}개)`,
+            prompt: `${query} 중 ${group} 교과 영역을 중심으로 추천해 주세요`
+          }));
+      }
+
+      return {
+        kind: "clarification",
+        intentId: "COURSE_SCOPE_CLARIFY",
+        text: `조건에 맞는 과목 후보가 ${candidates.length}개라서 그대로 보여드리면 선택하기 어려워요. 범위를 조금 더 좁혀 볼게요.`,
+        followupText,
+        results: [],
+        choices,
+        candidateCount: candidates.length,
+        sourceDetails,
+        sourceText: citation(sourceDetails)
+      };
+    }
+
     function ambiguousResponse(match) {
       const choices = match.candidates.filter((candidate) => candidate.score > 0).map((candidate) => ({
         label: String(candidate.intent.canonical_question || "").trim(),
@@ -431,9 +556,15 @@
       const faqMatch = scoreFaq(cleanQuery);
       const courseMatch = scoreCourses(cleanQuery);
       if (faqMatch.accepted && faqMatch.best.exact) return faqResponse(faqMatch);
-      if (courseMatch.exact) return courseResponse(cleanQuery, courseMatch);
+      if (courseMatch.exact) {
+        if (courseMatch.candidateCount >= COURSE_RESULT_CLARIFICATION_THRESHOLD) return courseNarrowingResponse(cleanQuery, courseMatch);
+        return courseResponse(cleanQuery, courseMatch);
+      }
       if (faqMatch.accepted && (!courseMatch.confident || !COURSE_SIGNAL.test(cleanQuery))) return faqResponse(faqMatch);
-      if (courseMatch.confident && (COURSE_SIGNAL.test(cleanQuery) || courseMatch.results.some((result) => result.keywordPoints >= 12))) return courseResponse(cleanQuery, courseMatch);
+      if (courseMatch.confident && (COURSE_SIGNAL.test(cleanQuery) || courseMatch.results.some((result) => result.keywordPoints >= 12))) {
+        if (!courseMatch.exact && courseMatch.candidateCount >= COURSE_RESULT_CLARIFICATION_THRESHOLD) return courseNarrowingResponse(cleanQuery, courseMatch);
+        return courseResponse(cleanQuery, courseMatch);
+      }
       if (faqMatch.accepted) return faqResponse(faqMatch);
       if (faqMatch.ambiguous) return ambiguousResponse(faqMatch);
       return fallbackResponse();

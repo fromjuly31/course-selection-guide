@@ -76,10 +76,32 @@ assert.ok(broadTeacher.choices.length >= 2);
 assert.match(broadTeacher.sourceText, /^\[출처:/);
 
 const koreanTeacher = engine.respond("국어 교사가 되고 싶어");
-assert.equal(koreanTeacher.kind, "courses");
-assert.ok(koreanTeacher.results.length > 1);
-assert.ok(koreanTeacher.results.some((result) => result.subject["교과군"] === "국어"));
+assert.equal(koreanTeacher.kind, "clarification");
+assert.equal(koreanTeacher.intentId, "COURSE_SCOPE_CLARIFY");
+assert.equal(koreanTeacher.results.length, 0);
+assert.ok(koreanTeacher.candidateCount >= 6);
+assert.ok(koreanTeacher.choices.some((choice) => choice.label.startsWith("일반선택")));
 assert.match(koreanTeacher.sourceText, /고등학교 과목 안내서/);
+
+const broadNatural = engine.respond("자연 분야 학과와 과목을 추천해 주세요");
+assert.equal(broadNatural.kind, "clarification");
+assert.equal(broadNatural.results.length, 0);
+assert.ok(broadNatural.candidateCount >= 6);
+const naturalGeneralChoice = broadNatural.choices.find((choice) => choice.label.startsWith("일반선택"));
+assert.ok(naturalGeneralChoice);
+const narrowedNatural = engine.respond(naturalGeneralChoice.prompt);
+assert.equal(narrowedNatural.kind, "courses");
+assert.ok(narrowedNatural.results.length > 0 && narrowedNatural.results.length <= 5);
+assert.ok(narrowedNatural.results.every((result) => result.subject["선택과목의 종류"] === "일반선택"));
+
+const naturalCareerChoice = broadNatural.choices.find((choice) => choice.label.startsWith("진로선택"));
+const naturalCareer = engine.respond(naturalCareerChoice.prompt);
+assert.equal(naturalCareer.kind, "clarification");
+const mathChoice = naturalCareer.choices.find((choice) => choice.label.startsWith("수학"));
+assert.ok(mathChoice);
+const fiveCandidates = engine.respond(mathChoice.prompt);
+assert.equal(fiveCandidates.kind, "courses");
+assert.equal(fiveCandidates.results.length, 5);
 
 const exactCourse = engine.respond("교육의 이해는 어떤 과목이야?");
 assert.equal(exactCourse.kind, "courses");

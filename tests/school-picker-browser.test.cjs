@@ -133,7 +133,8 @@ async function main() {
         disconnectAtRight: disconnectRect.left >= triggerRect.right - 0.5,
         badgeBelowName: badgeRect.top >= nameRect.bottom,
         sameCard: trigger.parentElement === disconnect.parentElement && getComputedStyle(picker).borderTopWidth !== '0px',
-        ariaLabel: disconnect.getAttribute('aria-label')
+        ariaLabel: disconnect.getAttribute('aria-label'),
+        brandFontSize: Number.parseFloat(getComputedStyle(document.querySelector('.app-brand strong')).fontSize)
       };
     })()`);
     assert.equal(connectedUi.name, "원주여자고등학교");
@@ -147,6 +148,29 @@ async function main() {
     assert.equal(connectedUi.badgeBelowName, true);
     assert.equal(connectedUi.sameCard, true);
     assert.equal(connectedUi.ariaLabel, "원주여자고등학교 연동 해제");
+    assert.ok(connectedUi.brandFontSize >= 16);
+
+    await waitFor(async () => evaluate("Boolean(document.querySelector('.school-course-school-badge'))"));
+    const schoolCourseBadge = await evaluate(`(() => {
+      const badge = document.querySelector('.school-course-school-badge');
+      const title = document.querySelector('.school-course-toggle-title');
+      const bounds = badge.getBoundingClientRect();
+      const titleBounds = title.getBoundingClientRect();
+      return {
+        text: badge.textContent.trim(),
+        hasSchoolIcon: Boolean(badge.querySelector('.icon')),
+        fontSize: Number.parseFloat(getComputedStyle(badge).fontSize),
+        height: bounds.height,
+        titleFontSize: Number.parseFloat(getComputedStyle(title.querySelector('strong')).fontSize),
+        badgeBelowTitle: bounds.top >= titleBounds.bottom
+      };
+    })()`);
+    assert.equal(schoolCourseBadge.text, "원주여자고등학교");
+    assert.equal(schoolCourseBadge.hasSchoolIcon, true);
+    assert.ok(schoolCourseBadge.fontSize >= 10);
+    assert.ok(schoolCourseBadge.height >= 23);
+    assert.ok(schoolCourseBadge.titleFontSize >= 13);
+    assert.equal(schoolCourseBadge.badgeBelowTitle, true);
 
     const screenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     fs.writeFileSync(path.join(projectRoot, "previews", "school-linkage-header.png"), Buffer.from(screenshot.data, "base64"));
@@ -177,18 +201,24 @@ async function main() {
       const picker = document.querySelector('.header-school-picker');
       const badge = picker.querySelector('.school-cohort-badge');
       const pickerRect = picker.getBoundingClientRect();
+      const trigger = picker.querySelector('[data-school-trigger]');
       return {
         left: pickerRect.left,
         right: pickerRect.right,
         viewportWidth: innerWidth,
         badgeVisible: badge.getBoundingClientRect().width > 0,
-        disconnectVisible: document.querySelector('[data-school-disconnect]').getBoundingClientRect().width > 0
+        disconnectVisible: document.querySelector('[data-school-disconnect]').getBoundingClientRect().width > 0,
+        brandFontSize: Number.parseFloat(getComputedStyle(document.querySelector('.app-brand strong')).fontSize),
+        schoolNameFontSize: Number.parseFloat(getComputedStyle(picker.querySelector('[data-school-picker-label]')).fontSize),
+        triggerWidth: trigger.getBoundingClientRect().width
       };
     })()`);
     assert.ok(mobileUi.left >= 0);
     assert.ok(mobileUi.right <= mobileUi.viewportWidth + 1, JSON.stringify(mobileUi));
     assert.equal(mobileUi.badgeVisible, true);
     assert.equal(mobileUi.disconnectVisible, true);
+    assert.ok(mobileUi.brandFontSize > mobileUi.schoolNameFontSize, JSON.stringify(mobileUi));
+    assert.ok(mobileUi.triggerWidth <= 130, JSON.stringify(mobileUi));
 
     const mobileScreenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     fs.writeFileSync(path.join(projectRoot, "previews", "school-linkage-header-mobile.png"), Buffer.from(mobileScreenshot.data, "base64"));
@@ -219,14 +249,54 @@ async function main() {
     const landingUi = await evaluate(`(() => ({
       badge: document.querySelector('.landing-school-picker .school-cohort-badge')?.textContent,
       disconnectHidden: document.querySelector('.landing-school-picker [data-school-disconnect]')?.hidden,
-      disconnectText: document.querySelector('.landing-school-picker [data-school-disconnect]')?.textContent.trim()
+      disconnectText: document.querySelector('.landing-school-picker [data-school-disconnect]')?.textContent.trim(),
+      sameCard: document.querySelector('.landing-school-picker [data-school-trigger]').parentElement === document.querySelector('.landing-school-picker [data-school-disconnect]').parentElement,
+      leadBreakDisplay: getComputedStyle(document.querySelector('.landing-lead .desktop-break')).display,
+      brandFontSize: Number.parseFloat(getComputedStyle(document.querySelector('.landing-brand strong')).fontSize)
     }))()`);
     assert.equal(landingUi.badge, "2026년 입학생");
     assert.equal(landingUi.disconnectHidden, false);
     assert.equal(landingUi.disconnectText, "연동 해제");
+    assert.equal(landingUi.sameCard, true);
+    assert.notEqual(landingUi.leadBreakDisplay, "none");
+    assert.ok(landingUi.brandFontSize >= 16);
+    await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+    const landingCardBeforeHover = await evaluate("getComputedStyle(document.querySelector('.landing-school-picker')).backgroundColor");
+    const disconnectCenter = await evaluate(`(() => {
+      const bounds = document.querySelector('.landing-school-picker > [data-school-disconnect]').getBoundingClientRect();
+      return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 };
+    })()`);
+    await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: disconnectCenter.x, y: disconnectCenter.y });
+    await wait(100);
+    const landingCardHover = await evaluate(`(() => {
+      const picker = document.querySelector('.landing-school-picker');
+      const pickerBounds = picker.getBoundingClientRect();
+      const disconnectBounds = picker.querySelector(':scope > [data-school-disconnect]').getBoundingClientRect();
+      return {
+        hovered: picker.matches(':hover'),
+        background: getComputedStyle(picker).backgroundColor,
+        triggerBackground: getComputedStyle(picker.querySelector(':scope > [data-school-trigger]')).backgroundColor,
+        disconnectFontSize: Number.parseFloat(getComputedStyle(picker.querySelector(':scope > [data-school-disconnect]')).fontSize),
+        disconnectInside: disconnectBounds.left >= pickerBounds.left && disconnectBounds.right <= pickerBounds.right
+      };
+    })()`);
+    assert.equal(landingCardHover.hovered, true);
+    assert.notEqual(landingCardHover.background, landingCardBeforeHover);
+    assert.equal(landingCardHover.triggerBackground, "rgba(0, 0, 0, 0)");
+    assert.ok(landingCardHover.disconnectFontSize >= 10);
+    assert.equal(landingCardHover.disconnectInside, true);
     await wait(500);
     const landingScreenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     fs.writeFileSync(path.join(projectRoot, "previews", "landing-school-card.png"), Buffer.from(landingScreenshot.data, "base64"));
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 760, deviceScaleFactor: 1, mobile: true });
+    await wait(150);
+    const landingMobileUi = await evaluate(`(() => ({
+      brandFontSize: Number.parseFloat(getComputedStyle(document.querySelector('.landing-brand strong')).fontSize),
+      leadBreakDisplay: getComputedStyle(document.querySelector('.landing-lead .desktop-break')).display
+    }))()`);
+    assert.ok(landingMobileUi.brandFontSize >= 12);
+    assert.notEqual(landingMobileUi.leadBreakDisplay, "none");
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 820, deviceScaleFactor: 1, mobile: false });
     await evaluate("document.querySelector('.landing-school-picker [data-school-disconnect]').click()");
     await waitFor(async () => evaluate("window.SchoolStore.getSnapshot().selectedSchool === null"));
     assert.equal(await evaluate("document.querySelector('.landing-school-picker [data-school-disconnect]').hidden"), true);
