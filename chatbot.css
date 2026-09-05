@@ -956,6 +956,90 @@
   }
 }
 
+.course-chatbot-shortcuts {
+  display: grid;
+  gap: 8px;
+  margin-top: 11px;
+  padding: 12px;
+  border: 1px solid #cfe3dd;
+  border-radius: 15px;
+  background: #f5faf8;
+}
+
+.course-chatbot-shortcuts > p {
+  margin: 0;
+  color: #526c66;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.course-chatbot-shortcuts > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.course-chatbot-shortcuts a {
+  display: grid;
+  min-height: 40px;
+  grid-template-columns: 29px minmax(0, 1fr) 15px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 6px;
+  border: 1px solid #b9d9d0;
+  border-radius: 11px;
+  color: #0b6655;
+  background: #fff;
+  text-decoration: none;
+}
+
+.course-chatbot-shortcuts a > span {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--chat-mint-soft);
+}
+
+.course-chatbot-shortcuts a > span .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.course-chatbot-shortcuts a > strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-chatbot-shortcuts a > .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.course-chatbot-shortcuts a:hover,
+.course-chatbot-shortcuts a:focus-visible {
+  border-color: #4eaf99;
+  outline: none;
+  background: #eaf7f3;
+  box-shadow: 0 0 0 3px rgb(78 175 153 / 13%);
+}
+
+@media (min-width: 621px) {
+  .course-chatbot-shortcuts > p,
+  .course-chatbot-shortcuts a > strong {
+    font-size: 12px;
+  }
+
+  .course-chatbot-shortcuts a {
+    min-height: 44px;
+  }
+}
+
 /* Roomier desktop support dock; mobile keeps its compact footprint. */
 @media (min-width: 621px) {
   .course-chatbot {

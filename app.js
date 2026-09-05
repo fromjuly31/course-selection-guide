@@ -111,6 +111,7 @@
     dialogDepartmentId: "",
     dialogSubjectKind: "",
     dialogSubjectName: "",
+    dialogBookIndex: -1,
     dialogRecordIndex: -1,
     dialogReturnToRecommend: false,
     simulationResultOpen: false,
@@ -391,6 +392,10 @@
     const printAriaLabel = contextLabel ? `${contextLabel} 인쇄` : printLabel;
     const pdfAriaLabel = contextLabel ? `${contextLabel} PDF 다운로드` : "PDF 다운로드";
     return `<span class="print-action-group ${options.compact ? "is-compact" : ""} ${options.iconOnly ? "is-icon-only" : ""}"><button class="print-pdf-action ${classes}" type="button" data-print-view="${escapeHtml(kind)}"${idAttribute} aria-label="${escapeHtml(printAriaLabel)}">${icon("print")}${options.iconOnly ? "" : `<span>${printLabel}</span>`}</button><button class="print-pdf-action is-pdf-download ${classes}" type="button" data-pdf-view="${escapeHtml(kind)}"${idAttribute} aria-label="${escapeHtml(pdfAriaLabel)}">${icon("download")}${options.iconOnly ? "" : `<span>${pdfLabel}</span>`}</button></span>`;
+  }
+
+  function dialogFooterMarkup() {
+    return `<div class="major-dialog-footer dialog-action-footer"><button type="button" data-dialog-close>닫기</button></div>`;
   }
 
   function showToast(message, duration = 2800) {
@@ -982,7 +987,14 @@
   }
 
   function subjectUniversityButton(subject, kind, departmentId) {
-    return `<button class="major-subject-chip ${kind === "reflectedSubjects" ? "is-reflected" : "is-science"}" type="button" data-major-subject-universities data-department-id="${escapeHtml(departmentId)}" data-subject-kind="${escapeHtml(kind)}" data-subject-name="${escapeHtml(subject.name)}"><span>${escapeHtml(subject.name)}</span><small>${subject.universities.length.toLocaleString("ko-KR")}개 대학</small></button>`;
+    const isReflected = kind === "reflectedSubjects";
+    const isExpanded = state.dialogDepartmentId === departmentId && state.dialogSubjectKind === kind && state.dialogSubjectName === subject.name;
+    const universityCount = subject.universities.length.toLocaleString("ko-KR");
+    const universityLabel = isReflected ? "반영 대학" : "권장 대학";
+    return `<div class="major-subject-card ${isReflected ? "is-reflected" : "is-science"} ${isExpanded ? "is-expanded" : ""}">
+      <button class="major-subject-guide" type="button" data-major-course="${escapeHtml(subject.name)}" aria-haspopup="dialog" aria-label="${escapeHtml(subject.name)} 과목 안내 열기"><span>${escapeHtml(subject.name)}</span>${isReflected ? reflectionStarMarkup() : ""}</button>
+      <button class="major-subject-university-trigger" type="button" data-major-subject-universities data-department-id="${escapeHtml(departmentId)}" data-subject-kind="${escapeHtml(kind)}" data-subject-name="${escapeHtml(subject.name)}" aria-expanded="${isExpanded}" aria-label="${escapeHtml(subject.name)} ${universityLabel} ${universityCount}개 확인"><span>${universityCount}개 대학</span><i aria-hidden="true"></i></button>
+    </div>`;
   }
 
   function reflectionStarMarkup() {
@@ -1013,13 +1025,39 @@
       : "";
   }
 
-  function departmentRecommendedBooksMarkup(books) {
-    const entries = [...(books || [])].sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "ko") || String(a.author || "").localeCompare(String(b.author || ""), "ko"));
+  function bookUniversityRevealMarkup(department, books) {
+    if (state.dialogDepartmentId !== department.id || state.dialogBookIndex < 0) return "";
+    const book = books[state.dialogBookIndex];
+    if (!book) return "";
+    const universities = book.universities || [];
+    return `<aside class="university-reveal major-book-university-reveal" aria-live="polite"><div><small>추천 대학</small><strong>${escapeHtml(book.title)}</strong><span>DB에 포함된 ${universities.length.toLocaleString("ko-KR")}개 대학</span></div><div class="university-list">${universities.map((university) => `<span>${escapeHtml(university)}</span>`).join("") || "<span>대학 정보 없음</span>"}</div></aside>`;
+  }
+
+  function departmentRecommendedBooksMarkup(department) {
+    const entries = [...(department.recommendedBooks || [])].sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "ko") || String(a.author || "").localeCompare(String(b.author || ""), "ko"));
     return `
       <section class="major-book-section">
         <div class="major-course-title"><span>${icon("book-open")}</span><div><small>RECOMMENDED BOOKS</small><h3>권장 도서</h3><p>도서명 순으로 정렬했습니다.</p></div><em>${entries.length}</em></div>
-        ${entries.length ? `<div class="major-book-table" role="list" aria-label="학과 권장 도서 목록">${entries.map((book) => `<article class="major-book-row ${(book.universities || []).length ? "has-university" : ""}" role="listitem"><strong class="major-book-title">${escapeHtml(book.title)}</strong><span class="major-book-author">${escapeHtml(book.author || "저자 정보 없음")}</span>${(book.universities || []).length ? `<div class="major-book-university-cell">${recommendedBookUniversityBadgesMarkup(book.universities)}</div>` : ""}</article>`).join("")}</div>` : '<p class="major-book-empty">등록된 권장 도서가 없습니다.</p>'}
+        ${entries.length ? `<div class="major-book-table" role="list" aria-label="학과 권장 도서 목록">${entries.map((book, bookIndex) => {
+          const isExpanded = state.dialogDepartmentId === department.id && state.dialogBookIndex === bookIndex;
+          const universityCount = (book.universities || []).length;
+          const universityButton = universityCount
+            ? `<button class="major-book-university-trigger" type="button" data-major-book-universities data-department-id="${escapeHtml(department.id)}" data-book-index="${bookIndex}" aria-expanded="${isExpanded}" aria-label="${escapeHtml(book.title)} 추천 대학 ${universityCount.toLocaleString("ko-KR")}개 확인"><span>${universityCount.toLocaleString("ko-KR")}개 대학</span><i aria-hidden="true"></i></button>`
+            : "";
+          const mobileUniversities = universityCount ? recommendedBookUniversityBadgesMarkup(book.universities, "major-book-mobile-universities") : "";
+          return `<article class="major-book-row ${universityCount ? "has-university" : ""} ${isExpanded ? "is-expanded" : ""}" role="listitem"><strong class="major-book-title">${escapeHtml(book.title)}</strong><span class="major-book-author">${escapeHtml(book.author || "저자 정보 없음")}</span><div class="major-book-university-cell ${universityCount ? "" : "is-empty"}"${universityCount ? "" : ' aria-hidden="true"'}>${universityButton}${mobileUniversities}</div></article>`;
+        }).join("")}</div>${bookUniversityRevealMarkup(department, entries)}` : '<p class="major-book-empty">등록된 권장 도서가 없습니다.</p>'}
       </section>`;
+  }
+
+  function careerGuideText(value) {
+    return String(value || "")
+      .replace(/\r\n?/g, "\n")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line, index) => index > 0 && /^[∘◦○]/.test(line) ? `\n${line}` : line)
+      .join("\n");
   }
 
   function openDepartment(id, options = {}) {
@@ -1028,6 +1066,9 @@
     if (!options.keepSubject) {
       state.dialogSubjectKind = "";
       state.dialogSubjectName = "";
+    }
+    if (!options.keepBook) state.dialogBookIndex = -1;
+    if (!options.keepSubject && !options.keepBook) {
       state.dialogReturnToRecommend = Boolean(options.fromRecommend);
     }
     state.dialogDepartmentId = id;
@@ -1037,8 +1078,8 @@
     const visual = fieldVisual(department.field);
     const reflectedNames = new Set((department.reflectedSubjects || []).map((subject) => subject.name));
     const relatedMarkup = majorSubjectGroupsMarkup(department.relatedSubjects, (subject) => reflectedNames.has(subject)
-      ? `<span class="major-subject-chip is-related-reflected"><span>${escapeHtml(subject)}</span>${reflectionStarMarkup()}</span>`
-      : `<span class="major-subject-chip is-related"><span>${escapeHtml(subject)}</span></span>`);
+      ? `<button class="major-subject-card is-related is-related-reflected" type="button" data-major-course="${escapeHtml(subject)}" aria-haspopup="dialog" aria-label="${escapeHtml(subject)} 과목 안내 열기"><span>${escapeHtml(subject)}</span>${reflectionStarMarkup()}</button>`
+      : `<button class="major-subject-card is-related" type="button" data-major-course="${escapeHtml(subject)}" aria-haspopup="dialog" aria-label="${escapeHtml(subject)} 과목 안내 열기"><span>${escapeHtml(subject)}</span></button>`);
     detailContent.innerHTML = `
       ${state.dialogReturnToRecommend && state.recommendField ? `<button class="recommend-dialog-back" type="button" data-return-recommend-field>${icon("arrow")} ${escapeHtml(state.recommendField)} 분야로 돌아가기</button>` : ""}
       <div class="detail-print-row">${printActionMarkup("department", department.id)}</div>
@@ -1049,17 +1090,18 @@
       <div class="major-guide-sections">
         ${department.guide?.overview ? `<section><small>01 · OVERVIEW</small><h3>학과 개요</h3><p>${escapeHtml(department.guide.overview)}</p></section>` : ""}
         ${department.guide?.aptitude ? `<section><small>02 · APTITUDE</small><h3>흥미와 적성</h3><p>${escapeHtml(department.guide.aptitude)}</p></section>` : ""}
-        ${department.guide?.careers ? `<section><small>03 · CAREER</small><h3>졸업 후 진출 분야</h3><p class="preserve-lines">${escapeHtml(department.guide.careers)}</p></section>` : ""}
+        ${department.guide?.careers ? `<section><small>03 · CAREER</small><h3>졸업 후 진출 분야</h3><p class="preserve-lines">${escapeHtml(careerGuideText(department.guide.careers))}</p></section>` : ""}
       </div>
-      ${departmentRecommendedBooksMarkup(department.recommendedBooks)}
+      ${departmentRecommendedBooksMarkup(department)}
       <section class="major-course-section is-related">
-        <div class="major-course-title"><span>${icon("book-open")}</span><div><small>RELATED COURSES</small><h3>관련 과목</h3></div><em>${department.relatedSubjects.length}</em></div>
-        ${relatedMarkup}
+        <div class="major-course-title"><span>${icon("book")}</span><div><small>RELATED COURSES</small><h3>관련 과목</h3></div><em>${department.relatedSubjects.length}</em></div>
         ${department.reflectedSubjects.length ? reflectionMeaningNoteMarkup() : ""}
+        ${relatedMarkup}
       </section>
-      ${department.reflectedSubjects.length ? `<section class="major-course-section is-reflected"><div class="major-course-title"><span class="reflection-section-icon">${icon("solid-star")}</span><div><small>ADMISSION REFLECTION</small><h3>반영 과목 <b>중요</b></h3><p>과목을 누르면 반영 대학을 확인할 수 있습니다.</p></div><em>${department.reflectedSubjects.length}</em></div>${subjectUniversityButtons(department.reflectedSubjects, "reflectedSubjects", department.id)}${universityRevealMarkup(department, "reflectedSubjects", state.dialogSubjectName)}</section>` : ""}
+      ${department.reflectedSubjects.length ? `<section class="major-course-section is-reflected"><div class="major-course-title"><span class="reflection-section-icon">${icon("solid-star")}</span><div><small>ADMISSION REFLECTION</small><h3>반영 과목 <b>중요</b></h3><p class="major-university-hint">대학버튼을 누르면 반영 대학을 확인할 수 있습니다.</p></div><em>${department.reflectedSubjects.length}</em></div>${subjectUniversityButtons(department.reflectedSubjects, "reflectedSubjects", department.id)}${universityRevealMarkup(department, "reflectedSubjects", state.dialogSubjectName)}</section>` : ""}
       ${department.scienceRecommendedSubjects.length ? `<section class="major-course-section is-science"><div class="major-course-title"><span>${icon("flask")}</span><div><small>SCIENCE RECOMMENDATION</small><h3>과학 권장 과목</h3><p>학과와 대학에서 권장하는 과학 과목입니다.</p></div><em>${department.scienceRecommendedSubjects.length}</em></div>${subjectUniversityButtons(department.scienceRecommendedSubjects, "scienceRecommendedSubjects", department.id)}${universityRevealMarkup(department, "scienceRecommendedSubjects", state.dialogSubjectName)}</section>` : ""}
-      <p class="major-data-note">권장 도서와 대학별 반영·권장 정보는 제공된 엑셀 DB를 기준으로 표시합니다.</p>`;
+      <p class="major-data-note">권장 도서와 대학별 반영·권장 정보는 제공된 엑셀 DB를 기준으로 표시합니다.</p>
+      ${dialogFooterMarkup()}`;
     if (!detailDialog.open) detailDialog.showModal();
   }
 
@@ -1497,13 +1539,14 @@
     state.dialogDepartmentId = "";
     state.dialogSubjectKind = "";
     state.dialogSubjectName = "";
+    state.dialogBookIndex = -1;
     state.dialogRecordIndex = -1;
   }
 
   function openComparisonPicker() {
     state.comparisonOpen = false;
     setComparisonDialogMode("is-comparison-picker-dialog");
-    detailContent.innerHTML = comparisonPickerMarkup();
+    detailContent.innerHTML = `${comparisonPickerMarkup()}${dialogFooterMarkup()}`;
     if (!detailDialog.open) detailDialog.showModal();
     detailDialog.scrollTop = 0;
   }
@@ -1515,7 +1558,7 @@
     }
     state.comparisonOpen = true;
     setComparisonDialogMode("is-comparison-result-dialog");
-    detailContent.innerHTML = comparisonMarkup();
+    detailContent.innerHTML = `${comparisonMarkup()}${dialogFooterMarkup()}`;
     if (!detailDialog.open) detailDialog.showModal();
     detailDialog.scrollTop = 0;
   }
@@ -1555,7 +1598,7 @@
   }
 
   function fieldCommonSubjectsMarkup(subjects) {
-    return majorSubjectGroupsMarkup(subjects, (subject) => `<span title="${escapeHtml(subject.name)}"><strong>${escapeHtml(subject.name)}</strong><small>${subject.coverageCount}/${subject.totalCount}개 학과</small></span>`, { className: "is-field-common", listClass: "common-major-subjects" });
+    return majorSubjectGroupsMarkup(subjects, (subject) => `<span class="major-subject-card common-major-subject-card" title="${escapeHtml(subject.name)}"><strong>${escapeHtml(subject.name)}</strong><small class="common-major-coverage"><b>${subject.coverageCount}/${subject.totalCount}</b><span>개 학과</span></small></span>`, { className: "is-field-common", listClass: "major-subject-list common-major-subjects" });
   }
 
   function departmentCommonDisclosureMarkup(field) {
@@ -1584,7 +1627,8 @@
         <div><p class="dialog-kicker">${escapeHtml(field.name.toLocaleUpperCase("ko"))} · FIELD COMMON COURSES</p><h2 id="record-dialog-title">${escapeHtml(field.name)} 분야 공통 과목</h2><p>${escapeHtml(state.departmentDataset.meta.commonSubjectRule || "분야 내 과반수 학과에서 공통으로 확인되는 관련 과목")}입니다.</p></div>
         <em>${field.commonSubjects.length}</em>
       </div>
-      <section class="department-common-dialog-body">${fieldCommonSubjectsMarkup(field.commonSubjects)}</section>`;
+      <section class="department-common-dialog-body">${fieldCommonSubjectsMarkup(field.commonSubjects)}</section>
+      ${dialogFooterMarkup()}`;
     if (!detailDialog.open) detailDialog.showModal();
     detailDialog.scrollTop = 0;
   }
@@ -1987,12 +2031,14 @@
       <div class="recommend-department-stage">
         <section class="recommend-department-picker">
           <label class="recommend-search">${icon("search")}<span class="sr-only">학과 검색</span><input type="search" data-recommend-department-search value="${escapeHtml(state.recommendDepartmentSearch)}" placeholder="${escapeHtml(state.recommendField)} 분야 학과 검색" autocomplete="off"></label>
+          <div class="recommend-department-list-head"><strong>학과 목록</strong><span>목록 안에서 스크롤</span></div>
           <div class="recommend-department-options" role="group" aria-label="추천 학과 복수 선택">${recommendDepartmentOptionsMarkup(visible, selectedDepartments)}</div>
         </section>
         <aside class="recommend-major-selection ${selectedDepartments.length ? "has-selections" : "is-empty"}" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}">
           <div class="recommend-major-selection-symbol">${icon(visual.icon)}</div>
           <div><small>SELECTED MAJORS</small><h3>${escapeHtml(field?.name || "")} 분야 관심 학과</h3><p>선택한 모든 학과를 기준으로 다음 단계에서 공통 관련 과목과 공통 반영 과목을 계산합니다.</p></div>
-          <div class="recommend-major-selection-list">${selectedDepartments.length ? selectedDepartments.map((department, index) => `<span class="recommend-major-selection-item"><b>${String(index + 1).padStart(2, "0")}</b><strong>${escapeHtml(department.name)}</strong></span>`).join("") : `<p>관심 학과를 하나 이상 선택해 주세요.</p>`}</div>
+          <div class="recommend-major-selection-list">${selectedDepartments.length ? selectedDepartments.map((department, index) => `<button class="recommend-major-selection-item" type="button" data-recommend-department-choice="${escapeHtml(department.id)}" aria-pressed="true" aria-label="${escapeHtml(department.name)} 선택 해제"><b>${String(index + 1).padStart(2, "0")}</b><strong>${escapeHtml(department.name)}</strong><i aria-hidden="true">×</i></button>`).join("") : `<p>관심 학과를 하나 이상 선택해 주세요.</p>`}</div>
+          ${selectedDepartments.length ? `<button class="recommend-selection-confirm" type="button" data-recommend-next>학과 선택 확인 바로가기 ${icon("arrow")}</button>` : ""}
           <em>${selectedDepartments.length}/3</em>
         </aside>
       </div>
@@ -2134,6 +2180,7 @@
     state.dialogDepartmentId = "";
     state.dialogSubjectKind = "";
     state.dialogSubjectName = "";
+    state.dialogBookIndex = -1;
     detailDialog.classList.remove("is-course-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog", "is-department-common-dialog");
     detailDialog.classList.add("is-major-dialog", "is-recommend-field-dialog");
     detailContent.innerHTML = `
@@ -2141,7 +2188,8 @@
         <span>${icon(visual.icon)}</span>
         <div><p class="dialog-kicker">STEP 01 · ${escapeHtml(field.name.toLocaleUpperCase("ko"))} FIELD</p><h2 id="record-dialog-title">${escapeHtml(field.name)} 분야 과목 추천</h2><p class="recommend-field-dialog-description">분야 공통 과목 혹은 학과별 관련 과목을 확인하세요.</p></div>
       </div>
-      ${recommendFieldExpansionMarkup(field, departments)}`;
+      ${recommendFieldExpansionMarkup(field, departments)}
+      ${dialogFooterMarkup()}`;
     if (!detailDialog.open) detailDialog.showModal();
   }
 
@@ -2443,7 +2491,7 @@
     const selections = schoolSelectionMap();
     const standalone = semesterStandaloneCourses(semesterData);
     const commonMarkup = semesterData.common.length
-      ? semesterData.common.map((course) => `<span class="common-course-chip">${icon("check")}${curriculumCourseDisplayMarkup(course)}</span>`).join("")
+      ? semesterData.common.map((course) => `<span class="common-course-chip is-fixed-selected" aria-label="${escapeHtml(canonicalCourseTypography(course))} 자동 선택 완료"><span class="fixed-course-check" aria-hidden="true">✓</span>${curriculumCourseDisplayMarkup(course)}</span>`).join("")
       : '<span class="curriculum-empty-copy">입력된 공통·학교 지정과목이 없습니다.</span>';
     const standaloneKey = curriculumStandaloneKey(gradeData.grade, semesterData.semester);
     const standaloneSelected = selectedSemesterStandalone(selections, gradeData.grade, semesterData);
@@ -2547,7 +2595,17 @@
     const resultActive = state.simulationResultOpen;
     const resultAvailable = allSelectionsComplete;
     const resultCompleted = progress.complete && state.simulationResultUnlocked;
-    return `<ol class="simulation-grade-progress" aria-label="학년별 과목 선택 진행 단계"><li class="is-history ${state.simulationHistoryOpen ? "is-active" : "is-complete"}"><button type="button" data-open-simulation-history aria-current="${state.simulationHistoryOpen ? "step" : "false"}"><span>${state.simulationHistoryOpen ? "01" : icon("check")}</span><strong>수강 완료 과목</strong><small>${completedCourseSubjects().length}과목</small></button></li>${gradeItems}<li class="is-result ${resultActive ? "is-active" : ""} ${resultCompleted ? "is-complete" : ""}"><button type="button" data-show-simulation-result ${resultAvailable ? "" : "disabled"} aria-current="${resultActive ? "step" : "false"}"><span>${resultCompleted ? icon("check") : String(progress.gradeProgress.length + 2).padStart(2, "0")}</span><strong>최종 결과</strong><small>${resultAvailable ? "확인 가능" : "선택 중"}</small></button></li></ol>`;
+    return `<ol class="simulation-grade-progress" data-simulation-stage-start tabindex="-1" aria-label="학년별 과목 선택 진행 단계"><li class="is-history ${state.simulationHistoryOpen ? "is-active" : "is-complete"}"><button type="button" data-open-simulation-history aria-current="${state.simulationHistoryOpen ? "step" : "false"}"><span>${state.simulationHistoryOpen ? "01" : icon("check")}</span><strong>수강 완료 과목</strong><small>${completedCourseSubjects().length}과목</small></button></li>${gradeItems}<li class="is-result ${resultActive ? "is-active" : ""} ${resultCompleted ? "is-complete" : ""}"><button type="button" data-show-simulation-result ${resultAvailable ? "" : "disabled"} aria-current="${resultActive ? "step" : "false"}"><span>${resultCompleted ? icon("check") : String(progress.gradeProgress.length + 2).padStart(2, "0")}</span><strong>최종 결과</strong><small>${resultAvailable ? "확인 가능" : "선택 중"}</small></button></li></ol>`;
+  }
+
+  function focusSimulationStageStart() {
+    requestAnimationFrame(() => {
+      const stageStart = root.querySelector("[data-simulation-stage-start]");
+      if (!stageStart) return;
+      stageStart.focus({ preventScroll: true });
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      stageStart.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    });
   }
 
   function renderSimulation() {
@@ -2606,7 +2664,7 @@
       ${simulationGradeProgressMarkup(progress)}
       <section class="simulation-overview">
         <div><p class="section-kicker">GRADE ${String(activeGrade.grade).padStart(2, "0")} · SCHOOL CURRICULUM</p><h2>${activeGrade.grade}학년 과목 확인</h2><span>${escapeHtml(state.selectedSchool.name)} · ${escapeHtml(state.curriculum.admissionYear || "-")}학년도 입학생 · ${semesterStatus}</span></div>
-        <button class="text-action" type="button" data-clear-school-simulation ${progress.selectedCount + completedCount ? "" : "disabled"}>전체 선택 초기화</button>
+        <button class="text-action" type="button" data-clear-school-simulation ${progress.selectedCount + completedCount ? "" : "disabled"}>선택 초기화</button>
       </section>
       <section class="grade-curriculum-list is-single-grade" aria-live="polite">${gradeCurriculumMarkup(activeGrade)}</section>
       <section class="simulation-selection-summary ${activeProgress.complete ? "is-complete" : ""}">
@@ -4982,6 +5040,7 @@
     if (!row) return;
     state.dialogRecordIndex = index;
     state.dialogDepartmentId = "";
+    state.dialogBookIndex = -1;
     detailDialog.classList.remove("is-course-dialog", "is-major-dialog", "is-recommend-field-dialog", "is-comparison-picker-dialog", "is-comparison-result-dialog", "is-department-common-dialog");
     state.dialogReturnToRecommend = false;
     const courseName = valueAt(row, COLUMN_ALIASES.courseName);
@@ -5012,7 +5071,8 @@
           ${recommendation ? `<section class="course-dialog-section is-recommendation"><h3>이 과목을 누구에게 추천하나요?</h3><p>${escapeHtml(recommendation)}</p></section>` : ""}
           ${topics.length ? `<section class="course-dialog-section"><h3>과목의 주요 내용</h3><ul>${topics.map((topic) => `<li>${escapeHtml(topic)}</li>`).join("")}</ul></section>` : ""}
           ${faqs.length ? `<section class="course-dialog-section course-dialog-faq"><h3>더 알아보기</h3>${faqs.map((faq) => `<article><h4>${escapeHtml(faq.question)}</h4><p>${escapeHtml(faq.answer)}</p></article>`).join("")}</section>` : ""}
-        </div>`;
+        </div>
+        ${dialogFooterMarkup()}`;
       if (!detailDialog.open) detailDialog.showModal();
       return;
     }
@@ -5022,8 +5082,20 @@
       <div class="detail-print-row">${printActionMarkup("subject", index)}</div>
       <p class="dialog-kicker">DATABASE RECORD</p>
       <h2 id="record-dialog-title">${escapeHtml(title)}</h2>
-      <dl class="record-detail-list">${state.dataset.columns.map((column) => `<div><dt>${escapeHtml(column)}</dt><dd>${escapeHtml(displayValue(row[column])) || '<span class="empty-cell">정보 없음</span>'}</dd></div>`).join("")}</dl>`;
+      <dl class="record-detail-list">${state.dataset.columns.map((column) => `<div><dt>${escapeHtml(column)}</dt><dd>${escapeHtml(displayValue(row[column])) || '<span class="empty-cell">정보 없음</span>'}</dd></div>`).join("")}</dl>
+      ${dialogFooterMarkup()}`;
     if (!detailDialog.open) detailDialog.showModal();
+  }
+
+  function openCourseGuideByName(courseName) {
+    const reference = curriculumCourseReference(courseName) || recommendationCourseReferences(courseName)[0];
+    if (!reference) {
+      showToast(`${courseName || "선택한"} 과목의 안내 정보를 찾지 못했습니다.`);
+      return false;
+    }
+    openRecord(reference.index);
+    detailDialog.scrollTop = 0;
+    return true;
   }
 
   function printableCourseGroupsMarkup(subjects, options = {}) {
@@ -5412,25 +5484,13 @@
 
     const recommendCourse = event.target.closest("[data-recommend-course]");
     if (recommendCourse) {
-      const courseName = recommendCourse.dataset.recommendCourse || "";
-      const reference = curriculumCourseReference(courseName);
-      if (!reference) {
-        showToast(`${courseName || "선택한"} 과목의 안내 정보를 찾지 못했습니다.`);
-        return;
-      }
-      openRecord(reference.index);
+      openCourseGuideByName(recommendCourse.dataset.recommendCourse || "");
       return;
     }
 
     const simulationCourse = event.target.closest("[data-simulation-course]");
     if (simulationCourse) {
-      const courseName = simulationCourse.dataset.simulationCourse || "";
-      const reference = curriculumCourseReference(courseName);
-      if (!reference) {
-        showToast(`${courseName || "선택한"} 과목의 안내 정보를 찾지 못했습니다.`);
-        return;
-      }
-      openRecord(reference.index);
+      openCourseGuideByName(simulationCourse.dataset.simulationCourse || "");
       return;
     }
 
@@ -5455,8 +5515,9 @@
     if (recommendDepartmentChoice) {
       const id = recommendDepartmentChoice.dataset.recommendDepartmentChoice;
       const preserveDepartmentScroll = window.matchMedia("(max-width: 820px)").matches;
+      const departmentOptions = recommendDepartmentChoice.closest(".recommend-department-options") || root.querySelector(".recommend-department-options");
       const departmentScrollTop = preserveDepartmentScroll
-        ? recommendDepartmentChoice.closest(".recommend-department-options")?.scrollTop || 0
+        ? departmentOptions?.scrollTop || 0
         : 0;
       if (state.recommendDepartmentIds.includes(id)) {
         state.recommendDepartmentIds = state.recommendDepartmentIds.filter((item) => item !== id);
@@ -5581,7 +5642,7 @@
       state.simulationResultOpen = false;
       state.simulationHistoryOpen = true;
       renderSimulation();
-      root.focus({ preventScroll: true });
+      focusSimulationStageStart();
       return;
     }
 
@@ -5621,7 +5682,7 @@
       state.simulationMaxGradeStep = Math.max(firstGrade, state.simulationMaxGradeStep);
       saveSchoolSelections();
       renderSimulation();
-      root.focus({ preventScroll: true });
+      focusSimulationStageStart();
       return;
     }
 
@@ -5631,7 +5692,7 @@
       state.simulationResultOpen = false;
       state.simulationGradeStep = Math.max(1, Math.min(3, Number(simulationGradeButton.dataset.simulationGrade) || 1));
       renderSimulation();
-      root.focus({ preventScroll: true });
+      focusSimulationStageStart();
       return;
     }
 
@@ -5641,7 +5702,7 @@
       if (previousGrade) state.simulationGradeStep = previousGrade.grade;
       else state.simulationHistoryOpen = true;
       renderSimulation();
-      root.focus({ preventScroll: true });
+      focusSimulationStageStart();
       return;
     }
 
@@ -5654,7 +5715,7 @@
       state.simulationGradeStep = Math.min(3, state.simulationGradeStep + 1);
       state.simulationMaxGradeStep = Math.max(state.simulationMaxGradeStep, state.simulationGradeStep);
       renderSimulation();
-      root.focus({ preventScroll: true });
+      focusSimulationStageStart();
       return;
     }
 
@@ -5672,7 +5733,7 @@
       state.simulationHistoryOpen = false;
       state.simulationResultOpen = true;
       renderSimulation();
-      root.focus({ preventScroll: true });
+      focusSimulationStageStart();
       return;
     }
 
@@ -5680,7 +5741,7 @@
       state.simulationHistoryOpen = false;
       state.simulationResultOpen = false;
       renderSimulation();
-      root.focus({ preventScroll: true });
+      focusSimulationStageStart();
       return;
     }
 
@@ -6949,13 +7010,34 @@
       return;
     }
 
-    const majorSubject = event.target.closest("[data-major-subject-universities]");
+    const majorBookUniversities = event.target.closest("#record-dialog [data-major-book-universities]");
+    if (majorBookUniversities) {
+      const departmentId = majorBookUniversities.dataset.departmentId;
+      const bookIndex = Number(majorBookUniversities.dataset.bookIndex);
+      const isExpanded = state.dialogDepartmentId === departmentId && state.dialogBookIndex === bookIndex;
+      state.dialogDepartmentId = departmentId;
+      state.dialogBookIndex = isExpanded ? -1 : bookIndex;
+      openDepartment(departmentId, { keepBook: true });
+      if (!isExpanded) requestAnimationFrame(() => detailContent.querySelector(".major-book-university-reveal")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+      return;
+    }
+
+    const majorCourse = event.target.closest("#record-dialog [data-major-course]");
+    if (majorCourse) {
+      openCourseGuideByName(majorCourse.dataset.majorCourse || "");
+      return;
+    }
+
+    const majorSubject = event.target.closest("#record-dialog [data-major-subject-universities]");
     if (majorSubject) {
+      const isExpanded = state.dialogDepartmentId === majorSubject.dataset.departmentId
+        && state.dialogSubjectKind === majorSubject.dataset.subjectKind
+        && state.dialogSubjectName === majorSubject.dataset.subjectName;
       state.dialogDepartmentId = majorSubject.dataset.departmentId;
-      state.dialogSubjectKind = majorSubject.dataset.subjectKind;
-      state.dialogSubjectName = majorSubject.dataset.subjectName;
+      state.dialogSubjectKind = isExpanded ? "" : majorSubject.dataset.subjectKind;
+      state.dialogSubjectName = isExpanded ? "" : majorSubject.dataset.subjectName;
       openDepartment(state.dialogDepartmentId, { keepSubject: true });
-      requestAnimationFrame(() => detailContent.querySelector(".university-reveal")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+      if (!isExpanded) requestAnimationFrame(() => detailContent.querySelector(".university-reveal")?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
       return;
     }
     if (event.target.closest("[data-dialog-close]")) detailDialog.close();
@@ -7084,6 +7166,7 @@
     state.dialogDepartmentId = "";
     state.dialogSubjectKind = "";
     state.dialogSubjectName = "";
+    state.dialogBookIndex = -1;
     state.dialogRecordIndex = -1;
     state.dialogReturnToRecommend = false;
     if (closedRecommendFlow && state.tab === "recommend") {

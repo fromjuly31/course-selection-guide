@@ -7,8 +7,8 @@
   <title>학과·선택과목 조회 · 선택 과목 안내 플랫폼</title>
   <meta name="description" content="학교별 편제표와 연동되는 과목 선택 안내 플랫폼">
   <link rel="stylesheet" href="styles.css?v=20260905-5">
-  <link rel="stylesheet" href="app.css?v=20260905-28">
-  <link rel="stylesheet" href="chatbot.css?v=20260905-7">
+  <link rel="stylesheet" href="app.css?v=20260905-43">
+  <link rel="stylesheet" href="chatbot.css?v=20260905-8">
 </head>
 <body class="app-page">
   <header class="app-header">
@@ -38,6 +38,7 @@
             <p>연동할 입학년도를 선택하세요.</p>
             <div data-school-year-options></div>
           </section>
+          <div class="major-dialog-footer dialog-action-footer"><button type="button" data-school-menu-close>닫기</button></div>
         </dialog>
       </div>
     </div>
@@ -54,6 +55,7 @@
   </dialog>
 
   <dialog class="recommend-notice-dialog" id="recommend-notice-dialog" aria-labelledby="recommend-notice-title" aria-describedby="recommend-notice-description">
+    <button class="recommend-notice-close" type="button" data-recommend-notice-confirm aria-label="닫기">×</button>
     <div class="recommend-notice-symbol" aria-hidden="true"><svg class="icon"><use href="icons.svg#warning"></use></svg></div>
     <p class="recommend-notice-kicker">BEFORE YOU START</p>
     <h2 id="recommend-notice-title">꼭 확인하세요!</h2>
@@ -62,7 +64,7 @@
       <p>100% 신뢰하지 말고 반드시 최종 검토하세요.</p>
       <p>과목 선택의 책임은 본인에게 있습니다.</p>
     </div>
-    <button class="recommend-notice-confirm" type="button" data-recommend-notice-confirm>확인했습니다</button>
+    <div class="major-dialog-footer dialog-action-footer"><button class="recommend-notice-confirm" type="button" data-recommend-notice-confirm>닫기</button></div>
   </dialog>
 
   <dialog class="curriculum-alert-dialog" id="curriculum-alert-dialog" aria-labelledby="curriculum-alert-title" aria-describedby="curriculum-alert-message">
@@ -71,7 +73,7 @@
     <p class="curriculum-alert-kicker">데이터 확인 안내</p>
     <h2 id="curriculum-alert-title">편제표를 확인해 주세요</h2>
     <p class="curriculum-alert-message" id="curriculum-alert-message"></p>
-    <button class="curriculum-alert-confirm" type="button" data-curriculum-alert-close>확인</button>
+    <div class="major-dialog-footer dialog-action-footer"><button class="curriculum-alert-confirm" type="button" data-curriculum-alert-close>닫기</button></div>
   </dialog>
 
   <dialog class="curriculum-leave-dialog" id="curriculum-leave-dialog" aria-labelledby="curriculum-leave-title" aria-describedby="curriculum-leave-message">
@@ -84,6 +86,7 @@
       <button class="curriculum-leave-stay" type="button" data-cancel-curriculum-leave>계속 작업</button>
       <button class="curriculum-leave-confirm" type="button" data-confirm-curriculum-leave>저장하지 않고 나가기</button>
     </div>
+    <div class="major-dialog-footer dialog-action-footer"><button type="button" data-cancel-curriculum-leave>닫기</button></div>
   </dialog>
 
   <div class="app-toast" role="status" aria-live="polite" data-app-toast></div>
@@ -103,8 +106,8 @@
   <script src="supabase-config.js?v=20260905-2"></script>
   <script src="school-data.js?v=20260905-6"></script>
   <script src="app-data.js?v=20260905-3"></script>
-  <script src="app.js?v=20260905-14"></script>
-  <script src="chatbot-engine.js?v=20260905-8"></script>
-  <script src="chatbot.js?v=20260905-14"></script>
+  <script src="app.js?v=20260905-25"></script>
+  <script src="chatbot-engine.js?v=20260905-10"></script>
+  <script src="chatbot.js?v=20260905-17"></script>
 </body>
 </html>

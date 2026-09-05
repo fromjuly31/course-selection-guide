@@ -516,6 +516,51 @@
   }
 }
 
+.major-dialog-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #e1e9e6;
+}
+
+.major-dialog-footer > button {
+  display: inline-flex;
+  width: min(220px, 100%);
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #bfd4cd;
+  border-radius: 13px;
+  color: #fff;
+  background: #08745b;
+  box-shadow: 0 9px 20px rgba(8, 116, 91, 0.18);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.major-dialog-footer > button:hover,
+.major-dialog-footer > button:focus-visible {
+  outline: none;
+  background: #075d4a;
+  box-shadow: 0 0 0 4px rgba(8, 116, 91, 0.13);
+}
+
+@media (max-width: 620px) {
+  .major-dialog-footer {
+    margin-top: 18px;
+    padding: 16px 0 4px;
+  }
+
+  .major-dialog-footer > button {
+    width: min(240px, 100%);
+    min-height: 52px;
+    font-size: 15px;
+  }
+}
+
 .recommend-wizard {
   display: grid;
   height: 100%;
@@ -8741,7 +8786,7 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 .major-guide-sections .preserve-lines {
-  white-space: pre-line;
+  white-space: pre-wrap;
 }
 
 .major-book-section {
@@ -8761,11 +8806,12 @@ body.is-platform-image-capturing .platform-print-root {
 
 .major-book-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(68px, 0.62fr) minmax(72px, 0.58fr);
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 132px) minmax(76px, 92px);
+  gap: 12px;
   min-width: 0;
   min-height: 42px;
   align-items: center;
+  overflow: hidden;
   padding: 8px 10px;
   border: 1px solid #e2ddef;
   border-radius: 11px;
@@ -8786,19 +8832,98 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 .major-book-author {
-  padding-left: 8px;
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 12px;
   border-left: 1px solid #e8e3ef;
   color: #5d6e69;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.35;
+  text-align: left;
 }
 
 .major-book-university-cell {
-  justify-self: end;
+  display: flex;
+  width: 100%;
+  min-height: 30px;
+  align-self: center;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: stretch;
 }
 
-.major-book-row:not(.has-university) {
-  grid-template-columns: minmax(0, 1.45fr) minmax(76px, 0.55fr);
+.major-book-university-trigger {
+  display: inline-flex;
+  width: auto;
+  min-width: 76px;
+  min-height: 27px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 3px 7px;
+  border: 1px solid #d8ceed;
+  border-radius: 8px;
+  color: #66509f;
+  background: #f7f4ff;
+  box-shadow: 0 3px 9px rgba(86, 62, 141, 0.08);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.major-book-mobile-universities {
+  display: none;
+}
+
+.major-book-university-trigger i {
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+  transition: transform 160ms ease;
+}
+
+.major-book-row.is-expanded {
+  border-color: #bdaee2;
+  box-shadow: 0 5px 14px rgba(85, 61, 140, 0.1);
+}
+
+.major-book-row.is-expanded .major-book-university-trigger {
+  color: #fff;
+  background: #6d55aa;
+}
+
+.major-book-row.is-expanded .major-book-university-trigger i {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.major-book-university-trigger:hover,
+.major-book-university-trigger:focus-visible {
+  border-color: #9e8aca;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(109, 85, 170, 0.12);
+}
+
+.major-book-university-reveal {
+  border-color: rgba(109, 85, 170, 0.25);
+  box-shadow: 0 10px 24px rgba(71, 51, 119, 0.07);
+}
+
+.major-book-university-reveal > div:first-child small {
+  color: #6d55aa;
+}
+
+.major-book-university-reveal > div:first-child strong {
+  color: #3f3657;
+}
+
+.major-book-university-reveal .university-list span {
+  color: #5c4a88;
+  background: #f2edff;
 }
 
 .major-book-universities {
@@ -9044,6 +9169,143 @@ button.major-subject-chip:hover {
   border-color: #b9dfe2;
   color: #226874;
   background: #eaf7f8;
+}
+
+.major-subject-card {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #dce8e3;
+  border-radius: 11px;
+  color: #405f58;
+  background: #eef4f1;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  vertical-align: top;
+}
+
+button.major-subject-card,
+.major-subject-guide,
+.major-subject-university-trigger {
+  font: inherit;
+  cursor: pointer;
+}
+
+button.major-subject-card {
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  text-align: center;
+}
+
+.major-subject-card.is-related-reflected,
+.major-subject-card.is-reflected {
+  border-color: #edb888;
+  color: #914713;
+  background: #fff2e7;
+}
+
+.major-subject-card.is-science {
+  border-color: #b9dfe2;
+  color: #226874;
+  background: #eaf7f8;
+}
+
+.major-subject-guide {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 11px;
+  color: inherit;
+  background: transparent;
+  font-weight: 850;
+  text-align: center;
+}
+
+.major-subject-guide .reflection-star {
+  align-self: center;
+  margin: 0;
+}
+
+.major-subject-guide .reflection-star .icon {
+  display: block;
+}
+
+.major-subject-guide > span,
+button.major-subject-card > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.major-subject-university-trigger {
+  display: inline-flex;
+  min-width: 94px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 5px;
+  padding: 5px 9px;
+  border: 1px solid rgba(190, 92, 28, 0.32);
+  border-radius: 8px;
+  color: #8f4212;
+  background: #fff;
+  box-shadow: 0 3px 9px rgba(108, 57, 22, 0.09);
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.major-subject-card.is-science .major-subject-university-trigger {
+  border-color: rgba(34, 104, 116, 0.3);
+  color: #1d6671;
+}
+
+.major-subject-university-trigger i {
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-1px);
+  transition: transform 160ms ease;
+}
+
+.major-subject-card.is-expanded .major-subject-university-trigger {
+  color: #fff;
+  background: #a8521a;
+  box-shadow: 0 5px 12px rgba(168, 82, 26, 0.2);
+}
+
+.major-subject-card.is-science.is-expanded .major-subject-university-trigger {
+  background: #26717b;
+}
+
+.major-subject-card.is-expanded .major-subject-university-trigger i {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+button.major-subject-card:hover,
+button.major-subject-card:focus-visible,
+.major-subject-guide:hover,
+.major-subject-guide:focus-visible,
+.major-subject-university-trigger:hover,
+.major-subject-university-trigger:focus-visible {
+  outline: none;
+  filter: brightness(0.98);
+}
+
+button.major-subject-card:focus-visible,
+.major-subject-guide:focus-visible,
+.major-subject-university-trigger:focus-visible {
+  box-shadow: inset 0 0 0 2px currentColor;
 }
 
 .university-reveal {
@@ -16416,17 +16678,47 @@ body.curriculum-preview-open {
   }
 
   .major-book-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) clamp(108px, 34%, 148px);
+    column-gap: 10px;
     padding: 10px 11px;
   }
 
-  .major-book-row.has-university .major-book-university-cell {
+  .major-book-university-cell {
     grid-column: 1 / -1;
+    width: calc(100% + 22px);
+    min-height: 42px;
     justify-self: start;
+    margin: 1px -11px -10px;
+    padding: 9px 11px 10px;
+    border-top: 1px solid #e6dff2;
+    background: #faf8ff;
   }
 
-  .major-book-row.has-university .major-book-universities {
+  .major-book-university-cell.is-empty {
+    display: none;
+  }
+
+  .major-book-university-trigger {
+    display: none;
+  }
+
+  .major-book-mobile-universities {
+    display: flex;
+    width: 100%;
+    flex-wrap: wrap;
     justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .major-book-mobile-universities i {
+    padding: 4px 7px;
+    border-radius: 999px;
+    color: #6750a4;
+    background: #eee9fa;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 850;
+    white-space: nowrap;
   }
 
   .major-book-title {
@@ -16434,7 +16726,7 @@ body.curriculum-preview-open {
   }
 
   .major-book-author {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .major-book-universities i,
@@ -19068,5 +19360,814 @@ body.curriculum-preview-open {
   .app-main:has(> .major-field-grid) > .major-field-grid {
     --mobile-department-row: clamp(84px, 12.2dvh, 103px);
     gap: clamp(9px, 1.3dvh, 11px);
+  }
+}
+
+/* 학과 안내 모달은 과목 안내와 대학 목록 동작을 나누고, 화면 폭에 맞춰 과목을 정돈한다. */
+@media (min-width: 821px) {
+  .sheet-dialog.is-major-dialog {
+    width: min(calc(100% - 48px), 1120px);
+    max-height: min(92dvh, 940px);
+    padding: 34px 32px 30px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title {
+    min-height: 50px;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title > span {
+    width: 46px;
+    height: 46px;
+    align-self: center;
+    border-radius: 14px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title > span .icon {
+    width: 21px;
+    height: 21px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title > div {
+    align-self: center;
+    justify-content: center;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title h3 {
+    font-size: 21px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title small {
+    font-size: 9px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title p {
+    font-size: 10px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title .major-university-hint {
+    max-width: none;
+    white-space: nowrap;
+    font-size: 9px;
+    letter-spacing: -0.055em;
+  }
+
+  .sheet-dialog.is-major-dialog .major-book-section .major-course-title p,
+  .sheet-dialog.is-major-dialog .reflection-meaning-note {
+    font-size: 12px;
+  }
+
+  .sheet-dialog.is-major-dialog .reflection-meaning-note {
+    gap: 8px;
+    line-height: 1.6;
+  }
+
+  .sheet-dialog.is-major-dialog .reflection-meaning-note .reflection-star {
+    width: 18px;
+    height: 18px;
+  }
+
+  .sheet-dialog.is-major-dialog .reflection-meaning-note .reflection-star .icon {
+    width: 17px;
+    height: 17px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-group > header {
+    min-height: 42px;
+    gap: 10px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-group > header > span {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-group > header .icon {
+    width: 19px;
+    height: 19px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-group > header strong {
+    font-size: 15px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-group > header em {
+    font-size: 11px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-card {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-guide,
+  .sheet-dialog.is-major-dialog button.major-subject-card {
+    font-size: 15px;
+    line-height: 1.25;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-university-trigger {
+    min-width: 108px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 620px) {
+  .sheet-dialog.is-major-dialog {
+    top: max(14px, env(safe-area-inset-top));
+    right: 12px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    margin: auto;
+    border-radius: 22px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-card {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-guide,
+  .sheet-dialog.is-major-dialog button.major-subject-card {
+    align-items: center;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-guide .reflection-star {
+    width: 21px;
+    height: 21px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-guide .reflection-star .icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-university-trigger {
+    min-width: 102px;
+    min-height: 36px;
+    padding: 6px 9px;
+    font-size: 12px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title {
+    min-height: 50px;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title > span {
+    width: 46px;
+    height: 46px;
+    align-self: center;
+    border-radius: 14px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title > span .icon {
+    width: 21px;
+    height: 21px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title > div {
+    align-self: center;
+    justify-content: center;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title h3 {
+    font-size: 21px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title small {
+    font-size: 9px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-course-title p {
+    font-size: 10px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-group > header {
+    min-height: 38px;
+    gap: 9px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-group > header > span {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-group > header .icon {
+    width: 17px;
+    height: 17px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-group > header strong {
+    font-size: 14px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-group > header em {
+    font-size: 10px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-book-university-reveal {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sheet-dialog.is-major-dialog .major-subject-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-guide > span,
+  .sheet-dialog.is-major-dialog button.major-subject-card > span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .sheet-dialog.is-major-dialog .major-subject-university-trigger {
+    min-width: 96px;
+  }
+}
+
+/* 분야 공통 과목은 관련 과목과 같은 교과군·과목 카드 규격을 사용한다. */
+.major-subject-groups.is-field-common,
+.department-common-dialog-body > .major-subject-groups.is-field-common,
+.field-common-courses > .major-subject-groups.is-field-common,
+.recommend-common-courses > .major-subject-groups.is-field-common {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.major-subject-groups.is-field-common .major-subject-group {
+  padding: 13px;
+  border-radius: 13px;
+}
+
+.major-subject-groups.is-field-common .major-subject-group > header {
+  min-height: 42px;
+  gap: 10px;
+}
+
+.major-subject-groups.is-field-common .major-subject-group > header > span {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+}
+
+.major-subject-groups.is-field-common .major-subject-group > header .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.major-subject-groups.is-field-common .major-subject-group > header strong {
+  font-size: 15px;
+}
+
+.major-subject-groups.is-field-common .major-subject-group > header em {
+  font-size: 11px;
+}
+
+.major-subject-groups.is-field-common .common-major-subjects.major-subject-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 9px;
+  padding: 0;
+}
+
+.major-subject-groups.is-field-common .common-major-subjects > .common-major-subject-card {
+  display: inline-flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 5px;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.major-subject-groups.is-field-common .common-major-subjects > .common-major-subject-card > strong {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  text-align: center;
+}
+
+.major-subject-groups.is-field-common .common-major-coverage {
+  display: inline-flex;
+  width: max-content;
+  min-height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  margin: 0;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--subject-group-accent) 28%, white);
+  border-radius: 8px;
+  color: color-mix(in srgb, var(--subject-group-accent) 84%, #314943);
+  background: color-mix(in srgb, var(--subject-group-soft) 72%, white);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.major-subject-groups.is-field-common .common-major-coverage b {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.department-common-disclosure {
+  border-width: 2px;
+  border-color: color-mix(in srgb, var(--field-accent) 42%, var(--line));
+  border-radius: 20px;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--field-accent) 12%, transparent), inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.department-common-disclosure > button {
+  position: relative;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--field-accent) 8%, transparent);
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.department-common-disclosure > button:hover,
+.department-common-disclosure > button:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--field-accent) 30%, transparent);
+  outline: none;
+}
+
+.department-common-click {
+  border-width: 2px;
+  border-color: color-mix(in srgb, var(--field-accent) 38%, transparent);
+  color: var(--field-accent);
+  background: color-mix(in srgb, var(--field-soft) 68%, white);
+  box-shadow: 0 5px 12px color-mix(in srgb, var(--field-accent) 10%, transparent), inset 0 1px 0 #fff;
+  opacity: 1;
+}
+
+@media (min-width: 821px) {
+  .is-department-common-dialog .common-major-coverage {
+    font-size: 10px;
+  }
+
+  .is-department-common-dialog .common-major-coverage b {
+    font-size: 11px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .major-subject-groups.is-field-common .common-major-subjects.major-subject-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .major-subject-groups.is-field-common .major-subject-group > header {
+    min-height: 38px;
+    gap: 9px;
+  }
+
+  .major-subject-groups.is-field-common .major-subject-group > header > span {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .major-subject-groups.is-field-common .major-subject-group > header .icon {
+    width: 17px;
+    height: 17px;
+  }
+
+  .major-subject-groups.is-field-common .major-subject-group > header strong {
+    font-size: 14px;
+  }
+
+  .major-subject-groups.is-field-common .major-subject-group > header em {
+    font-size: 10px;
+  }
+
+  .major-subject-groups.is-field-common .common-major-subjects.major-subject-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .major-subject-groups.is-field-common .common-major-subjects > .common-major-subject-card {
+    min-height: 46px;
+    padding: 5px;
+    font-size: 13px;
+  }
+
+  .major-subject-groups.is-field-common .common-major-coverage {
+    min-height: 28px;
+    padding: 5px 7px;
+    font-size: 9px;
+  }
+
+  .major-subject-groups.is-field-common .common-major-coverage b {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 540px) {
+  .department-common-disclosure > button {
+    min-height: 94px;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .department-common-disclosure > button > span:first-child {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+  }
+
+  .department-common-disclosure > button > span:first-child .icon {
+    width: 21px;
+    height: 21px;
+  }
+
+  .department-common-disclosure > button > span:nth-child(2) strong {
+    font-size: 17px;
+    line-height: 1.2;
+  }
+
+  .department-common-click {
+    min-width: 76px;
+    min-height: 36px;
+    padding: 0 8px;
+    font-size: 9px;
+    letter-spacing: 0.13em;
+  }
+
+  .department-common-disclosure > button > i {
+    width: 34px;
+    height: 34px;
+  }
+
+  .department-common-disclosure > button > i .icon {
+    width: 14px;
+    height: 14px;
+  }
+
+}
+
+/* 모든 정보 모달은 같은 하단 닫기 동작과 내부 스크롤 경계를 사용한다. */
+html:has(dialog[open]),
+body:has(dialog[open]) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.dialog-action-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #e1e9e6;
+}
+
+.dialog-action-footer > button {
+  display: inline-flex;
+  width: min(220px, 100%);
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 22px;
+  border: 1px solid #bfd4cd;
+  border-radius: 13px;
+  color: #fff;
+  background: #08745b;
+  box-shadow: 0 9px 20px rgba(8, 116, 91, 0.18);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.dialog-action-footer > button:hover,
+.dialog-action-footer > button:focus-visible {
+  outline: none;
+  background: #075d4a;
+  box-shadow: 0 0 0 4px rgba(8, 116, 91, 0.13);
+}
+
+.recommend-notice-dialog {
+  position: fixed;
+}
+
+.recommend-notice-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  color: #62716f;
+  background: #f0f4f2;
+  font: 800 21px/1 Arial, sans-serif;
+  cursor: pointer;
+}
+
+.recommend-notice-close:hover,
+.recommend-notice-close:focus-visible {
+  color: #fff;
+  background: #8a5a13;
+  outline: none;
+}
+
+.sheet-dialog.is-course-dialog {
+  height: auto;
+  max-height: calc(100dvh - 36px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.is-course-dialog [data-record-dialog-content],
+.is-course-dialog .course-dialog-sections,
+.is-course-dialog .course-dialog-section,
+.is-course-dialog .course-dialog-faq {
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+/* 추천 2단계의 안쪽 목록과 페이지 스크롤을 시각적으로 분리한다. */
+.recommend-department-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 3px 6px;
+  color: #536762;
+}
+
+.recommend-department-list-head strong {
+  font-size: 12px;
+}
+
+.recommend-department-list-head span {
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #647873;
+  background: #e8f0ed;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.recommend-major-selection-list > .recommend-major-selection-item {
+  display: grid;
+  min-width: 0;
+  min-height: 42px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, var(--field-accent) 22%, #dce5e1);
+  border-radius: 11px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.86);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recommend-major-selection-list > .recommend-major-selection-item:hover,
+.recommend-major-selection-list > .recommend-major-selection-item:focus-visible {
+  border-color: var(--field-accent);
+  background: #fff;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--field-accent) 11%, transparent);
+}
+
+.recommend-major-selection-item > i {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--field-accent);
+  background: var(--field-soft);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.recommend-selection-confirm {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .recommend-wizard[data-recommend-step="2"] .recommend-department-picker {
+    margin-inline: 10px;
+    overflow: visible;
+    border-color: #cfddd8;
+    background: #f7faf9;
+    box-shadow: 0 9px 22px rgba(25, 66, 57, 0.07);
+  }
+
+  .recommend-wizard[data-recommend-step="2"] .recommend-search input {
+    height: 44px;
+  }
+
+  .recommend-wizard[data-recommend-step="2"] .recommend-department-options {
+    height: clamp(220px, 34dvh, 280px);
+    max-height: clamp(220px, 34dvh, 280px);
+    flex: 0 0 auto;
+    margin-top: 0;
+    padding: 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border: 1px solid #ccdcd6;
+    border-radius: 13px;
+    background: #edf4f1;
+    box-shadow: inset 0 2px 8px rgba(29, 66, 58, 0.07);
+    overscroll-behavior: contain;
+    scrollbar-color: #9bbcb2 transparent;
+    scrollbar-gutter: stable;
+  }
+
+  .recommend-major-selection.has-selections {
+    grid-template-areas:
+      "symbol list count"
+      "confirm confirm confirm";
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: 8px;
+  }
+
+  .recommend-major-selection.has-selections .recommend-major-selection-symbol {
+    grid-area: symbol;
+  }
+
+  .recommend-major-selection.has-selections .recommend-major-selection-list {
+    grid-area: list;
+  }
+
+  .recommend-major-selection.has-selections > em {
+    grid-area: count;
+  }
+
+  .recommend-major-selection.has-selections .recommend-major-selection-list > .recommend-major-selection-item {
+    min-height: 38px;
+    flex: 0 0 auto;
+    gap: 7px;
+    padding: 7px 8px;
+  }
+
+  .recommend-major-selection.has-selections .recommend-major-selection-item > strong {
+    max-width: 122px;
+    font-size: 13px;
+  }
+
+  .recommend-major-selection.has-selections .recommend-major-selection-item > i {
+    width: 19px;
+    height: 19px;
+    font-size: 13px;
+  }
+
+  .recommend-selection-confirm {
+    display: inline-flex;
+    min-height: 42px;
+    grid-area: confirm;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 16px;
+    border-radius: 12px;
+    color: #fff;
+    background: var(--field-accent, var(--primary));
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--field-accent, var(--primary)) 22%, transparent);
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .recommend-selection-confirm:hover,
+  .recommend-selection-confirm:focus-visible {
+    filter: brightness(0.94);
+    outline: 3px solid color-mix(in srgb, var(--field-accent, var(--primary)) 16%, transparent);
+  }
+
+  .recommend-selection-confirm .icon {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+@media (max-width: 620px) {
+  .sheet-dialog.is-course-dialog {
+    top: max(14px, env(safe-area-inset-top));
+    right: 12px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    margin: auto;
+    padding: 28px 18px 20px;
+    border-radius: 22px;
+  }
+
+  .dialog-action-footer {
+    margin-top: 18px;
+    padding: 16px 0 4px;
+  }
+
+  .dialog-action-footer > button {
+    width: min(240px, 100%);
+    min-height: 52px;
+    font-size: 15px;
+  }
+}
+
+/* 모의 수강신청: 자동 포함 과목과 단계 전환을 선택 흐름에 맞게 표시한다. */
+.simulation-grade-progress[data-simulation-stage-start] {
+  scroll-margin-top: 100px;
+  outline: none;
+}
+
+.semester-curriculum-section .common-course-chip.is-fixed-selected {
+  border-color: var(--primary);
+  color: #fff;
+  background: var(--primary);
+  box-shadow: 0 5px 12px rgba(8, 116, 91, 0.12);
+  cursor: default;
+}
+
+.common-course-chip .fixed-course-check {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--primary);
+  background: #fff;
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.semester-curriculum-section .common-course-chip.is-fixed-selected .curriculum-unlisted-badge {
+  color: #6d4d0f !important;
+  background: #fff;
+}
+
+@media (max-width: 620px) {
+  .simulation-grade-progress[data-simulation-stage-start] {
+    scroll-margin-top: 82px;
+  }
+
+  .simulation-overview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 14px;
+  }
+
+  .simulation-overview > div {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .simulation-overview .text-action {
+    min-height: 38px;
+    flex: 0 0 auto;
+    padding: 0 12px;
+    font-size: 14px;
+    white-space: nowrap;
   }
 }

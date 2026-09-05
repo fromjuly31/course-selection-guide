@@ -97,6 +97,10 @@
             <summary><span>06</span><strong>학교 데이터는 어떻게 연동하나요?</strong></summary>
             <p>데이터 연동 탭에서 학교 편제표 표준 양식을 업로드할 수 있습니다.</p>
           </details>
+          <details class="course-chatbot-faq-item">
+            <summary><span>07</span><strong>앱 관련 문의 사항이 있어요. 어디에 문의해야 할까요?</strong></summary>
+            <p>원주여자고등학교 김범준으로 메신저 혹은 fromjuly31@gmail.com으로 메일 주세요.</p>
+          </details>
         </div>
       </div>
     </section>
@@ -126,6 +130,17 @@
       if (!database.chatbot?.keywordWeights?.length) database = await store.fetchDefaultDatabase();
       if (!database.rows?.length || !database.chatbot?.keywordWeights?.length) {
         throw new Error("과목 또는 챗봇 가중치 데이터가 없습니다.");
+      }
+
+      try {
+        const departmentDatabase = await store.loadDepartmentDatabase();
+        database = {
+          ...database,
+          fields: departmentDatabase.fields || [],
+          departments: departmentDatabase.departments || []
+        };
+      } catch (error) {
+        console.warn("챗봇 학과 데이터 로딩 실패:", error);
       }
 
       state.database = database;
@@ -352,6 +367,28 @@
         choices.append(button);
       });
       wrapper.append(choices);
+    }
+
+    const navigationActions = (Array.isArray(answerData.actions) ? answerData.actions : []).filter((action) => action?.label && action?.href);
+    if (navigationActions.length) {
+      const shortcuts = document.createElement("nav");
+      shortcuts.className = "course-chatbot-shortcuts";
+      shortcuts.setAttribute("aria-label", "관련 과목 및 학과 바로가기");
+      if (answerData.actionText) {
+        const shortcutText = document.createElement("p");
+        shortcutText.textContent = answerData.actionText;
+        shortcuts.append(shortcutText);
+      }
+      const shortcutList = document.createElement("div");
+      navigationActions.forEach((action) => {
+        const link = document.createElement("a");
+        link.href = action.href;
+        link.dataset.chatNavigation = action.entity || "guide";
+        link.innerHTML = `<span>${icon(action.entity === "course" ? "book-open" : "graduation")}</span><strong>${escapeHtml(action.label)}</strong>${icon("arrow")}`;
+        shortcutList.append(link);
+      });
+      shortcuts.append(shortcutList);
+      wrapper.append(shortcuts);
     }
 
     const source = document.createElement("p");

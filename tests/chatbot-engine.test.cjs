@@ -1,9 +1,12 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { createEngine } = require("../chatbot-engine.js");
+const { createEngine, classifyRequest } = require("../chatbot-engine.js");
 
 const database = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "data", "database.json"), "utf8"));
+const departmentDatabase = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "data", "departments.json"), "utf8"));
+database.departments = departmentDatabase.departments;
+database.fields = departmentDatabase.fields;
 database.chatbot = { ...database.chatbot };
 database.chatbot.sources = [{
   source_id: "CS01",
@@ -78,11 +81,65 @@ assert.match(broadTeacher.sourceText, /^\[출처:/);
 
 const koreanTeacher = engine.respond("국어 교사가 되고 싶어");
 assert.equal(koreanTeacher.kind, "clarification");
-assert.equal(koreanTeacher.intentId, "COURSE_SCOPE_CLARIFY");
+assert.equal(koreanTeacher.intentId, "CAREER_GOAL_CLARIFY");
 assert.equal(koreanTeacher.results.length, 0);
-assert.ok(koreanTeacher.candidateCount >= 6);
-assert.ok(koreanTeacher.choices.some((choice) => choice.label.startsWith("일반선택")));
-assert.match(koreanTeacher.sourceText, /고등학교 과목 안내서/);
+assert.deepEqual(koreanTeacher.choices.map((choice) => choice.label), ["관련 과목 추천", "관련 학과 추천", "학과·과목 함께 추천"]);
+assert.match(koreanTeacher.choices[0].prompt, /국어 교사 진로와 관련된 과목/u);
+assert.match(koreanTeacher.sourceText, /질문 의도 확인 단계/u);
+
+const explicitKoreanTeacher = engine.respond("국어 교사 되려면 어떤 과목 골라야돼?");
+assert.equal(classifyRequest("국어 교사 되려면 어떤 과목 골라야돼?").kind, "course-recommendation");
+assert.equal(explicitKoreanTeacher.kind, "courses");
+assert.equal(explicitKoreanTeacher.results.length, 10);
+assert.ok(explicitKoreanTeacher.results.every((result) => result.subject));
+assert.ok(explicitKoreanTeacher.actions.some((action) => action.label.includes("국어교육과")));
+
+const chemist = engine.respond("화학자 되고 싶은데 과목 추천해줘");
+assert.equal(chemist.kind, "courses");
+assert.equal(chemist.exact, false);
+assert.equal(chemist.results.length, 10);
+assert.deepEqual(chemist.results.slice(0, 5).map((result) => result.subject["과목명"]), ["화학", "물질과 에너지", "화학 반응의 세계", "고급 화학", "화학 실험"]);
+assert.ok(chemist.actions.some((action) => action.label.includes("화학과")));
+assert.ok(chemist.actions.some((action) => action.label.includes("화학공학과")));
+
+[
+  "화학자가 되고 싶어.",
+  "내 진로는 화학자야."
+].forEach((query) => {
+  assert.equal(classifyRequest(query).kind, "career-declaration");
+  const result = engine.respond(query);
+  assert.equal(result.kind, "clarification");
+  assert.equal(result.intentId, "CAREER_GOAL_CLARIFY");
+  assert.equal(result.results.length, 0);
+  assert.deepEqual(result.choices.map((choice) => choice.label), ["관련 과목 추천", "관련 학과 추천", "학과·과목 함께 추천"]);
+  assert.match(result.text, /과목 하나를 바로 안내하지 않을게요/u);
+});
+
+const chemistCareerFollowup = engine.respond(engine.respond("화학자가 되고 싶어.").choices[0].prompt);
+assert.equal(chemistCareerFollowup.kind, "courses");
+assert.equal(chemistCareerFollowup.results.length, 10);
+
+const chemistInformation = engine.respond("화학자에 대해 알려줘");
+assert.equal(classifyRequest("화학자에 대해 알려줘").kind, "career-information");
+assert.equal(chemistInformation.intentId, "CAREER_GOAL_CLARIFY");
+assert.equal(chemistInformation.results.length, 0);
+
+const chemistryConcept = engine.respond("화학은 어떤 과목이야?");
+assert.equal(classifyRequest("화학은 어떤 과목이야?").kind, "concept-question");
+assert.equal(chemistryConcept.exact, true);
+assert.equal(chemistryConcept.results.length, 1);
+
+["화학 과목에 대해 알려줘", "화학 설명 보여줘"].forEach((query) => {
+  const result = engine.respond(query);
+  assert.equal(classifyRequest(query).kind, "concept-question");
+  assert.equal(result.exact, true);
+  assert.deepEqual(result.results.map((entry) => entry.subject["과목명"]), ["화학"]);
+});
+
+const chemistryDepartments = engine.respond("화학자에게 맞는 학과 추천해줘");
+assert.equal(classifyRequest("화학자에게 맞는 학과 추천해줘").kind, "department-recommendation");
+assert.equal(chemistryDepartments.kind, "departments");
+assert.deepEqual(chemistryDepartments.results.map((result) => result.department.name), ["화학과", "화학공학과"]);
 
 const broadNatural = engine.respond("자연 분야 학과와 과목을 추천해 주세요");
 assert.equal(broadNatural.kind, "clarification");
@@ -92,7 +149,7 @@ const naturalGeneralChoice = broadNatural.choices.find((choice) => choice.label.
 assert.ok(naturalGeneralChoice);
 const narrowedNatural = engine.respond(naturalGeneralChoice.prompt);
 assert.equal(narrowedNatural.kind, "courses");
-assert.ok(narrowedNatural.results.length > 0 && narrowedNatural.results.length <= 5);
+assert.ok(narrowedNatural.results.length > 0 && narrowedNatural.results.length <= 10);
 assert.ok(narrowedNatural.results.every((result) => result.subject["선택과목의 종류"] === "일반선택"));
 
 const naturalCareerChoice = broadNatural.choices.find((choice) => choice.label.startsWith("진로선택"));
@@ -102,7 +159,7 @@ const mathChoice = naturalCareer.choices.find((choice) => choice.label.startsWit
 assert.ok(mathChoice);
 const fiveCandidates = engine.respond(mathChoice.prompt);
 assert.equal(fiveCandidates.kind, "courses");
-assert.equal(fiveCandidates.results.length, 5);
+assert.ok(fiveCandidates.results.length > 0 && fiveCandidates.results.length <= 10);
 
 const exactCourse = engine.respond("교육의 이해는 어떤 과목이야?");
 assert.equal(exactCourse.kind, "courses");

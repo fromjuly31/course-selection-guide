@@ -138,7 +138,7 @@ async function main() {
       question: item.querySelector('summary strong').textContent.trim(),
       answer: item.querySelector(':scope > p')?.textContent.trim() || ''
     }))`);
-    assert.equal(faqItems.length, 6);
+    assert.equal(faqItems.length, 7);
     assert.equal(faqItems[1].answer, "아니요. 최신 정보가 반영되지 않았을 수 있으므로 반드시 검토해야 합니다.");
     assert.deepEqual(faqItems[3], {
       number: "04",
@@ -149,6 +149,11 @@ async function main() {
     assert.equal(faqItems[4].question, "제가 희망하는 학과의 정보가 없어요.");
     assert.equal(faqItems[5].number, "06");
     assert.equal(faqItems[5].question, "학교 데이터는 어떻게 연동하나요?");
+    assert.deepEqual(faqItems[6], {
+      number: "07",
+      question: "앱 관련 문의 사항이 있어요. 어디에 문의해야 할까요?",
+      answer: "원주여자고등학교 김범준으로 메신저 혹은 fromjuly31@gmail.com으로 메일 주세요."
+    });
     await evaluate("document.querySelector('[data-faq-close]').click()");
     assert.equal(await evaluate("document.querySelector('.course-chatbot-suggestions') === null"), true);
     await evaluate(`(() => {
@@ -263,23 +268,36 @@ async function main() {
     assert.ok(faqChoices.fontSize >= 12);
 
     await evaluate("window.CourseChatbot.answer('진로가없어')", true);
-    const careerPurposeChoices = await evaluate(`(() => {
+    const careerCounseling = await evaluate(`(() => {
       const item = [...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1);
       const list = item.querySelector('.course-chatbot-followups');
-      const buttons = [...list.querySelectorAll('button')];
       return {
         resultCount: item.querySelectorAll('.course-chatbot-result').length,
         markedAsFaqClarification: item.classList.contains('is-faq-clarification'),
-        choices: buttons.map((button) => button.textContent.trim()),
-        topPositions: buttons.map((button) => Math.round(button.getBoundingClientRect().top))
+        choices: list ? [...list.querySelectorAll('button')].map((button) => button.textContent.trim()) : [],
+        text: item.textContent
       };
     })()`);
-    assert.equal(careerPurposeChoices.resultCount, 0);
-    assert.equal(careerPurposeChoices.markedAsFaqClarification, true);
-    assert.equal(careerPurposeChoices.choices.length, 2);
-    assert.match(careerPurposeChoices.choices[0], /진로가 아직 없는데/);
-    assert.match(careerPurposeChoices.choices[1], /과목을 추천받고 싶어요/);
-    assert.equal(new Set(careerPurposeChoices.topPositions).size, 2);
+    assert.equal(careerCounseling.resultCount, 0);
+    assert.equal(careerCounseling.markedAsFaqClarification, false);
+    assert.equal(careerCounseling.choices.length, 0);
+    assert.match(careerCounseling.text, /진로를 지금 당장 하나의 직업이나 학과로 확정할 필요는 없습니다/);
+
+    await evaluate("window.CourseChatbot.answer('화학자 되고 싶은데 과목 추천해줘')", true);
+    const chemistRecommendation = await evaluate(`(() => {
+      const item = [...document.querySelectorAll('.course-chatbot-message.is-bot')].at(-1);
+      return {
+        names: [...item.querySelectorAll('.course-chatbot-result strong')].map((element) => element.textContent.trim()),
+        shortcuts: [...item.querySelectorAll('[data-chat-navigation]')].map((link) => ({ label: link.textContent.trim(), href: link.getAttribute('href') })),
+        sourceIsLast: item.lastElementChild?.classList.contains('course-chatbot-source') || false
+      };
+    })()`);
+    assert.equal(chemistRecommendation.names.length, 10);
+    assert.ok(chemistRecommendation.names.includes("화학"));
+    assert.ok(chemistRecommendation.names.includes("화학 실험"));
+    assert.ok(chemistRecommendation.shortcuts.some((shortcut) => shortcut.label.includes("화학과") && shortcut.href.includes("tab=departments")));
+    assert.ok(chemistRecommendation.shortcuts.some((shortcut) => shortcut.label.includes("화학공학과") && shortcut.href.includes("tab=departments")));
+    assert.equal(chemistRecommendation.sourceIsLast, true);
 
     await evaluate("window.CourseChatbot.answer('진로·관심사에 맞는 과목을 추천받고 싶어요.')", true);
     const careerDetailQuestion = await evaluate(`(() => {

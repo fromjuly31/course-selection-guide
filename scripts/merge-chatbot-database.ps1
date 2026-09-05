@@ -359,8 +359,8 @@ try {
     }
     @(
         [pscustomobject][ordered]@{ test_id='TC001'; sample_user_query='교사가 진로야'; expected_intent='CL001'; expected_behavior='공통 관련 과목을 여러 개 보여주고 희망 교과를 확인'; test_type='COURSE_CLARIFY' },
-        [pscustomobject][ordered]@{ test_id='TC002'; sample_user_query='국어 교사가 되고 싶어'; expected_intent='COURSE:국어교사'; expected_behavior='국어 교과군의 직접 연관 과목을 여러 개 추천'; test_type='COURSE_RECOMMEND' },
-        [pscustomobject][ordered]@{ test_id='TC003'; sample_user_query='수학교육과를 희망해'; expected_intent='COURSE:수학교사'; expected_behavior='수학 교과군의 직접 연관 과목을 여러 개 추천'; test_type='COURSE_RECOMMEND' },
+        [pscustomobject][ordered]@{ test_id='TC002'; sample_user_query='국어 교사가 되고 싶어'; expected_intent='CAREER_GOAL_CLARIFY'; expected_behavior='진로 선언만으로 과목을 단정하지 않고 관련 과목·학과 중 필요한 정보를 확인'; test_type='INTENT_CLARIFY' },
+        [pscustomobject][ordered]@{ test_id='TC003'; sample_user_query='수학교육과를 희망해'; expected_intent='CAREER_GOAL_CLARIFY'; expected_behavior='희망 학과 선언만으로 과목을 단정하지 않고 필요한 정보 범위를 확인'; test_type='INTENT_CLARIFY' },
         [pscustomobject][ordered]@{ test_id='TC004'; sample_user_query='교육의 이해는 어떤 과목이야?'; expected_intent='COURSE:교육의 이해'; expected_behavior='정확한 과목 설명과 출처 표시'; test_type='COURSE_EXACT' },
         [pscustomobject][ordered]@{ test_id='TC005'; sample_user_query='오늘 급식 뭐야?'; expected_intent='FALLBACK'; expected_behavior='DB 밖 질문으로 교사 문의 안내'; test_type='OUT_OF_SCOPE' },
         [pscustomobject][ordered]@{ test_id='TC006'; sample_user_query='고교학점제가 뭐야?'; expected_intent='F001'; expected_behavior='활성 답변을 순서대로 결합하고 출처 표시'; test_type='FAQ_EXACT' }
