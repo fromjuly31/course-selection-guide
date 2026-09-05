@@ -193,6 +193,7 @@ async function main() {
   assert.match(schoolStoreSource, /isMissingCurriculumDraftTableError\(error\).*saveLocalCurriculumDraft/s);
   assert.match(schoolStoreSource, /function selectionStorage\(\) \{\s*return window\.sessionStorage/);
   assert.match(schoolStoreSource, /async function selectSchoolAdmissionYear/);
+  assert.match(schoolStoreSource, /async function disconnectSchool/);
   assert.match(appSource, /function refreshSubjectSearchInPlace/);
   assert.match(appSource, /function refreshDepartmentSearchInPlace/);
   assert.match(appSource, /function refreshRecommendDepartmentSearchInPlace/);
@@ -207,9 +208,9 @@ async function main() {
   assert.match(appSource, /const accessible = allSelectionsComplete \|\| gradeProgress\.grade <= state\.simulationMaxGradeStep \|\| state\.simulationResultUnlocked/);
   assert.match(appSource, /state\.simulationMaxGradeStep = Math\.max\(firstGrade, state\.simulationMaxGradeStep\)/);
   assert.match(appSource, /state\.simulationResultUnlocked = true;\s*state\.simulationHistoryOpen = false;\s*state\.simulationResultOpen = true/);
-  assert.match(appSource, /const descendantBottom = isSimulation/);
-  assert.match(appSource, /measuredHeight \* 1\.02 \+ 6/);
-  assert.match(appSource, /printablePageHeight = Math\.ceil\(contentWidth \* \(206 \/ 293\)\)/);
+  assert.match(appSource, /const descendantBottom = \[\.\.\.printDocument\.querySelectorAll\("\*"\)\]/);
+  assert.match(appSource, /measuredHeight \* 1\.015 \+ 4/);
+  assert.match(appSource, /PLATFORM_PRINTABLE_HEIGHT_MM \/ PLATFORM_PRINTABLE_WIDTH_MM/);
   assert.match(appDataSource, /INDEXED_DB_OPEN_TIMEOUT = 2500/);
   assert.match(appDataSource, /fetchWithTimeout/);
   assert.match(appDataSource, /STATIC_DATA_VERSION = "20260905-3"/);
@@ -224,18 +225,20 @@ async function main() {
   assert.match(appCss, /\.semester-curriculum-section \.curriculum-option-card header > span[\s\S]*?font-size: 12px/);
   assert.match(appCss, /\.simulation-selection-summary > \.simulation-grade-actions[\s\S]*?justify-content: flex-end/);
   assert.match(appCss, /\.simulation-grade-actions \.simulation-final-open[\s\S]*?min-width: 180px/);
-  assert.match(appCss, /@page[\s\S]*?margin: 2mm/);
-  assert.match(appCss, /body\.is-platform-print-measuring \.platform-print-root[\s\S]*?width: 293mm/);
-  assert.match(appCss, /\.platform-print-sheet-svg[\s\S]*?height: 206mm/);
+  assert.match(appCss, /@page[\s\S]*?margin: 5mm/);
+  assert.match(appCss, /body\.is-platform-print-measuring \.platform-print-root[\s\S]*?width: 287mm/);
+  assert.match(appCss, /body\.is-platform-image-capturing \.platform-print-root[\s\S]*?width: 287mm/);
+  assert.match(appCss, /\.platform-print-sheet-svg[\s\S]*?height: 200mm/);
   assert.match(appCss, /\.platform-print-root \.simulation-final-summary h1[\s\S]*?font-size: 16pt/);
   assert.match(appCss, /\.platform-print-root \.simulation-final-summary > div[\s\S]*?justify-content: space-between/);
   assert.match(appCss, /\.platform-print-root \.simulation-final-course-group li[\s\S]*?font-size: 8pt/);
   assert.match(appCss, /@media \(max-width: 820px\)[\s\S]*?\.simulation-grade-progress[\s\S]*?display: flex/);
   assert.match(appCss, /\.common-course-block\.semester-subject-block,[\s\S]*?\.semester-elective-block\.semester-subject-block[\s\S]*?flex-direction: column/);
   assert.match(appCss, /\.recommend-result-course-items > button/);
-  assert.match(appCss, /\.school-upload-card \.curriculum-format-notice span[\s\S]*?font-size: 13px/);
+  assert.match(appCss, /\.school-upload-card \.curriculum-format-notice li[\s\S]*?font-size: 13px/);
   assert.match(appCss, /\.connected-schools-card \.school-admission-year-options button[\s\S]*?min-height: 42px/);
-  assert.match(appSource, /const padding = 10/);
+  assert.match(appSource, /PLATFORM_EXPORT_SAFE_PADDING = 32/);
+  assert.match(appSource, /drawY: Math\.round\(\(outputHeight - drawHeight\) \/ 2\)/);
   assert.match(appSource, /sheet\.setAttribute\("preserveAspectRatio", "xMidYMin meet"\)/);
   assert.match(appSource, /const simulationCourse = event\.target\.closest\("\[data-simulation-course\]"\)/);
   assert.match(appSource, /data-simulation-course=/);
@@ -243,7 +246,8 @@ async function main() {
   assert.match(sectionHtml, /data-header-school-search/);
   assert.match(sectionHtml, /<dialog class="header-school-menu school-picker-dialog"/);
   assert.match(sectionHtml, /data-school-picker-label>미선택/);
-  assert.match(sectionHtml, /app\.js\?v=20260905-3/);
+  assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
+  assert.match(sectionHtml, /app\.js\?v=20260905-6/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 
@@ -362,6 +366,13 @@ async function main() {
   const standardPrintMarkup = window.DatabaseApp.platformPrintDocumentMarkup({ title: "과목 안내", subtitle: "테스트", body: "<section>본문</section>" });
   assert.match(standardPrintMarkup, /platform-print-brand/);
   assert.match(standardPrintMarkup, /platform-print-footer/);
+  [[1435, 1000], [2200, 900], [900, 1800]].forEach(([width, height]) => {
+    const placement = window.DatabaseApp.platformExportPlacement(width, height);
+    assert.ok(placement.drawX >= 32);
+    assert.ok(placement.drawY >= 32);
+    assert.ok(1800 - placement.drawX - placement.drawWidth >= 32);
+    assert.ok(1273 - placement.drawY - placement.drawHeight >= 32);
+  });
   state.schools = [
     { id: "seoul-na", name: "나래고등학교", region: "서울특별시", admissionYears: [2026] },
     { id: "gyeonggi", name: "하늘고등학교", region: "경기도", admissionYears: [2026] },
@@ -370,6 +381,8 @@ async function main() {
   state.tab = "admin";
   state.pendingCurriculum = null;
   window.DatabaseApp.renderAdmin();
+  assert.match(root.innerHTML, /curriculum-format-notice[\s\S]*?<header>[\s\S]*?업로드 자료를 확인하세요\.[\s\S]*?<ul><li>전학년 편제표가 아닌 신입생 편제표를 업로드하세요\.<\/li><li>/);
+  assert.doesNotMatch(root.innerHTML, /curriculum-format-notice[\s\S]*?<mark>/);
   assert.match(root.innerHTML, /data-open-connected-school-list/);
   assert.match(root.innerHTML, /3개 학교/);
   assert.doesNotMatch(root.innerHTML, /하늘고등학교/);

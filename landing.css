@@ -1109,8 +1109,20 @@
 .landing-school-picker {
   position: relative;
   z-index: 8;
+  display: grid;
   width: min(380px, 100%);
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0;
   margin-top: 27px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.065);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(14px);
+}
+
+.landing-school-picker.has-selection {
+  width: min(360px, 100%);
 }
 
 .landing-school-trigger {
@@ -1121,14 +1133,42 @@
   align-items: center;
   gap: 12px;
   padding: 9px 15px 9px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 0;
   border-radius: 18px;
   color: white;
-  background: rgba(255, 255, 255, 0.065);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
+  background: transparent;
+  box-shadow: none;
   text-align: left;
-  backdrop-filter: blur(14px);
+  backdrop-filter: none;
   transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.landing-school-picker > .school-disconnect-button {
+  min-height: 32px;
+  align-self: center;
+  margin: 0 8px 0 0;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 211, 211, 0.68);
+  border-radius: 16px;
+  color: white;
+  background: rgba(194, 67, 78, 0.78);
+  box-shadow: none;
+  font-size: 9px;
+  font-weight: 850;
+  white-space: nowrap;
+  backdrop-filter: none;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.landing-school-picker > .school-disconnect-button:hover {
+  border-color: rgba(255, 225, 225, 0.9);
+  color: white;
+  background: rgba(213, 73, 84, 0.94);
+}
+
+.landing-school-picker > .school-disconnect-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .landing-school-trigger:hover,
@@ -1166,11 +1206,19 @@
 }
 
 .landing-school-trigger strong {
-  margin-top: 3px;
+  margin-top: 0;
   overflow: hidden;
   font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.landing-school-trigger small {
+  margin-top: 5px;
+}
+
+.landing-school-picker.has-selection .school-trigger-arrow {
+  display: none;
 }
 
 .school-trigger-arrow {
@@ -1191,6 +1239,7 @@
   top: calc(100% + 9px);
   right: 0;
   left: 0;
+  grid-column: 1 / -1;
   padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 18px;
@@ -1279,6 +1328,16 @@
   .landing-one-screen .landing-school-picker {
     width: min(350px, 100%);
     margin-top: 16px;
+  }
+
+  .landing-one-screen .landing-school-picker.has-selection {
+    width: min(330px, 100%);
+  }
+
+  .landing-school-picker > .school-disconnect-button {
+    min-height: 28px;
+    padding: 0 7px;
+    font-size: 8px;
   }
 
   .landing-one-screen .landing-school-trigger {

@@ -2416,7 +2416,7 @@ body.is-platform-print-measuring .platform-print-root {
   top: 0;
   left: -300vw;
   display: block;
-  width: 293mm;
+  width: 287mm;
   visibility: hidden;
   pointer-events: none;
 }
@@ -2427,7 +2427,7 @@ body.is-platform-image-capturing .platform-print-root {
   top: 0;
   left: -12000px;
   display: block;
-  width: 293mm;
+  width: 287mm;
   height: auto;
   max-height: none;
   visibility: visible;
@@ -2574,7 +2574,7 @@ body.is-platform-image-capturing .platform-print-root {
 
 @page {
   size: A4 landscape;
-  margin: 2mm;
+  margin: 5mm;
 }
 
 @media print {
@@ -2597,8 +2597,8 @@ body.is-platform-image-capturing .platform-print-root {
     display: block !important;
     width: 100% !important;
     min-height: 0 !important;
-    height: 206mm !important;
-    max-height: 206mm !important;
+    height: 200mm !important;
+    max-height: 200mm !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
@@ -3008,7 +3008,7 @@ body.is-platform-image-capturing .platform-print-root {
   .platform-print-sheet-svg {
     display: block;
     width: 100%;
-    height: 206mm;
+    height: 200mm;
   }
 
   .platform-print-svg-canvas,
@@ -5831,23 +5831,29 @@ body.is-platform-image-capturing .platform-print-root {
 /* 학교별 편제표 연동 */
 .header-school-picker {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.055);
 }
 
-.header-school-picker > button {
+.header-school-picker > [data-school-trigger] {
   display: flex;
   min-width: 190px;
   min-height: 42px;
   align-items: center;
   gap: 9px;
   padding: 6px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  border: 0;
   border-radius: 14px;
   color: white;
-  background: rgba(255, 255, 255, 0.055);
+  background: transparent;
   text-align: left;
 }
 
-.header-school-picker > button i {
+.header-school-picker > [data-school-trigger] i {
   width: 7px;
   height: 7px;
   flex: 0 0 auto;
@@ -5856,35 +5862,36 @@ body.is-platform-image-capturing .platform-print-root {
   box-shadow: 0 0 0 4px rgba(243, 167, 91, 0.1);
 }
 
-.header-school-picker.has-selection > button i {
+.header-school-picker.has-selection > [data-school-trigger] i {
   background: #72e0bd;
   box-shadow: 0 0 0 4px rgba(114, 224, 189, 0.1);
 }
 
-.header-school-picker > button span {
+.header-school-picker > [data-school-trigger] > span {
   min-width: 0;
   flex: 1;
 }
 
-.header-school-picker > button small,
-.header-school-picker > button strong {
+.header-school-picker > [data-school-trigger] small,
+.header-school-picker > [data-school-trigger] strong {
   display: block;
 }
 
-.header-school-picker > button small {
+.header-school-picker > [data-school-trigger] small {
+  margin-top: 4px;
   color: rgba(255, 255, 255, 0.45);
   font-size: 7px;
 }
 
-.header-school-picker > button strong {
-  margin-top: 2px;
+.header-school-picker > [data-school-trigger] strong {
+  margin-top: 0;
   overflow: hidden;
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.header-school-picker > button .icon {
+.header-school-picker > [data-school-trigger] .icon {
   width: 14px;
   height: 14px;
   color: rgba(255, 255, 255, 0.45);
@@ -5892,8 +5899,41 @@ body.is-platform-image-capturing .platform-print-root {
   transition: transform 160ms ease;
 }
 
-.header-school-picker > button[aria-expanded="true"] .icon {
+.header-school-picker > [data-school-trigger][aria-expanded="true"] .icon {
   transform: rotate(-90deg);
+}
+
+.header-school-picker.has-selection > [data-school-trigger] > .icon {
+  display: none;
+}
+
+.header-school-picker > .school-disconnect-button {
+  min-width: 0;
+  min-height: 28px;
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 6px 6px 6px 0;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 211, 211, 0.68);
+  border-radius: 11px;
+  color: white;
+  background: rgba(194, 67, 78, 0.78);
+  box-shadow: none;
+  font-size: 9px;
+  font-weight: 850;
+  white-space: nowrap;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.header-school-picker > .school-disconnect-button:hover {
+  border-color: rgba(255, 225, 225, 0.9);
+  color: white;
+  background: rgba(213, 73, 84, 0.94);
+}
+
+.header-school-picker > .school-disconnect-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .header-school-menu {
@@ -6230,9 +6270,7 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 .curriculum-format-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  display: block;
   margin-top: 10px;
   padding: 12px 14px;
   border: 1px solid #ead9ad;
@@ -6241,17 +6279,20 @@ body.is-platform-image-capturing .platform-print-root {
   background: #fff9e9;
 }
 
+.curriculum-format-notice > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .curriculum-format-notice .icon {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
-  margin-top: 1px;
 }
 
-.curriculum-format-notice p,
 .curriculum-format-notice strong,
-.curriculum-format-notice span {
-  display: block;
+.curriculum-format-notice ul {
   margin: 0;
 }
 
@@ -6259,18 +6300,24 @@ body.is-platform-image-capturing .platform-print-root {
   font-size: 10px;
 }
 
-.curriculum-format-notice span {
-  margin-top: 3px;
+.curriculum-format-notice ul {
+  margin-top: 7px;
+  padding-left: 20px;
+}
+
+.curriculum-format-notice li {
+  padding-left: 2px;
   font-size: 8px;
   line-height: 1.55;
 }
 
-.curriculum-format-notice mark {
-  padding: 1px 4px;
-  border-radius: 4px;
-  color: #6a4400;
-  background: #ffd76d;
-  font-weight: 900;
+.curriculum-format-notice li + li {
+  margin-top: 3px;
+}
+
+.curriculum-format-notice li::marker {
+  color: #b57912;
+  font-size: 1.15em;
 }
 
 .connection-empty,
@@ -7657,8 +7704,8 @@ body.is-platform-image-capturing .platform-print-root {
     display: none;
   }
 
-  .header-school-picker > button {
-    min-width: min(210px, calc(100vw - 86px));
+  .header-school-picker > [data-school-trigger] {
+    min-width: min(180px, calc(100vw - 180px));
   }
 
   .subject-toolbar {
@@ -7708,12 +7755,12 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 @media (max-width: 390px) {
-  .header-school-picker > button {
-    min-width: min(196px, calc(100vw - 76px));
+  .header-school-picker > [data-school-trigger] {
+    min-width: min(196px, calc(100vw - 165px));
   }
 
-  .header-school-picker > button strong {
-    max-width: 130px;
+  .header-school-picker > [data-school-trigger] strong {
+    max-width: 105px;
   }
 
   .signed-school-user {
@@ -10146,21 +10193,21 @@ button.major-subject-chip:hover {
   font-size: 9px;
 }
 
-.header-school-picker > button {
-  min-width: 205px;
+.header-school-picker > [data-school-trigger] {
+  min-width: 180px;
   min-height: 46px;
   padding: 7px 11px;
 }
 
-.header-school-picker > button small {
+.header-school-picker > [data-school-trigger] small {
   font-size: 8px;
 }
 
-.header-school-picker > button strong {
+.header-school-picker > [data-school-trigger] strong {
   font-size: 12px;
 }
 
-.header-school-picker > button .icon {
+.header-school-picker > [data-school-trigger] .icon {
   width: 16px;
   height: 16px;
 }
@@ -10237,29 +10284,29 @@ button.major-subject-chip:hover {
     font-size: 10px;
   }
 
-  .header-school-picker > button {
-    min-width: 240px;
+  .header-school-picker > [data-school-trigger] {
+    min-width: 190px;
     min-height: 54px;
     gap: 11px;
     padding: 8px 13px;
     border-radius: 16px;
   }
 
-  .header-school-picker > button i {
+  .header-school-picker > [data-school-trigger] i {
     width: 8px;
     height: 8px;
   }
 
-  .header-school-picker > button small {
+  .header-school-picker > [data-school-trigger] small {
     font-size: 10px;
   }
 
-  .header-school-picker > button strong {
-    margin-top: 3px;
+  .header-school-picker > [data-school-trigger] strong {
+    margin-top: 0;
     font-size: 14px;
   }
 
-  .header-school-picker > button .icon {
+  .header-school-picker > [data-school-trigger] .icon {
     width: 18px;
     height: 18px;
   }
@@ -11037,7 +11084,7 @@ button.major-subject-chip:hover {
 }
 
 .curriculum-source-region small,
-.curriculum-format-notice span {
+.curriculum-format-notice li {
   font-size: 10px;
 }
 
@@ -11404,8 +11451,8 @@ button.major-subject-chip:hover {
     border-radius: 12px;
   }
 
-  .header-school-picker > button {
-    min-width: min(175px, calc(100vw - 180px));
+  .header-school-picker > [data-school-trigger] {
+    min-width: min(155px, calc(100vw - 180px));
   }
 }
 
@@ -17749,7 +17796,6 @@ body.curriculum-preview-open {
 /* PC 편제표 등록 안내와 연결 학교의 입학년도 선택을 또렷하게 표시한다. */
 @media (min-width: 1024px) {
   .school-upload-card .curriculum-format-notice {
-    gap: 14px;
     padding: 19px 21px;
     border-radius: 16px;
   }
@@ -17763,8 +17809,11 @@ body.curriculum-preview-open {
     font-size: 15px;
   }
 
-  .school-upload-card .curriculum-format-notice span {
-    margin-top: 5px;
+  .school-upload-card .curriculum-format-notice ul {
+    margin-top: 9px;
+  }
+
+  .school-upload-card .curriculum-format-notice li {
     font-size: 13px;
     line-height: 1.65;
   }

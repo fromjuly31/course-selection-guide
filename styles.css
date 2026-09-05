@@ -189,7 +189,9 @@ dialog.school-picker-dialog::backdrop {
 
 .school-picker-current {
   display: grid;
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
   margin-top: 14px;
   padding: 13px 15px;
   border: 1px solid rgba(114, 224, 189, 0.18);
@@ -197,15 +199,76 @@ dialog.school-picker-dialog::backdrop {
   background: rgba(114, 224, 189, 0.08);
 }
 
+.school-picker-current-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
 .school-picker-current small {
+  margin-top: 6px;
   color: #72e0bd;
   font-size: 11px;
   font-weight: 800;
 }
 
 .school-picker-current strong {
+  overflow: hidden;
   color: white;
   font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.school-selection-meta.has-cohort {
+  display: flex !important;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0;
+}
+
+.school-cohort-badge {
+  display: inline-flex;
+  min-height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid rgba(157, 241, 214, 0.6);
+  border-radius: 999px;
+  color: #062b27;
+  background: linear-gradient(135deg, #91efd1, #65d7b2);
+  box-shadow: 0 4px 12px rgba(76, 211, 169, 0.2);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.school-disconnect-button[hidden] {
+  display: none !important;
+}
+
+.school-picker-current > .school-disconnect-button {
+  min-width: 0;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 211, 211, 0.5);
+  border-radius: 11px;
+  color: white;
+  background: rgba(194, 67, 78, 0.72);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.school-picker-current > .school-disconnect-button:hover {
+  border-color: rgba(255, 225, 225, 0.9);
+  background: rgba(213, 73, 84, 0.94);
+}
+
+.school-picker-current > .school-disconnect-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .school-picker-search {

@@ -368,6 +368,29 @@
     }
   }
 
+  async function disconnectSchool() {
+    await init();
+    selectedSchool = null;
+    selectedAdmissionYear = null;
+    curriculum = null;
+    const storage = selectionStorage();
+    storage.removeItem(SELECTED_SCHOOL_KEY);
+    storage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+
+    const params = new URLSearchParams(location.search);
+    const hadSelectionParams = ["school", "admissionYear", "year"].some((key) => params.has(key));
+    if (hadSelectionParams && typeof history?.replaceState === "function") {
+      params.delete("school");
+      params.delete("admissionYear");
+      params.delete("year");
+      const query = params.toString();
+      history.replaceState(history.state, "", `${location.pathname || ""}${query ? `?${query}` : ""}${location.hash || ""}`);
+    }
+
+    emitChange("disconnect");
+    return snapshot();
+  }
+
   async function authenticate(email, password, requiredRole) {
     await init();
     if (!client) throw new Error("먼저 supabase-config.js에 연결 정보를 입력해 주세요.");
@@ -682,6 +705,7 @@
     selectSchool,
     selectAdmissionYear,
     selectSchoolAdmissionYear,
+    disconnectSchool,
     loadCurriculumForCopy,
     signInTeacher,
     signInAdmin,

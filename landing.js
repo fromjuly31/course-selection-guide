@@ -87,14 +87,33 @@
     trigger.setAttribute("aria-expanded", "true");
   }
 
+  function renderSchoolSelectionMeta(node, school, admissionYear, fallback) {
+    if (!node) return;
+    node.classList.toggle("school-selection-meta", Boolean(school));
+    node.classList.toggle("has-cohort", Boolean(school));
+    if (!school) {
+      node.textContent = fallback;
+      return;
+    }
+    const badge = document.createElement("b");
+    badge.className = "school-cohort-badge";
+    badge.textContent = `${admissionYear}년 입학생`;
+    node.replaceChildren(badge);
+  }
+
   function renderSchoolPicker(snapshot) {
     if (!picker || !options || !label || !meta) return;
     const selected = snapshot.selectedSchool && snapshot.selectedAdmissionYear ? snapshot.selectedSchool : null;
     label.textContent = selected?.name || "미선택";
-    meta.textContent = selected ? `${selected.region || "지역 정보 없음"} · ${snapshot.selectedAdmissionYear}년 입학생` : "학교 선택";
+    renderSchoolSelectionMeta(meta, selected, snapshot.selectedAdmissionYear, "학교 선택");
     picker.classList.toggle("has-selection", Boolean(selected));
-    if (currentMeta) currentMeta.textContent = selected ? `${selected.region || "지역 정보 없음"} · ${snapshot.selectedAdmissionYear}년 입학생` : "현재 연동 학교";
+    renderSchoolSelectionMeta(currentMeta, selected, snapshot.selectedAdmissionYear, "현재 연동 학교");
     if (currentName) currentName.textContent = selected?.name || "미선택";
+    picker.querySelectorAll("[data-school-disconnect]").forEach((disconnect) => {
+      disconnect.hidden = !selected;
+      disconnect.disabled = false;
+      disconnect.setAttribute("aria-label", selected ? `${selected.name} 연동 해제` : "학교 연동 해제");
+    });
     const schools = orderedSchools(snapshot.schools || []);
     const keyword = schoolSearch.replace(/\s+/g, "").toLocaleLowerCase("ko-KR");
     const filtered = schools.filter((school) => !keyword || `${school.region || ""}${school.name || ""}`.replace(/\s+/g, "").toLocaleLowerCase("ko-KR").includes(keyword));
@@ -127,6 +146,19 @@
   }
 
   trigger?.addEventListener("click", openSchoolMenu);
+
+  picker?.addEventListener("click", async (event) => {
+    const disconnect = event.target.closest("[data-school-disconnect]");
+    if (!disconnect || !schoolStore) return;
+    disconnect.disabled = true;
+    try {
+      const snapshot = await schoolStore.disconnectSchool();
+      renderSchoolPicker(snapshot);
+    } catch (error) {
+      disconnect.disabled = false;
+      console.error("학교 연동 해제 실패:", error);
+    }
+  });
 
   options?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-school-id]");

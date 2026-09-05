@@ -44,6 +44,11 @@
   const LARGE_FILE_NOTICE = 20 * 1024 * 1024;
   const PREVIEW_PAGE_SIZE = 25;
   const VIEW_PAGE_SIZE = 18;
+  const PLATFORM_EXPORT_WIDTH = 1800;
+  const PLATFORM_EXPORT_HEIGHT = 1273;
+  const PLATFORM_EXPORT_SAFE_PADDING = 32;
+  const PLATFORM_PRINTABLE_WIDTH_MM = 287;
+  const PLATFORM_PRINTABLE_HEIGHT_MM = 200;
   const SUPPORTED_ADMISSION_YEARS = Object.freeze([2026, 2025]);
   const UPLOAD_ADMISSION_YEARS = Object.freeze([2026, 2025, 2024]);
   const SCHOOL_REGIONS = Object.freeze(Array.isArray(schoolStore?.regions) ? [...schoolStore.regions] : []);
@@ -645,6 +650,20 @@
     document.title = `${titles[state.tab]} · 선택 과목 안내 플랫폼`;
   }
 
+  function renderSchoolSelectionMeta(node, school, admissionYear, fallback) {
+    if (!node) return;
+    node.classList.toggle("school-selection-meta", Boolean(school));
+    node.classList.toggle("has-cohort", Boolean(school));
+    if (!school) {
+      node.textContent = fallback;
+      return;
+    }
+    const badge = document.createElement("b");
+    badge.className = "school-cohort-badge";
+    badge.textContent = `${admissionYear}년 입학생`;
+    node.replaceChildren(badge);
+  }
+
   function renderHeaderSchoolPicker() {
     const picker = document.querySelector(".header-school-picker");
     const label = picker?.querySelector("[data-school-picker-label]");
@@ -654,6 +673,7 @@
     const count = picker?.querySelector("[data-header-school-search-count]");
     const currentMeta = picker?.querySelector("[data-school-current-meta]");
     const currentName = picker?.querySelector("[data-school-current-name]");
+    const disconnectButtons = picker?.querySelectorAll("[data-school-disconnect]") || [];
     const listView = picker?.querySelector("[data-school-list-view]");
     const yearView = picker?.querySelector("[data-school-year-view]");
     const yearMeta = picker?.querySelector("[data-school-year-meta]");
@@ -663,9 +683,14 @@
     const schools = filteredSchools(state.headerSchoolSearch);
     const selected = state.selectedSchool && state.selectedAdmissionYear ? state.selectedSchool : null;
     label.textContent = selected?.name || "미선택";
-    meta.textContent = selected ? `${selected.region || "지역 정보 없음"} · ${state.selectedAdmissionYear}년 입학생` : "현재 연동 학교";
-    if (currentMeta) currentMeta.textContent = selected ? `${selected.region || "지역 정보 없음"} · ${state.selectedAdmissionYear}년 입학생` : "현재 연동 학교";
+    renderSchoolSelectionMeta(meta, selected, state.selectedAdmissionYear, "현재 연동 학교");
+    renderSchoolSelectionMeta(currentMeta, selected, state.selectedAdmissionYear, "현재 연동 학교");
     if (currentName) currentName.textContent = selected?.name || "미선택";
+    disconnectButtons.forEach((disconnect) => {
+      disconnect.hidden = !selected;
+      disconnect.disabled = false;
+      disconnect.setAttribute("aria-label", selected ? `${selected.name} 연동 해제` : "학교 연동 해제");
+    });
     picker.classList.toggle("has-selection", Boolean(selected));
     if (search && search.value !== state.headerSchoolSearch) search.value = state.headerSchoolSearch;
     if (count) count.textContent = `${state.schools.length.toLocaleString("ko-KR")}개 학교`;
@@ -4321,7 +4346,7 @@
               <small>등록할 입학년도의 3개년 편제표를 1~3개 분석합니다.</small>
             </button>
           </div>
-          <aside class="curriculum-format-notice" role="note">${icon("warning")}<p><strong>업로드 자료를 확인하세요.</strong><span><mark>전학년 편제표가 아닌 신입생 편제표를 업로드하세요.</mark><br>학교별 셀 위치가 달라도 교과군·과목 유형·학년·학기·옵션·선택 수 머리글과 ‘택 N’ 표시를 찾아 분석합니다.</span></p></aside>
+          <aside class="curriculum-format-notice" role="note"><header>${icon("warning")}<strong>업로드 자료를 확인하세요.</strong></header><ul><li>전학년 편제표가 아닌 신입생 편제표를 업로드하세요.</li><li>학교별 셀 위치가 달라도 교과군·과목 유형·학년·학기·옵션·선택 수 머리글과 ‘택 N’ 표시를 찾아 분석합니다.</li></ul></aside>
           ${state.curriculumImportMessage ? `<p class="import-message ${state.pendingCurriculum ? "" : "is-error"}" role="status">${escapeHtml(state.curriculumImportMessage)}</p>` : ""}
           ${curriculumPreviewMarkup()}
         </section>
@@ -4848,6 +4873,22 @@
     window.setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
   }
 
+  function platformExportPlacement(captureWidth, captureHeight, outputWidth = PLATFORM_EXPORT_WIDTH, outputHeight = PLATFORM_EXPORT_HEIGHT) {
+    const sourceWidth = Math.max(1, Number(captureWidth) || 1);
+    const sourceHeight = Math.max(1, Number(captureHeight) || 1);
+    const availableWidth = Math.max(1, outputWidth - PLATFORM_EXPORT_SAFE_PADDING * 2);
+    const availableHeight = Math.max(1, outputHeight - PLATFORM_EXPORT_SAFE_PADDING * 2);
+    const scale = Math.min(availableWidth / sourceWidth, availableHeight / sourceHeight);
+    const drawWidth = Math.max(1, Math.round(sourceWidth * scale));
+    const drawHeight = Math.max(1, Math.round(sourceHeight * scale));
+    return {
+      drawWidth,
+      drawHeight,
+      drawX: Math.round((outputWidth - drawWidth) / 2),
+      drawY: Math.round((outputHeight - drawHeight) / 2)
+    };
+  }
+
   async function renderPlatformPrintCanvas(documentData) {
     const printRoot = ensurePlatformPrintRoot();
     printRoot.innerHTML = platformPrintDocumentMarkup(documentData);
@@ -4860,7 +4901,8 @@
       const source = printRoot.querySelector(".platform-print-document");
       if (documentData.kind === "simulation") {
         const sourceWidth = Math.max(1, source.getBoundingClientRect().width);
-        const printableRatio = (1800 - 20) / (1273 - 20);
+        const printableRatio = (PLATFORM_EXPORT_WIDTH - PLATFORM_EXPORT_SAFE_PADDING * 2)
+          / (PLATFORM_EXPORT_HEIGHT - PLATFORM_EXPORT_SAFE_PADDING * 2);
         const fittedHeight = Math.ceil(sourceWidth / printableRatio);
         if (source.scrollHeight < fittedHeight) {
           source.classList.add("is-page-height-fitted");
@@ -4876,18 +4918,14 @@
         imageTimeout: 8000
       });
       const output = document.createElement("canvas");
-      output.width = 1800;
-      output.height = 1273;
+      output.width = PLATFORM_EXPORT_WIDTH;
+      output.height = PLATFORM_EXPORT_HEIGHT;
       const context = output.getContext("2d");
       if (!context || !capture.width || !capture.height) throw new Error("출력 화면을 구성하지 못했습니다.");
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, output.width, output.height);
-      const padding = 10;
-      const scale = Math.min((output.width - padding * 2) / capture.width, (output.height - padding * 2) / capture.height);
-      const drawWidth = Math.max(1, Math.round(capture.width * scale));
-      const drawHeight = Math.max(1, Math.round(capture.height * scale));
-      const drawX = Math.round((output.width - drawWidth) / 2);
-      context.drawImage(capture, drawX, padding, drawWidth, drawHeight);
+      const placement = platformExportPlacement(capture.width, capture.height, output.width, output.height);
+      context.drawImage(capture, placement.drawX, placement.drawY, placement.drawWidth, placement.drawHeight);
       return output;
     } finally {
       document.body.classList.remove("is-platform-image-capturing");
@@ -4988,14 +5026,14 @@
     if (!printDocument) return;
     const documentBounds = printDocument.getBoundingClientRect();
     const isSimulation = printDocument.classList.contains("is-simulation-print");
-    const descendantBottom = isSimulation ? [...printDocument.querySelectorAll("*")].reduce((bottom, element) => {
+    const descendantBottom = [...printDocument.querySelectorAll("*")].reduce((bottom, element) => {
       const bounds = element.getBoundingClientRect();
       return Math.max(bottom, bounds.bottom - documentBounds.top);
-    }, 0) : 0;
+    }, 0);
     const contentWidth = Math.max(1, Math.ceil(Math.max(printDocument.scrollWidth, documentBounds.width)));
     const measuredHeight = Math.max(printDocument.scrollHeight, documentBounds.height, descendantBottom);
-    const printablePageHeight = Math.ceil(contentWidth * (206 / 293));
-    const measuredContentHeight = Math.ceil(isSimulation ? measuredHeight * 1.02 + 6 : measuredHeight + 2);
+    const printablePageHeight = Math.ceil(contentWidth * (PLATFORM_PRINTABLE_HEIGHT_MM / PLATFORM_PRINTABLE_WIDTH_MM));
+    const measuredContentHeight = Math.ceil(measuredHeight * 1.015 + 4);
     const contentHeight = Math.max(1, measuredContentHeight, isSimulation ? printablePageHeight : 0);
     const svgNamespace = "http://www.w3.org/2000/svg";
     const xhtmlNamespace = "http://www.w3.org/1999/xhtml";
@@ -6560,6 +6598,26 @@
     const picker = document.querySelector(".header-school-picker");
     const trigger = event.target.closest(".header-school-picker [data-school-trigger]");
     const menu = picker?.querySelector("[data-school-menu]");
+    const schoolDisconnect = event.target.closest(".header-school-picker [data-school-disconnect]");
+    if (schoolDisconnect && schoolStore) {
+      const schoolName = state.selectedSchool?.name || "학교";
+      schoolDisconnect.disabled = true;
+      try {
+        const result = await schoolStore.disconnectSchool();
+        syncSchoolState(result);
+        syncSchoolSimulationSubjects(true);
+        state.headerSchoolSearch = "";
+        state.schoolPickerPendingId = "";
+        state.subjectCategory = "전체";
+        state.subjectPage = 1;
+        render();
+        showToast(`${schoolName} 연동을 해제했습니다.`);
+      } catch (error) {
+        schoolDisconnect.disabled = false;
+        showToast(error.message || "학교 연동을 해제하지 못했습니다.", 4500);
+      }
+      return;
+    }
     if (trigger && menu) {
       openHeaderSchoolPicker();
       return;
@@ -6729,6 +6787,7 @@
     courseGroupOrderIndex,
     copyCurriculumStructure,
     platformPrintDocumentMarkup,
+    platformExportPlacement,
     normalizeCurriculumCourseNames: uniqueCourseNames,
     getCurriculumGrades: curriculumGrades,
     departmentCommonDisclosureMarkup,
