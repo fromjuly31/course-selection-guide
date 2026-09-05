@@ -344,6 +344,52 @@
   font-weight: 850;
 }
 
+.course-chatbot-message > .course-chatbot-followup-question {
+  width: auto;
+  max-width: 100%;
+  margin-top: 10px;
+  border: 1px solid #d8e7e3;
+  background: #f6faf9;
+}
+
+.course-chatbot-followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.course-chatbot-followups button {
+  padding: 7px 10px;
+  border: 1px solid #9fd6c9;
+  border-radius: 999px;
+  color: #0b6655;
+  background: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.course-chatbot-followups button:hover,
+.course-chatbot-followups button:focus-visible {
+  border-color: #37a98f;
+  background: var(--chat-mint-soft);
+  outline: none;
+}
+
+.course-chatbot-message > .course-chatbot-source {
+  width: auto;
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 8px 0 0;
+  border-top: 1px solid #dce8e5;
+  border-radius: 0;
+  color: #637875;
+  background: transparent;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
 .course-chatbot-suggestions {
   display: flex;
   gap: 6px;

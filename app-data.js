@@ -10,7 +10,7 @@
   const SETTINGS_KEY = "course-guide:settings:v2";
   const DEFAULT_DATABASE_URL = "./data/database.json";
   const DEPARTMENT_DATABASE_URL = "./data/departments.json";
-  const STATIC_DATA_VERSION = "20260905-2";
+  const STATIC_DATA_VERSION = "20260905-3";
   const INDEXED_DB_OPEN_TIMEOUT = 2500;
   const DATA_FETCH_TIMEOUT = 8000;
 
@@ -165,6 +165,16 @@
       ? records.filter((record) => record && typeof record === "object" && !Array.isArray(record)).map((record) => ({ ...record }))
       : [];
     const chatbot = source.chatbot && typeof source.chatbot === "object" ? source.chatbot : {};
+    const chatbotTables = [
+      "faqIntents", "questionVariants", "answers", "sources", "synonyms", "safetyRules",
+      "conflicts", "matchingGuide", "clarificationRules", "testCases"
+    ];
+    const normalizedChatbot = {
+      schemaVersion: Number(chatbot.schemaVersion) || 1,
+      keywordWeights: copyRecords(chatbot.keywordWeights),
+      searchSettings: copyRecords(chatbot.searchSettings)
+    };
+    chatbotTables.forEach((table) => { normalizedChatbot[table] = copyRecords(chatbot[table]); });
 
     return {
       meta: source.meta && typeof source.meta === "object" ? { ...source.meta } : {},
@@ -174,10 +184,7 @@
         discoveredColumns.forEach((column) => { normalized[column] = normalizeCourseTypography(row[column] ?? ""); });
         return normalized;
       }),
-      chatbot: {
-        keywordWeights: copyRecords(chatbot.keywordWeights),
-        searchSettings: copyRecords(chatbot.searchSettings)
-      },
+      chatbot: normalizedChatbot,
       sources: copyRecords(source.sources)
     };
   }

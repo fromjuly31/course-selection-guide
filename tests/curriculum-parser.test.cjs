@@ -212,7 +212,7 @@ async function main() {
   assert.match(appSource, /printablePageHeight = Math\.ceil\(contentWidth \* \(206 \/ 293\)\)/);
   assert.match(appDataSource, /INDEXED_DB_OPEN_TIMEOUT = 2500/);
   assert.match(appDataSource, /fetchWithTimeout/);
-  assert.match(appDataSource, /STATIC_DATA_VERSION = "20260905-2"/);
+  assert.match(appDataSource, /STATIC_DATA_VERSION = "20260905-3"/);
   assert.match(appSource, /"success",\s*closeCurriculumPreview\s*\)/);
   assert.match(appSource, /if \(confirmAction\) await confirmAction\(\)/);
   assert.doesNotMatch(appSource, /기이수 과목/);
