@@ -195,6 +195,7 @@ async function main() {
   const draftInstallSql = fs.readFileSync(path.join(__dirname, "..", "supabase", "install-curriculum-drafts.sql"), "utf8");
   const teacherPublishSql = fs.readFileSync(path.join(__dirname, "..", "supabase", "install-teacher-curriculum-publish.sql"), "utf8");
   const schoolStoreSource = fs.readFileSync(path.join(__dirname, "..", "school-data.js"), "utf8");
+  const landingSource = fs.readFileSync(path.join(__dirname, "..", "landing.js"), "utf8");
   const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   const appDataSource = fs.readFileSync(path.join(__dirname, "..", "app-data.js"), "utf8");
   const appCss = fs.readFileSync(path.join(__dirname, "..", "app.css"), "utf8");
@@ -212,6 +213,11 @@ async function main() {
   assert.match(schoolStoreSource, /saveLocalCurriculumDraft/);
   assert.match(schoolStoreSource, /isMissingCurriculumDraftTableError\(error\).*saveLocalCurriculumDraft/s);
   assert.match(schoolStoreSource, /function selectionStorage\(\) \{\s*return window\.sessionStorage/);
+  assert.match(schoolStoreSource, /function prepareInternalNavigation\(\)/);
+  assert.match(schoolStoreSource, /const isReload = window\.performance\?\.getEntriesByType\?\.\("navigation"\)\?\.\[0\]\?\.type === "reload"/);
+  assert.match(schoolStoreSource, /const isInternalNavigation = !isReload && storage\.getItem\(INTERNAL_NAVIGATION_KEY\) === "1"/);
+  assert.match(schoolStoreSource, /if \(!isInternalNavigation\) \{[\s\S]*?selectedSchool = null;[\s\S]*?return;/);
+  assert.match(landingSource, /schoolStore\?\.prepareInternalNavigation\?\.\(\);\s*location\.assign/);
   assert.match(schoolStoreSource, /async function selectSchoolAdmissionYear/);
   assert.match(schoolStoreSource, /async function disconnectSchool/);
   assert.match(appSource, /function refreshSubjectSearchInPlace/);
@@ -242,7 +248,7 @@ async function main() {
   assert.match(appDataSource, /TRANSIENT_SETTING_KEYS\.forEach\(\(key\) => \{ delete persistentSettings\[key\]; \}\)/);
   assert.match(appSource, /"success",\s*\(\) => requestCurriculumLeave\(closeCurriculumPreview\)\s*\)/);
   assert.match(appSource, /if \(confirmAction\) await confirmAction\(\)/);
-  assert.match(appSource, /requestCurriculumLeave\(\(\) => location\.assign/);
+  assert.match(appSource, /requestCurriculumLeave\(\(\) => \{\s*schoolStore\?\.prepareInternalNavigation\?\.\(\);\s*location\.assign/);
   assert.match(appSource, /requestCurriculumLeave\(closeCurriculumPreview\)/);
   assert.match(appSource, /@ssabrojs\/hwpxjs@0\.4\.0\/dist\/browser\/hwpxjs\.browser\.mjs/);
   assert.match(appSource, /\["xlsx", "xls", "hwp", "hwpx"\]/);
@@ -323,10 +329,10 @@ async function main() {
   assert.match(sectionHtml, /<dialog class="header-school-menu school-picker-dialog"/);
   assert.match(sectionHtml, /data-school-picker-label>미선택/);
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
-  assert.match(sectionHtml, /school-data\.js\?v=20260905-6/);
+  assert.match(sectionHtml, /school-data\.js\?v=20260906-1/);
   assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
   assert.match(sectionHtml, /app\.css\?v=20260906-1/);
-  assert.match(sectionHtml, /app\.js\?v=20260906-1/);
+  assert.match(sectionHtml, /app\.js\?v=20260906-2/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 

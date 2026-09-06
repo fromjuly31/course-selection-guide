@@ -114,11 +114,28 @@ async function main() {
       if (result.exceptionDetails) throw new Error(result.exceptionDetails.text || "브라우저 평가 오류");
       return result.result.value;
     };
+    const connectHeaderSchool = async () => {
+      await evaluate("document.querySelector('.header-school-picker [data-school-trigger]').click()");
+      await waitFor(async () => evaluate("document.querySelector('.header-school-picker [data-school-menu]').open"));
+      await evaluate("document.querySelector('.header-school-picker [data-school-id=\"wonju-girls\"]').click()");
+      await waitFor(async () => evaluate("!document.querySelector('.header-school-picker [data-school-year-view]').hidden"));
+      await evaluate("document.querySelector('.header-school-picker [data-school-connect-year=\"2026\"]').click()");
+      await waitFor(async () => evaluate("document.querySelector('.header-school-picker')?.classList.contains('has-selection')"));
+    };
 
-    await waitFor(async () => evaluate(`(() => {
-      const picker = document.querySelector('.header-school-picker');
-      return document.readyState === 'complete' && picker?.classList.contains('has-selection') && Boolean(picker.querySelector('.school-cohort-badge'));
-    })()`));
+    await waitFor(async () => evaluate("document.readyState === 'complete' && window.SchoolStore?.getSnapshot().schools.length === 1"));
+    const freshUi = await evaluate(`(() => ({
+      selectedSchool: window.SchoolStore.getSnapshot().selectedSchool,
+      label: document.querySelector('[data-school-picker-label]').textContent,
+      hasSchoolParam: new URL(location.href).searchParams.has('school'),
+      hasYearParam: new URL(location.href).searchParams.has('admissionYear')
+    }))()`);
+    assert.equal(freshUi.selectedSchool, null);
+    assert.equal(freshUi.label, "미선택");
+    assert.equal(freshUi.hasSchoolParam, false);
+    assert.equal(freshUi.hasYearParam, false);
+
+    await connectHeaderSchool();
     const connectedUi = await evaluate(`(() => {
       const picker = document.querySelector('.header-school-picker');
       const trigger = picker.querySelector('[data-school-trigger]');
@@ -156,6 +173,11 @@ async function main() {
     assert.equal(connectedUi.sameCard, true);
     assert.equal(connectedUi.ariaLabel, "원주여자고등학교 연동 해제");
     assert.ok(connectedUi.brandFontSize >= 16);
+
+    await client.send("Page.reload", { ignoreCache: true });
+    await waitFor(async () => evaluate("document.readyState === 'complete' && window.SchoolStore?.getSnapshot().schools.length === 1 && window.SchoolStore.getSnapshot().selectedSchool === null"));
+    assert.equal(await evaluate("document.querySelector('[data-school-picker-label]').textContent"), "미선택");
+    await connectHeaderSchool();
 
     await waitFor(async () => evaluate("Boolean(document.querySelector('.school-course-school-badge'))"));
     const schoolCourseBadge = await evaluate(`(() => {
@@ -249,10 +271,12 @@ async function main() {
 
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 820, deviceScaleFactor: 1, mobile: false });
     await client.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/index.html?school=wonju-girls&admissionYear=2026` });
-    await waitFor(async () => evaluate(`(() => {
-      const picker = document.querySelector('.landing-school-picker');
-      return document.readyState === 'complete' && picker?.classList.contains('has-selection') && Boolean(picker.querySelector('.school-cohort-badge'));
-    })()`));
+    await waitFor(async () => evaluate("document.readyState === 'complete' && window.SchoolStore?.getSnapshot().schools.length === 1 && window.SchoolStore.getSnapshot().selectedSchool === null"));
+    assert.equal(await evaluate("document.querySelector('.landing-school-picker [data-school-picker-label]').textContent"), "미선택");
+    assert.equal(await evaluate("new URL(location.href).searchParams.has('school')"), false);
+    assert.equal(await evaluate("new URL(location.href).searchParams.has('admissionYear')"), false);
+    await evaluate("window.SchoolStore.selectSchoolAdmissionYear('wonju-girls', 2026)", true);
+    await waitFor(async () => evaluate("document.querySelector('.landing-school-picker')?.classList.contains('has-selection')"));
     const landingUi = await evaluate(`(() => ({
       badge: document.querySelector('.landing-school-picker .school-cohort-badge')?.textContent,
       disconnectHidden: document.querySelector('.landing-school-picker [data-school-disconnect]')?.hidden,

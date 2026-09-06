@@ -6942,7 +6942,10 @@
     if (navigationButton) {
       event.preventDefault();
       const navigationHref = navigationButton.dataset.navHref || navigationButton.getAttribute("href");
-      if (navigationHref) await requestCurriculumLeave(() => location.assign(navigationHref));
+      if (navigationHref) await requestCurriculumLeave(() => {
+        schoolStore?.prepareInternalNavigation?.();
+        location.assign(navigationHref);
+      });
       return;
     }
 

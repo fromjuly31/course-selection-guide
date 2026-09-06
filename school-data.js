@@ -3,6 +3,7 @@
 
   const SELECTED_SCHOOL_KEY = "course-guide:selected-school:v1";
   const SELECTED_ADMISSION_YEAR_KEY = "course-guide:selected-admission-year:v1";
+  const INTERNAL_NAVIGATION_KEY = "course-guide:internal-navigation:v1";
   const LOCAL_CURRICULUM_DRAFTS_KEY = "course-guide:curriculum-drafts:v1";
   const FALLBACK_URL = "./data/schools.json";
   const SUPPORTED_ADMISSION_YEARS = Object.freeze([2026, 2025, 2024]);
@@ -33,6 +34,21 @@
     // 기존 버전이 localStorage에 남긴 자동 연동 값은 더 이상 사용하지 않는다.
     localStorage.removeItem(SELECTED_SCHOOL_KEY);
     localStorage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+  }
+
+  function clearSelectionParams() {
+    const params = new URLSearchParams(location.search);
+    const hadSelectionParams = ["school", "admissionYear", "year"].some((key) => params.has(key));
+    if (!hadSelectionParams || typeof history?.replaceState !== "function") return;
+    params.delete("school");
+    params.delete("admissionYear");
+    params.delete("year");
+    const query = params.toString();
+    history.replaceState(history.state, "", `${location.pathname || ""}${query ? `?${query}` : ""}${location.hash || ""}`);
+  }
+
+  function prepareInternalNavigation() {
+    selectionStorage().setItem(INTERNAL_NAVIGATION_KEY, "1");
   }
 
   function loadSupabaseLibrary() {
@@ -222,11 +238,22 @@
   }
 
   async function restoreSelection() {
-    const params = new URLSearchParams(location.search);
     clearLegacySelection();
     const storage = selectionStorage();
-    const selectedId = params.get("school") || storage.getItem(SELECTED_SCHOOL_KEY) || "";
-    const savedYear = Number(params.get("admissionYear") || params.get("year") || storage.getItem(SELECTED_ADMISSION_YEAR_KEY));
+    const isReload = window.performance?.getEntriesByType?.("navigation")?.[0]?.type === "reload";
+    const isInternalNavigation = !isReload && storage.getItem(INTERNAL_NAVIGATION_KEY) === "1";
+    storage.removeItem(INTERNAL_NAVIGATION_KEY);
+    clearSelectionParams();
+    if (!isInternalNavigation) {
+      storage.removeItem(SELECTED_SCHOOL_KEY);
+      storage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
+      selectedSchool = null;
+      selectedAdmissionYear = null;
+      curriculum = null;
+      return;
+    }
+    const selectedId = storage.getItem(SELECTED_SCHOOL_KEY) || "";
+    const savedYear = Number(storage.getItem(SELECTED_ADMISSION_YEAR_KEY));
     selectedSchool = schools.find((school) => school.id === selectedId || school.slug === selectedId) || null;
     if (!selectedSchool && selectedId) storage.removeItem(SELECTED_SCHOOL_KEY);
     if (selectedSchool) {
@@ -382,16 +409,8 @@
     const storage = selectionStorage();
     storage.removeItem(SELECTED_SCHOOL_KEY);
     storage.removeItem(SELECTED_ADMISSION_YEAR_KEY);
-
-    const params = new URLSearchParams(location.search);
-    const hadSelectionParams = ["school", "admissionYear", "year"].some((key) => params.has(key));
-    if (hadSelectionParams && typeof history?.replaceState === "function") {
-      params.delete("school");
-      params.delete("admissionYear");
-      params.delete("year");
-      const query = params.toString();
-      history.replaceState(history.state, "", `${location.pathname || ""}${query ? `?${query}` : ""}${location.hash || ""}`);
-    }
+    storage.removeItem(INTERNAL_NAVIGATION_KEY);
+    clearSelectionParams();
 
     emitChange("disconnect");
     return snapshot();
@@ -745,6 +764,7 @@
     selectSchool,
     selectAdmissionYear,
     selectSchoolAdmissionYear,
+    prepareInternalNavigation,
     disconnectSchool,
     loadCurriculumForCopy,
     signInTeacher,

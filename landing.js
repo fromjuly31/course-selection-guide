@@ -195,7 +195,10 @@
   });
 
   document.querySelectorAll("[data-nav-href]").forEach((button) => {
-    button.addEventListener("click", () => location.assign(button.dataset.navHref));
+    button.addEventListener("click", () => {
+      schoolStore?.prepareInternalNavigation?.();
+      location.assign(button.dataset.navHref);
+    });
   });
 
   document.addEventListener("keydown", (event) => {
