@@ -196,6 +196,7 @@ async function main() {
   const teacherPublishSql = fs.readFileSync(path.join(__dirname, "..", "supabase", "install-teacher-curriculum-publish.sql"), "utf8");
   const schoolStoreSource = fs.readFileSync(path.join(__dirname, "..", "school-data.js"), "utf8");
   const landingSource = fs.readFileSync(path.join(__dirname, "..", "landing.js"), "utf8");
+  const chatbotSource = fs.readFileSync(path.join(__dirname, "..", "chatbot.js"), "utf8");
   const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   const appDataSource = fs.readFileSync(path.join(__dirname, "..", "app-data.js"), "utf8");
   const appCss = fs.readFileSync(path.join(__dirname, "..", "app.css"), "utf8");
@@ -217,7 +218,11 @@ async function main() {
   assert.match(schoolStoreSource, /const isReload = window\.performance\?\.getEntriesByType\?\.\("navigation"\)\?\.\[0\]\?\.type === "reload"/);
   assert.match(schoolStoreSource, /const isInternalNavigation = !isReload && storage\.getItem\(INTERNAL_NAVIGATION_KEY\) === "1"/);
   assert.match(schoolStoreSource, /if \(!isInternalNavigation\) \{[\s\S]*?selectedSchool = null;[\s\S]*?return;/);
-  assert.match(landingSource, /schoolStore\?\.prepareInternalNavigation\?\.\(\);\s*location\.assign/);
+  assert.match(landingSource, /schoolStore\?\.prepareInternalNavigation\?\.\(\);/);
+  assert.match(landingSource, /window\.CourseChatbot\?\.prepareInternalNavigation\?\.\(\);\s*location\.assign/);
+  assert.match(chatbotSource, /const SUPPORT_INTERNAL_NAVIGATION_KEY = "course-guide:support-internal-navigation:v1"/);
+  assert.match(chatbotSource, /const isInternalNavigation = !isReload && storage\.getItem\(SUPPORT_INTERNAL_NAVIGATION_KEY\) === "1"/);
+  assert.match(chatbotSource, /function prepareInternalNavigation\(\)/);
   assert.match(schoolStoreSource, /async function selectSchoolAdmissionYear/);
   assert.match(schoolStoreSource, /async function disconnectSchool/);
   assert.match(appSource, /function refreshSubjectSearchInPlace/);
@@ -248,7 +253,8 @@ async function main() {
   assert.match(appDataSource, /TRANSIENT_SETTING_KEYS\.forEach\(\(key\) => \{ delete persistentSettings\[key\]; \}\)/);
   assert.match(appSource, /"success",\s*\(\) => requestCurriculumLeave\(closeCurriculumPreview\)\s*\)/);
   assert.match(appSource, /if \(confirmAction\) await confirmAction\(\)/);
-  assert.match(appSource, /requestCurriculumLeave\(\(\) => \{\s*schoolStore\?\.prepareInternalNavigation\?\.\(\);\s*location\.assign/);
+  assert.match(appSource, /requestCurriculumLeave\(\(\) => \{\s*schoolStore\?\.prepareInternalNavigation\?\.\(\);/);
+  assert.match(appSource, /schoolStore\?\.prepareInternalNavigation\?\.\(\);\s*window\.CourseChatbot\?\.prepareInternalNavigation\?\.\(\);\s*location\.assign/);
   assert.match(appSource, /requestCurriculumLeave\(closeCurriculumPreview\)/);
   assert.match(appSource, /@ssabrojs\/hwpxjs@0\.4\.0\/dist\/browser\/hwpxjs\.browser\.mjs/);
   assert.match(appSource, /\["xlsx", "xls", "hwp", "hwpx"\]/);
@@ -271,6 +277,10 @@ async function main() {
   assert.match(appCss, /body\.is-platform-print-measuring \.platform-print-root[\s\S]*?width: 287mm/);
   assert.match(appCss, /body\.is-platform-image-capturing \.platform-print-root[\s\S]*?width: 287mm/);
   assert.match(appCss, /\.platform-print-sheet-svg[\s\S]*?height: 197mm;[\s\S]*?margin-top: 3mm/);
+  assert.match(appCss, /\.platform-print-careers[\s\S]*?white-space: pre-line/);
+  assert.match(appCss, /\.platform-print-careers\.is-truncated[\s\S]*?text-overflow: ellipsis;[\s\S]*?-webkit-box-orient: vertical/);
+  assert.match(appSource, /function fitDepartmentCareerToPrintArea\(printDocument\)/);
+  assert.match(appSource, /const lineLimit = Math\.max\(1, Math\.floor\(\(availableHeight \+ 0\.5\) \/ lineHeight\) \+ 1\)/);
   assert.match(appCss, /\.platform-print-root \.simulation-final-summary h1[\s\S]*?font-size: 16pt/);
   assert.match(appCss, /\.platform-print-root \.simulation-final-summary > div[\s\S]*?justify-content: space-between/);
   assert.match(appCss, /\.platform-print-root \.simulation-final-course-group li[\s\S]*?font-size: 8pt/);
@@ -331,8 +341,9 @@ async function main() {
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
   assert.match(sectionHtml, /school-data\.js\?v=20260906-1/);
   assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
-  assert.match(sectionHtml, /app\.css\?v=20260906-1/);
-  assert.match(sectionHtml, /app\.js\?v=20260906-2/);
+  assert.match(sectionHtml, /app\.css\?v=20260907-3/);
+  assert.match(sectionHtml, /app\.js\?v=20260907-3/);
+  assert.match(sectionHtml, /chatbot\.js\?v=20260907-2/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 
@@ -340,6 +351,15 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
   assert.ok(window.DatabaseApp, "앱 테스트 API가 초기화되어야 합니다.");
+  assert.equal(
+    window.DatabaseApp.careerGuideText("∘ 첫째 분야 ∘   둘째 분야\n◦ 셋째 분야 ○ 넷째 분야"),
+    "∘ 첫째 분야\n∘   둘째 분야\n◦ 셋째 분야\n○ 넷째 분야"
+  );
+  assert.doesNotMatch(window.DatabaseApp.careerGuideText("첫째 분야\n\n∘ 둘째 분야"), /\n\n/);
+  assert.equal(
+    window.DatabaseApp.careerGuideMarkup("∘ 기업 및 산업체\n- 길어서 다음 줄로 넘어가는 세부 진출 분야"),
+    '<span class="career-guide-line">∘ 기업 및 산업체</span><span class="career-guide-line is-detail">- 길어서 다음 줄로 넘어가는 세부 진출 분야</span>'
+  );
   const state = window.DatabaseApp.getState();
   assert.deepEqual(state.simulationSubjects, []);
   assert.deepEqual(state.simulationSelections, {});
@@ -468,6 +488,36 @@ async function main() {
   const standardPrintMarkup = window.DatabaseApp.platformPrintDocumentMarkup({ title: "과목 안내", subtitle: "테스트", body: "<section>본문</section>" });
   assert.match(standardPrintMarkup, /platform-print-brand/);
   assert.match(standardPrintMarkup, /platform-print-footer/);
+  assert.match(standardPrintMarkup, /data-print-icon="school"/);
+  assert.doesNotMatch(standardPrintMarkup, /icons\.svg#/);
+  const recommendationPrintMarkup = window.DatabaseApp.platformPrintDocumentMarkup(window.DatabaseApp.platformDocumentData("recommendation"));
+  ["solid-star", "sparkles", "book-open", "hand-star", "warning"].forEach((iconName) => {
+    assert.match(recommendationPrintMarkup, new RegExp(`data-print-icon="${iconName}"`));
+  });
+  assert.doesNotMatch(recommendationPrintMarkup, /icons\.svg#/);
+  const previousDepartmentDataset = state.departmentDataset;
+  state.departmentDataset = {
+    meta: {},
+    fields: [{ name: "공학", departmentCount: 1 }],
+    departments: [{
+      id: "print-test-department",
+      field: "공학",
+      name: "테스트공학과",
+      guide: { overview: "학과 개요", aptitude: "흥미와 적성", careers: "∘ 첫째 분야\n- 첫째 세부 분야 ∘ 둘째 분야\n- 둘째 세부 분야" },
+      recommendedBooks: [],
+      relatedSubjects: ["기술·가정"],
+      reflectedSubjects: [{ name: "기술·가정", universities: ["테스트대학교"] }],
+      scienceRecommendedSubjects: [{ name: "기술·가정", universities: ["테스트대학교"] }]
+    }]
+  };
+  const departmentPrintMarkup = window.DatabaseApp.platformPrintDocumentMarkup(window.DatabaseApp.platformDocumentData("department", "print-test-department"));
+  ["wrench", "book-open", "book", "solid-star", "flask", "tech-home"].forEach((iconName) => {
+    assert.match(departmentPrintMarkup, new RegExp(`data-print-icon="${iconName}"`));
+  });
+  assert.match(departmentPrintMarkup, /platform-print-course-group-title/);
+  assert.match(departmentPrintMarkup, /class="platform-print-careers career-guide-lines"><span class="career-guide-line">∘ 첫째 분야<\/span><span class="career-guide-line is-detail">- 첫째 세부 분야<\/span><span class="career-guide-line">∘ 둘째 분야<\/span>/);
+  assert.doesNotMatch(departmentPrintMarkup, /icons\.svg#/);
+  state.departmentDataset = previousDepartmentDataset;
   [[1435, 1000], [2200, 900], [900, 1800]].forEach(([width, height]) => {
     const placement = window.DatabaseApp.platformExportPlacement(width, height);
     assert.ok(placement.drawX >= 32);

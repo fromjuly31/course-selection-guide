@@ -98,7 +98,72 @@ async function main() {
     assert.equal(initialSupportDock.launchersVisible, "visible");
     assert.equal(initialSupportDock.expanded, "true");
 
+    const landingContact = await evaluate(`(() => {
+      const trigger = document.querySelector('[data-contact-open]');
+      trigger.click();
+      const dialog = document.querySelector('[data-contact-dialog]');
+      const rows = [...dialog.querySelectorAll('.landing-contact-list > span')];
+      const bounds = dialog.getBoundingClientRect();
+      return {
+        triggerTag: trigger.tagName,
+        open: dialog.open,
+        title: dialog.querySelector('h2').textContent.trim(),
+        lines: rows.map((row) => row.textContent.trim()),
+        icons: rows.map((row) => row.querySelector('use').getAttribute('href')),
+        tops: rows.map((row) => row.getBoundingClientRect().top),
+        iconWidths: rows.map((row) => row.querySelector('.icon').getBoundingClientRect().width),
+        width: bounds.width,
+        insideViewport: bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight
+      };
+    })()`);
+    assert.equal(landingContact.triggerTag, "BUTTON");
+    assert.equal(landingContact.open, true);
+    assert.equal(landingContact.title, "문의");
+    assert.deepEqual(landingContact.lines, [
+      "메신저:원주여자고등학교 교육과정부 김범준",
+      "메일:fromjuly31@gmail.com"
+    ]);
+    assert.deepEqual(landingContact.icons, ["icons.svg#message", "icons.svg?v=20260907-1#mail"]);
+    assert.ok(landingContact.tops[1] > landingContact.tops[0]);
+    assert.ok(landingContact.iconWidths.every((width) => width === 16));
+    assert.ok(landingContact.width <= 430 && landingContact.insideViewport);
+    await evaluate("document.querySelector('[data-contact-close]').click()");
+    assert.equal(await evaluate("document.querySelector('[data-contact-dialog]').open"), false);
+
     const responsiveOnly = process.argv.includes("--responsive-only");
+    const supportOnly = process.argv.includes("--support-only");
+    const navigationStateOnly = process.argv.includes("--navigation-state-only");
+    if (navigationStateOnly) {
+      await evaluate("document.querySelector('[data-support-collapse]').click(); true");
+      assert.equal(await evaluate("window.CourseChatbot.getState().collapsed"), true);
+      await evaluate("document.querySelector('[data-nav-href*=\"tab=subjects\"]').click(); true").catch(() => {});
+      await waitFor(async () => evaluate("location.pathname.endsWith('/section.html') && new URLSearchParams(location.search).get('tab') === 'subjects' && Boolean(window.CourseChatbot)"));
+      assert.equal(await evaluate("window.CourseChatbot.getState().collapsed"), true);
+
+      await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+      await evaluate("document.querySelector('[data-tab=\"departments\"]').click(); true").catch(() => {});
+      await waitFor(async () => evaluate("new URLSearchParams(location.search).get('tab') === 'departments' && Boolean(window.CourseChatbot)"));
+      assert.equal(await evaluate("window.CourseChatbot.getState().collapsed"), true);
+
+      await evaluate("document.querySelector('[data-support-collapse]').click(); true");
+      assert.equal(await evaluate("window.CourseChatbot.getState().collapsed"), false);
+      await evaluate("document.querySelector('[data-tab=\"recommend\"]').click(); true").catch(() => {});
+      await waitFor(async () => evaluate("new URLSearchParams(location.search).get('tab') === 'recommend' && Boolean(window.CourseChatbot)"));
+      assert.equal(await evaluate("window.CourseChatbot.getState().collapsed"), false);
+
+      await evaluate("document.querySelector('[data-support-collapse]').click(); true");
+      assert.equal(await evaluate("window.CourseChatbot.getState().collapsed"), true);
+      await client.send("Page.reload", { ignoreCache: true });
+      await waitFor(async () => evaluate("document.readyState === 'complete' && Boolean(window.CourseChatbot)"));
+      assert.equal(await evaluate("window.CourseChatbot.getState().collapsed"), false);
+
+      await evaluate("document.querySelector('[data-support-collapse]').click(); true");
+      await client.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/index.html` });
+      await waitFor(async () => evaluate("location.pathname.endsWith('/index.html') && document.readyState === 'complete' && Boolean(window.CourseChatbot)"));
+      assert.equal(await evaluate("window.CourseChatbot.getState().collapsed"), false);
+      console.log("support dock navigation-state browser tests passed");
+      return;
+    }
     if (responsiveOnly) {
       await client.send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
       await waitFor(async () => evaluate("document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width > 150"));
@@ -196,6 +261,23 @@ async function main() {
     assert.equal(mobileSupportDock.faqWidth, 46);
     assert.equal(mobileSupportDock.chatbotLabel, "none");
     assert.equal(mobileSupportDock.faqLabel, "none");
+    const mobileContact = await evaluate(`(() => {
+      document.querySelector('[data-contact-open]').click();
+      const dialog = document.querySelector('[data-contact-dialog]');
+      const bounds = dialog.getBoundingClientRect();
+      const rows = [...dialog.querySelectorAll('.landing-contact-list > span')];
+      const result = {
+        width: bounds.width,
+        insideViewport: bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight,
+        rowTops: rows.map((row) => row.getBoundingClientRect().top),
+        horizontalOverflow: Math.max(0, dialog.scrollWidth - dialog.clientWidth)
+      };
+      dialog.querySelector('[data-contact-close]').click();
+      return result;
+    })()`);
+    assert.ok(mobileContact.width <= 358 && mobileContact.insideViewport);
+    assert.ok(mobileContact.rowTops[1] > mobileContact.rowTops[0]);
+    assert.equal(mobileContact.horizontalOverflow, 0);
     if (responsiveOnly) {
       console.log("responsive support dock browser tests passed");
       return;
@@ -228,25 +310,67 @@ async function main() {
     const faqItems = await evaluate(`[...document.querySelectorAll('.course-chatbot-faq-item')].map((item) => ({
       number: item.querySelector('summary > span').textContent.trim(),
       question: item.querySelector('summary strong').textContent.trim(),
-      answer: item.querySelector(':scope > p')?.textContent.trim() || ''
+      answer: item.querySelector(':scope > p')?.textContent.trim() || '',
+      questionOverflow: Math.max(0, item.querySelector('summary strong').scrollWidth - item.querySelector('summary strong').clientWidth)
     }))`);
-    assert.equal(faqItems.length, 7);
+    assert.equal(faqItems.length, 8);
     assert.equal(faqItems[1].answer, "아니요. 최신 정보가 반영되지 않았을 수 있으므로 반드시 검토해야 합니다.");
     assert.deepEqual(faqItems[3], {
       number: "04",
       question: "우리 학교에 개설된 과목 안내가 없어요.",
-      answer: "고시 외 과목일 가능성이 높습니다. 고시 외 과목은 학교 선생님께 문의하세요."
+      answer: "고시 외 과목일 가능성이 높습니다. 고시 외 과목은 학교 선생님께 문의하세요.",
+      questionOverflow: 0
     });
-    assert.equal(faqItems[4].number, "05");
-    assert.equal(faqItems[4].question, "제가 희망하는 학과의 정보가 없어요.");
+    assert.deepEqual(faqItems[4], {
+      number: "05",
+      question: "듣고 싶은 과목이 있는데 우리 학교에 개설되지 않았어요.",
+      answer: "해당하는 지역의 공동 교육과정 및 온라인 학교에 개설된 강의가 있는지 확인해 보세요.",
+      questionOverflow: 0
+    });
     assert.equal(faqItems[5].number, "06");
-    assert.equal(faqItems[5].question, "학교 데이터는 어떻게 연동하나요?");
+    assert.equal(faqItems[5].question, "제가 희망하는 학과의 정보가 없어요.");
     assert.deepEqual(faqItems[6], {
       number: "07",
-      question: "앱 관련 문의 사항이 있어요. 어디에 문의해야 할까요?",
-      answer: "원주여자고등학교 김범준으로 메신저 혹은 fromjuly31@gmail.com으로 메일 주세요."
+      question: "학교 편제표는 어떻게 연동하나요?",
+      answer: "데이터 연동탭에서 각 학교의 학년도별 신입생 편제표를 업로드할 수 있습니다.",
+      questionOverflow: 0
     });
+    assert.deepEqual(faqItems[7], {
+      number: "08",
+      question: "앱 관련 문의 사항이 있어요. 어디에 문의해야 할까요?",
+      answer: "",
+      questionOverflow: 0
+    });
+    assert.ok(faqItems.every((item) => item.questionOverflow === 0));
+    const faqContact = await evaluate(`(() => {
+      const contact = document.querySelector('.course-faq-contact');
+      const rows = [...contact.querySelectorAll(':scope > span')];
+      return {
+        lines: rows.map((row) => row.textContent.trim()),
+        icons: rows.map((row) => row.querySelector('use').getAttribute('href')),
+        tops: rows.map((row) => row.getBoundingClientRect().top),
+        display: getComputedStyle(contact).display
+      };
+    })()`);
+    assert.deepEqual(faqContact.lines, [
+      "메신저:원주여자고등학교 교육과정부 김범준",
+      "메일:fromjuly31@gmail.com"
+    ]);
+    assert.deepEqual(faqContact.icons, ["icons.svg?v=20260907-1#message", "icons.svg?v=20260907-1#mail"]);
+    assert.equal(faqContact.display, "grid");
+    assert.ok(faqContact.tops[1] > faqContact.tops[0]);
     await evaluate("document.querySelector('[data-faq-close]').click()");
+    if (supportOnly) {
+      if (process.argv.includes("--capture-preview")) {
+        await evaluate("document.querySelector('[data-contact-open]').click()");
+        const screenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+        const previewPath = path.join(os.tmpdir(), "landing-contact-preview.png");
+        fs.writeFileSync(previewPath, Buffer.from(screenshot.data, "base64"));
+        console.log(`landing contact preview: ${previewPath}`);
+      }
+      console.log("landing contact and FAQ browser tests passed");
+      return;
+    }
     assert.equal(await evaluate("document.querySelector('.course-chatbot-suggestions') === null"), true);
     await evaluate(`(() => {
       const messages = document.querySelector('[data-chat-messages]');

@@ -3,6 +3,26 @@
 
   requestAnimationFrame(() => document.body.classList.add("is-ready"));
 
+  const contactTrigger = document.querySelector("[data-contact-open]");
+  const contactDialog = document.querySelector("[data-contact-dialog]");
+
+  function closeContactDialog() {
+    if (!contactDialog?.open) return;
+    contactDialog.close();
+    contactTrigger?.focus();
+  }
+
+  contactTrigger?.addEventListener("click", () => {
+    if (!contactDialog?.open) contactDialog.showModal();
+  });
+  contactDialog?.addEventListener("click", (event) => {
+    if (event.target === contactDialog || event.target.closest("[data-contact-close]")) closeContactDialog();
+  });
+  contactDialog?.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeContactDialog();
+  });
+
   const parallax = document.querySelector("[data-parallax]");
   if (parallax && !reduceMotion && window.matchMedia("(pointer: fine)").matches) {
     window.addEventListener("pointermove", (event) => {
@@ -197,6 +217,7 @@
   document.querySelectorAll("[data-nav-href]").forEach((button) => {
     button.addEventListener("click", () => {
       schoolStore?.prepareInternalNavigation?.();
+      window.CourseChatbot?.prepareInternalNavigation?.();
       location.assign(button.dataset.navHref);
     });
   });

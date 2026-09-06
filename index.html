@@ -7,8 +7,8 @@
   <title>선택 과목 안내 플랫폼</title>
   <meta name="description" content="학교 교육과정에 맞춰 선택과목을 이해하고 진로에 맞는 과목을 설계하는 안내 플랫폼">
   <link rel="stylesheet" href="styles.css?v=20260905-5">
-  <link rel="stylesheet" href="landing.css?v=20260905-9">
-  <link rel="stylesheet" href="chatbot.css?v=20260906-1">
+  <link rel="stylesheet" href="landing.css?v=20260907-1">
+  <link rel="stylesheet" href="chatbot.css?v=20260907-1">
 </head>
 <body class="landing-page landing-one-screen">
   <header class="landing-header">
@@ -16,8 +16,21 @@
       <span class="landing-brand-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#school"></use></svg></span>
       <span><strong>선택 과목 안내 플랫폼</strong></span>
     </a>
-    <span class="edition-chip"><svg class="icon" aria-hidden="true"><use href="icons.svg#user"></use></svg><span>Made by 비범쌤(원주여고 김범준)</span></span>
+    <button class="edition-chip" type="button" data-contact-open aria-haspopup="dialog" aria-controls="landing-contact-dialog" aria-label="제작자 및 문의 연락처 열기" title="문의"><svg class="icon" aria-hidden="true"><use href="icons.svg#user"></use></svg><span>Made by 비범쌤(원주여고 김범준)</span></button>
   </header>
+
+  <dialog class="landing-contact-dialog" id="landing-contact-dialog" data-contact-dialog aria-labelledby="landing-contact-title">
+    <button class="landing-contact-close" type="button" data-contact-close aria-label="문의 창 닫기"><svg class="icon" aria-hidden="true"><use href="icons.svg#close"></use></svg></button>
+    <div class="landing-contact-heading">
+      <span><svg class="icon" aria-hidden="true"><use href="icons.svg#message"></use></svg></span>
+      <div><small>CONTACT</small><h2 id="landing-contact-title">문의</h2></div>
+    </div>
+    <p>선택 과목 안내 플랫폼과 관련한 문의는 아래 연락처로 보내 주세요.</p>
+    <div class="landing-contact-list">
+      <span><i><svg class="icon" aria-hidden="true"><use href="icons.svg#message"></use></svg></i><b>메신저:</b><em>원주여자고등학교 교육과정부 김범준</em></span>
+      <span><i><svg class="icon" aria-hidden="true"><use href="icons.svg?v=20260907-1#mail"></use></svg></i><b>메일:</b><a href="mailto:fromjuly31@gmail.com">fromjuly31@gmail.com</a></span>
+    </div>
+  </dialog>
 
   <main>
     <section class="hero-stage" aria-labelledby="main-title">
@@ -96,9 +109,9 @@
 
   <script src="supabase-config.js?v=20260905-2"></script>
   <script src="school-data.js?v=20260906-1"></script>
-  <script src="landing.js?v=20260906-1"></script>
+  <script src="landing.js?v=20260907-2"></script>
   <script src="app-data.js?v=20260906-1"></script>
   <script src="chatbot-engine.js?v=20260905-10"></script>
-  <script src="chatbot.js?v=20260905-17"></script>
+  <script src="chatbot.js?v=20260907-2"></script>
 </body>
 </html>

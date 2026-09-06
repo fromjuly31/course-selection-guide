@@ -377,6 +377,45 @@
     return `<svg class="icon ${extraClass}" aria-hidden="true"><use href="icons.svg#${name}"></use></svg>`;
   }
 
+  // 외부 SVG의 <use> 참조는 브라우저 인쇄/PDF 캡처에서 누락될 수 있다.
+  // 인쇄 문서에 쓰이는 심볼은 경로를 직접 넣어 독립적인 SVG로 만든다.
+  const PRINT_ICON_PATHS = Object.freeze({
+    school: '<path d="m3 10 9-6 9 6"/><path d="M5 9v10h14V9"/><path d="M9 19v-5h6v5"/><path d="M8 11h.01M16 11h.01"/>',
+    book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/>',
+    sparkles: '<path d="m12 3-1.15 3.35a3 3 0 0 1-1.9 1.9L5.6 9.4l3.35 1.15a3 3 0 0 1 1.9 1.9L12 15.8l1.15-3.35a3 3 0 0 1 1.9-1.9L18.4 9.4l-3.35-1.15a3 3 0 0 1-1.9-1.9L12 3Z"/><path d="m19 16-.55 1.45L17 18l1.45.55L19 20l.55-1.45L21 18l-1.45-.55L19 16Z"/>',
+    "hand-star": '<path d="M12.3 3.1c.5-.1.9 1.1 1.3 2.2l1.2 3.5 3.8.1c1.3 0 2.1.2 2.2.7.1.5-.8 1.2-1.7 1.9l-3 2.3 1 3.7c.3 1.1.4 2.1 0 2.4-.4.3-1.3-.2-2.3-.8l-3.1-2.1-3.2 2.2c-1 .7-1.8 1.1-2.2.8-.4-.3-.2-1.3.1-2.4l1.1-3.7-3.1-2.2c-1-.7-1.8-1.4-1.7-1.9.2-.5 1.2-.7 2.4-.7l3.8-.1 1.1-3.6c.4-1.2.8-2.2 1.3-2.3Z"/><path d="M8.7 17.1c1.9-1.4 4.2-2.9 6.8-4.4"/>',
+    "solid-star": '<path d="m12 2.8 2.82 5.71 6.3.92-4.56 4.44 1.08 6.28L12 17.19l-5.64 2.96 1.08-6.28-4.56-4.44 6.3-.92L12 2.8Z" fill="currentColor" stroke="none"/>',
+    warning: '<path d="M10.3 3.8 2.2 18a2 2 0 0 0 1.73 3h16.14a2 2 0 0 0 1.73-3L13.7 3.8a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    check: '<path d="m5 12 4 4L19 6"/>',
+    "book-open": '<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2Z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7Z"/>',
+    calculator: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8v4H8ZM8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>',
+    languages: '<path d="M4 5h9M8.5 3v2M6 9c1.4 2.3 3.2 4 5.5 5M11 9c-1.3 2.4-3.4 4.3-6.5 5.5M14 21l4-10 4 10M15.5 17h5"/>',
+    landmark: '<path d="m3 9 9-5 9 5M5 10h14M6 10v7M10 10v7M14 10v7M18 10v7M4 17h16M3 21h18"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    flask: '<path d="M9 3h6M10 3v6l-6 10a2 2 0 0 0 1.7 3h12.6a2 2 0 0 0 1.7-3L14 9V3M7 16h10"/>',
+    graduation: '<path d="m2 9 10-5 10 5-10 5L2 9Z"/><path d="M6 11.5V16c2.7 2.4 9.3 2.4 12 0v-4.5M22 9v6"/>',
+    arts: '<path d="M5 17V7l6-2v9"/><circle cx="3" cy="17" r="2"/><circle cx="9" cy="14" r="2"/><path d="m17 3 .7 2.3L20 6l-2.3.7L17 9l-.7-2.3L14 6l2.3-.7L17 3ZM14 20l5-5 2 2-5 5-3 1 1-3Z"/>',
+    sports: '<path d="M6 8v8M3 10v4M18 8v8M21 10v4M6 12h12"/><path d="M8 6v12M16 6v12"/>',
+    "tech-home": '<path d="m3 11 9-8 9 8M5 10v10h14V10"/><path d="M8 16h3v-5h5M11 16v4M16 8v3M8 16h.01M16 11h.01M11 16h.01"/>',
+    computer: '<rect x="3" y="3" width="18" height="13" rx="2"/><path d="M8 21h8M12 16v5M7 8l2 2-2 2M12 12h4"/>',
+    leaf: '<path d="M20 4C11 4 5 8 5 14a5 5 0 0 0 5 5c6 0 10-6 10-15Z"/><path d="M4 21c2-5 6-8 12-11"/>',
+    wrench: '<path d="M14.7 6.3a4 4 0 0 0-5-5l2.1 2.1-2.4 2.4-2.1-2.1a4 4 0 0 0 5 5L20 16.4a2.1 2.1 0 0 1-3 3l-7.7-7.7"/>',
+    heart: '<path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z"/>',
+    palette: '<path d="M12 3a9 9 0 0 0 0 18h1.5a2 2 0 0 0 0-4H12a1.5 1.5 0 0 1 0-3h3.5A5.5 5.5 0 0 0 21 8.5C21 5.5 17 3 12 3Z"/><path d="M7.5 9h.01M10 6.5h.01M15 6.5h.01M17.5 9.5h.01"/>',
+    shapes: '<circle cx="7" cy="7" r="4"/><rect x="13" y="3" width="8" height="8" rx="1"/><path d="m8 21 4-7 4 7Z"/>'
+  });
+
+  function inlinePrintIcon(name, extraClass = "") {
+    const paths = PRINT_ICON_PATHS[name];
+    if (!paths) return "";
+    const safeClasses = String(extraClass).trim().split(/\s+/).filter((className) => /^[a-z0-9_-]+$/i.test(className));
+    return `<svg class="${["icon", "platform-print-inline-icon", ...safeClasses].join(" ")}" data-print-icon="${name}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths}</svg>`;
+  }
+
+  function inlinePrintIconUses(markup) {
+    return String(markup).replace(/<svg class="icon([^"]*)" aria-hidden="true"><use href="icons\.svg#([a-z0-9-]+)"><\/use><\/svg>/gi, (svg, extraClass, name) => inlinePrintIcon(name, extraClass) || svg);
+  }
+
   function printActionMarkup(kind, id = "", options = {}) {
     const classes = `${options.compact ? "is-compact" : ""} ${options.iconOnly ? "is-icon-only" : ""}`;
     const idAttribute = id !== "" ? ` data-print-id="${escapeHtml(id)}"` : "";
@@ -1053,11 +1092,19 @@
   function careerGuideText(value) {
     return String(value || "")
       .replace(/\r\n?/g, "\n")
+      .replace(/[ \t]+(?=[∘◦○])/g, "")
+      .replace(/([^\n])(?=[∘◦○])/g, "$1\n")
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean)
-      .map((line, index) => index > 0 && /^[∘◦○]/.test(line) ? `\n${line}` : line)
       .join("\n");
+  }
+
+  function careerGuideMarkup(value) {
+    return careerGuideText(value).split("\n").map((line) => {
+      const detailLine = /^-\s*/.test(line);
+      return `<span class="career-guide-line${detailLine ? " is-detail" : ""}">${escapeHtml(line)}</span>`;
+    }).join("");
   }
 
   function openDepartment(id, options = {}) {
@@ -1090,7 +1137,7 @@
       <div class="major-guide-sections">
         ${department.guide?.overview ? `<section><small>01 · OVERVIEW</small><h3>학과 개요</h3><p>${escapeHtml(department.guide.overview)}</p></section>` : ""}
         ${department.guide?.aptitude ? `<section><small>02 · APTITUDE</small><h3>흥미와 적성</h3><p>${escapeHtml(department.guide.aptitude)}</p></section>` : ""}
-        ${department.guide?.careers ? `<section><small>03 · CAREER</small><h3>졸업 후 진출 분야</h3><p class="preserve-lines">${escapeHtml(careerGuideText(department.guide.careers))}</p></section>` : ""}
+        ${department.guide?.careers ? `<section><small>03 · CAREER</small><h3>졸업 후 진출 분야</h3><p class="career-guide-lines">${careerGuideMarkup(department.guide.careers)}</p></section>` : ""}
       </div>
       ${departmentRecommendedBooksMarkup(department)}
       <section class="major-course-section is-related">
@@ -5161,7 +5208,7 @@
   function printableCourseGroupsMarkup(subjects, options = {}) {
     const normalized = (subjects || []).map((subject) => typeof subject === "string" ? { name: subject } : subject).filter((subject) => compactText(subject?.name));
     const groups = groupedRecommendationSubjects(normalized);
-    return groups.length ? `<div class="platform-print-course-groups">${groups.map((group) => `<section><header><strong>${escapeHtml(group.category)}</strong><span>${group.entries.length}과목</span></header><div>${group.entries.map((subject) => {
+    return groups.length ? `<div class="platform-print-course-groups">${groups.map((group) => `<section><header><span class="platform-print-course-group-title">${icon(courseGroupIcon(group.category), "platform-print-course-group-icon")}<strong>${escapeHtml(group.category === "사회(역사/도덕 포함)" ? "사회" : group.category)}</strong></span><em>${group.entries.length}과목</em></header><div>${group.entries.map((subject) => {
       const universityCount = Array.isArray(subject.universities) ? subject.universities.length : Number(subject.universityCount) || 0;
       return `<span><b>${escapeHtml(subject.name)}</b>${options.showUniversities && universityCount ? `<small>${universityCount}개 대학</small>` : ""}</span>`;
     }).join("")}</div></section>`).join("")}</div>` : '<p class="platform-print-empty">해당하는 과목이 없습니다.</p>';
@@ -5197,13 +5244,14 @@
   function departmentPrintMarkup(id) {
     const department = departmentById(id);
     if (!department) return null;
+    const visual = fieldVisual(department.field);
     const books = [...(department.recommendedBooks || [])].sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), "ko") || String(a.author || "").localeCompare(String(b.author || ""), "ko"));
     const printedBooks = books.slice(0, 8);
-    const recommendedBooksMarkup = `<section class="platform-print-book-guide"><small>04 · RECOMMENDED BOOKS</small><div class="platform-print-book-heading"><h2>권장 도서</h2><em>${books.length}</em></div>${printedBooks.length ? `<div class="platform-print-book-list">${printedBooks.map((book) => `<div><strong>${escapeHtml(book.title)}</strong><span>${escapeHtml(book.author || "저자 정보 없음")}</span>${recommendedBookUniversityBadgesMarkup(book.universities, "platform-print-book-universities")}</div>`).join("")}</div>${books.length > printedBooks.length ? `<p class="platform-print-book-more">외 ${books.length - printedBooks.length}권은 화면에서 확인할 수 있습니다.</p>` : ""}` : '<p class="platform-print-empty">등록된 권장 도서가 없습니다.</p>'}</section>`;
+    const recommendedBooksMarkup = `<section class="platform-print-book-guide"><div class="platform-print-book-heading"><div class="platform-print-section-heading">${icon("book-open")}<div><small>04 · RECOMMENDED BOOKS</small><h2>권장 도서</h2></div></div><em>${books.length}</em></div>${printedBooks.length ? `<div class="platform-print-book-list">${printedBooks.map((book) => `<div><strong>${escapeHtml(book.title)}</strong><span>${escapeHtml(book.author || "저자 정보 없음")}</span>${recommendedBookUniversityBadgesMarkup(book.universities, "platform-print-book-universities")}</div>`).join("")}</div>${books.length > printedBooks.length ? `<p class="platform-print-book-more">외 ${books.length - printedBooks.length}권은 화면에서 확인할 수 있습니다.</p>` : ""}` : '<p class="platform-print-empty">등록된 권장 도서가 없습니다.</p>'}</section>`;
     return {
       title: department.name,
       subtitle: `${department.field} 분야 · 학과 안내`,
-      body: `<section class="platform-print-detail platform-print-department"><div class="platform-print-title"><p>${escapeHtml(department.field.toLocaleUpperCase("ko"))} FIELD · DEPARTMENT GUIDE</p><h1>${escapeHtml(department.name)}</h1></div><div class="platform-print-guide-grid">${department.guide?.overview ? `<section><small>01 · OVERVIEW</small><h2>학과 개요</h2><p>${escapeHtml(department.guide.overview)}</p></section>` : ""}${department.guide?.aptitude ? `<section><small>02 · APTITUDE</small><h2>흥미와 적성</h2><p>${escapeHtml(department.guide.aptitude)}</p></section>` : ""}${department.guide?.careers ? `<section><small>03 · CAREER</small><h2>졸업 후 진출 분야</h2><p>${escapeHtml(department.guide.careers)}</p></section>` : ""}${recommendedBooksMarkup}</div><section class="platform-print-course-section"><header><div><small>RELATED COURSES</small><h2>관련 과목</h2></div><em>${department.relatedSubjects.length}</em></header>${printableCourseGroupsMarkup(department.relatedSubjects)}</section>${department.reflectedSubjects.length ? `<section class="platform-print-course-section is-reflected"><header><div><small>ADMISSION REFLECTION</small><h2>반영 과목</h2></div><em>${department.reflectedSubjects.length}</em></header>${printableCourseGroupsMarkup(department.reflectedSubjects, { showUniversities: true })}</section>` : ""}${department.scienceRecommendedSubjects.length ? `<section class="platform-print-course-section is-science"><header><div><small>SCIENCE RECOMMENDATION</small><h2>과학 권장 과목</h2></div><em>${department.scienceRecommendedSubjects.length}</em></header>${printableCourseGroupsMarkup(department.scienceRecommendedSubjects, { showUniversities: true })}</section>` : ""}<p class="platform-print-note">권장 도서와 대학별 반영·권장 정보는 제공된 엑셀 DB를 기준으로 표시합니다.</p></section>`
+      body: `<section class="platform-print-detail platform-print-department"><div class="platform-print-title"><p>${escapeHtml(department.field.toLocaleUpperCase("ko"))} FIELD · DEPARTMENT GUIDE</p><h1><span class="platform-print-title-icon" style="--print-field-accent:${visual.accent}; --print-field-soft:${visual.soft}">${icon(visual.icon)}</span>${escapeHtml(department.name)}</h1></div><div class="platform-print-guide-grid">${department.guide?.overview ? `<section><small>01 · OVERVIEW</small><h2>학과 개요</h2><p>${escapeHtml(department.guide.overview)}</p></section>` : ""}${department.guide?.aptitude ? `<section><small>02 · APTITUDE</small><h2>흥미와 적성</h2><p>${escapeHtml(department.guide.aptitude)}</p></section>` : ""}${department.guide?.careers ? `<section><small>03 · CAREER</small><h2>졸업 후 진출 분야</h2><p class="platform-print-careers career-guide-lines">${careerGuideMarkup(department.guide.careers)}</p></section>` : ""}${recommendedBooksMarkup}</div><section class="platform-print-course-section"><header><div class="platform-print-section-heading">${icon("book")}<div><small>RELATED COURSES</small><h2>관련 과목</h2></div></div><em>${department.relatedSubjects.length}</em></header>${printableCourseGroupsMarkup(department.relatedSubjects)}</section>${department.reflectedSubjects.length ? `<section class="platform-print-course-section is-reflected"><header><div class="platform-print-section-heading is-reflected">${icon("solid-star")}<div><small>ADMISSION REFLECTION</small><h2>반영 과목</h2></div></div><em>${department.reflectedSubjects.length}</em></header>${printableCourseGroupsMarkup(department.reflectedSubjects, { showUniversities: true })}</section>` : ""}${department.scienceRecommendedSubjects.length ? `<section class="platform-print-course-section is-science"><header><div class="platform-print-section-heading is-science">${icon("flask")}<div><small>SCIENCE RECOMMENDATION</small><h2>과학 권장 과목</h2></div></div><em>${department.scienceRecommendedSubjects.length}</em></header>${printableCourseGroupsMarkup(department.scienceRecommendedSubjects, { showUniversities: true })}</section>` : ""}<p class="platform-print-note">권장 도서와 대학별 반영·권장 정보는 제공된 엑셀 DB를 기준으로 표시합니다.</p></section>`
     };
   }
 
@@ -5214,7 +5262,7 @@
     return {
       title: "나만의 과목 추천 결과",
       subtitle: `${state.recommendField || "관심 분야"} · 추천 ${total}과목`,
-      body: `<section class="platform-print-detail platform-print-recommendation"><div class="platform-print-title"><p>MY COURSE RECOMMENDATION</p><h1>나만의 과목 추천 결과</h1></div><div class="platform-print-choice-summary"><span><small>관심 분야</small><strong>${escapeHtml(state.recommendField || "선택 안 함")}</strong></span><span><small>관심 학과</small><strong>${escapeHtml(departments.map((department) => department.name).join(" · ") || "선택 안 함")}</strong></span><span><small>관심 키워드</small><strong>${state.recommendKeywords.length ? state.recommendKeywords.map((keyword) => `#${escapeHtml(keyword)}`).join(" ") : "입력하지 않음"}</strong></span></div><div class="platform-print-recommendation-groups">${groups.map((group, index) => `<section><header><span>${String(index + 1).padStart(2, "0")}</span><div><small>PRIORITY</small><h2>${escapeHtml(group.label)}</h2><p>${escapeHtml(group.description)}</p></div><em>${group.entries.length}</em></header>${printableCourseGroupsMarkup(group.entries)}</section>`).join("")}</div><aside class="platform-print-warning">${icon("warning")}<strong>과목 추천은 정답이 아닙니다. 꼭 담임 선생님과 검토하세요.</strong></aside></section>`
+      body: `<section class="platform-print-detail platform-print-recommendation"><div class="platform-print-title"><p>MY COURSE RECOMMENDATION</p><h1>나만의 과목 추천 결과</h1></div><div class="platform-print-choice-summary"><span><small>관심 분야</small><strong>${escapeHtml(state.recommendField || "선택 안 함")}</strong></span><span><small>관심 학과</small><strong>${escapeHtml(departments.map((department) => department.name).join(" · ") || "선택 안 함")}</strong></span><span><small>관심 키워드</small><strong>${state.recommendKeywords.length ? state.recommendKeywords.map((keyword) => `#${escapeHtml(keyword)}`).join(" ") : "입력하지 않음"}</strong></span></div><div class="platform-print-recommendation-groups">${groups.map((group, index) => `<section><header><b class="platform-print-priority-order">${String(index + 1).padStart(2, "0")}</b><span class="platform-print-priority-icon">${icon(group.iconName)}</span><div><small>PRIORITY</small><h2>${escapeHtml(group.label)}</h2><p>${escapeHtml(group.description)}</p></div><em>${group.entries.length}</em></header>${printableCourseGroupsMarkup(group.entries)}</section>`).join("")}</div><aside class="platform-print-warning">${icon("warning")}<strong>과목 추천은 정답이 아닙니다. 꼭 담임 선생님과 검토하세요.</strong></aside></section>`
     };
   }
 
@@ -5233,7 +5281,48 @@
     const isSimulation = documentData.kind === "simulation";
     const brand = isSimulation ? "" : `<header class="platform-print-brand"><div><span>${icon("school")}</span><strong>선택 과목 안내 플랫폼</strong></div><div><b>${escapeHtml(documentData.title)}</b><small>${escapeHtml(documentData.subtitle || "")}</small></div></header>`;
     const footer = isSimulation ? "" : `<footer class="platform-print-footer"><span>선택 과목 안내 플랫폼</span><small>${new Intl.DateTimeFormat("ko-KR", { dateStyle: "long" }).format(new Date())}</small></footer>`;
-    return `<article class="platform-print-document ${isSimulation ? "is-simulation-print" : ""}">${brand}${documentData.body}${footer}</article>`;
+    return inlinePrintIconUses(`<article class="platform-print-document ${isSimulation ? "is-simulation-print" : ""}">${brand}${documentData.body}${footer}</article>`);
+  }
+
+  function fitDepartmentCareerToPrintArea(printDocument) {
+    const careers = printDocument?.querySelector(".platform-print-careers");
+    const careerSection = careers?.closest("section");
+    const guideGrid = careerSection?.parentElement;
+    if (!careers || !careerSection || !guideGrid?.classList.contains("platform-print-guide-grid")) {
+      return { truncated: false, lineLimit: 0 };
+    }
+
+    careers.classList.remove("is-truncated");
+    careers.style.removeProperty("-webkit-line-clamp");
+    const sections = [...guideGrid.children].filter((element) => element.matches("section"));
+    const careerIndex = sections.indexOf(careerSection);
+    const companionIndex = careerIndex % 2 === 0 ? careerIndex + 1 : careerIndex - 1;
+    const companion = sections[companionIndex];
+    if (!companion) return { truncated: false, lineLimit: 0 };
+
+    const previousAlignItems = guideGrid.style.alignItems;
+    guideGrid.style.alignItems = "start";
+    const sectionBounds = careerSection.getBoundingClientRect();
+    const careerBounds = careers.getBoundingClientRect();
+    const sectionStyle = getComputedStyle(careerSection);
+    const careerStyle = getComputedStyle(careers);
+    const lineHeight = parseFloat(careerStyle.lineHeight) || 1;
+    const availableHeight = Math.max(
+      lineHeight,
+      companion.getBoundingClientRect().height
+        - (careerBounds.top - sectionBounds.top)
+        - (parseFloat(sectionStyle.paddingBottom) || 0)
+    );
+    const naturalHeight = careers.scrollHeight;
+    const lineLimit = Math.max(1, Math.floor((availableHeight + 0.5) / lineHeight) + 1);
+    guideGrid.style.alignItems = previousAlignItems;
+
+    const truncated = naturalHeight > availableHeight + 0.5;
+    if (truncated) {
+      careers.classList.add("is-truncated");
+      careers.style.webkitLineClamp = String(lineLimit);
+    }
+    return { truncated, lineLimit };
   }
 
   function platformExportFileName(title, extension) {
@@ -5280,6 +5369,7 @@
       }
       await new Promise((resolve) => setTimeout(resolve, 60));
       const source = printRoot.querySelector(".platform-print-document");
+      fitDepartmentCareerToPrintArea(source);
       if (documentData.kind === "simulation") {
         const sourceWidth = Math.max(1, source.getBoundingClientRect().width);
         const printableRatio = (PLATFORM_EXPORT_WIDTH - PLATFORM_EXPORT_SAFE_PADDING * 2)
@@ -5405,6 +5495,7 @@
   function fitPlatformPrintToSinglePage(printRoot) {
     const printDocument = printRoot?.querySelector(".platform-print-document");
     if (!printDocument) return;
+    fitDepartmentCareerToPrintArea(printDocument);
     const documentBounds = printDocument.getBoundingClientRect();
     const isSimulation = printDocument.classList.contains("is-simulation-print");
     const descendantBottom = [...printDocument.querySelectorAll("*")].reduce((bottom, element) => {
@@ -6944,6 +7035,7 @@
       const navigationHref = navigationButton.dataset.navHref || navigationButton.getAttribute("href");
       if (navigationHref) await requestCurriculumLeave(() => {
         schoolStore?.prepareInternalNavigation?.();
+        window.CourseChatbot?.prepareInternalNavigation?.();
         location.assign(navigationHref);
       });
       return;
@@ -7310,10 +7402,15 @@
     courseGroupOrderIndex,
     copyCurriculumStructure,
     platformPrintDocumentMarkup,
+    platformDocumentData,
+    fitDepartmentCareerToPrintArea,
+    fitPlatformPrintToSinglePage,
     platformExportPlacement,
     normalizeCurriculumCourseNames: uniqueCourseNames,
     getCurriculumGrades: curriculumGrades,
     departmentCommonDisclosureMarkup,
+    careerGuideText,
+    careerGuideMarkup,
     closeDetailDialog,
     openRecord,
     renderAdmin,

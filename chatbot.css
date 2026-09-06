@@ -730,7 +730,7 @@
   font-weight: 800;
   letter-spacing: -0.06em;
   line-height: 1.5;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .course-chatbot-faq-item > p {
@@ -742,6 +742,51 @@
   font-size: 13px;
   font-weight: 400;
   line-height: 1.7;
+}
+
+.course-faq-contact {
+  display: grid;
+  gap: 7px;
+  margin: -2px 5px 10px 37px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  color: #53696c;
+  background: #f1f6f4;
+  font-size: 13px;
+}
+
+.course-faq-contact > span {
+  display: grid;
+  grid-template-columns: 18px 50px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+
+.course-faq-contact .icon {
+  width: 17px;
+  height: 17px;
+  color: #0d7661;
+}
+
+.course-faq-contact b {
+  color: #334b50;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.course-faq-contact em,
+.course-faq-contact a {
+  min-width: 0;
+  color: #53696c;
+  font-style: normal;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.course-faq-contact a {
+  color: #08745b;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .course-faq-source-list {

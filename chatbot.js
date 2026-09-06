@@ -5,7 +5,9 @@
   const engineApi = window.CourseChatbotEngine;
   if (!store || !engineApi) return;
 
-  const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="icons.svg#${name}"></use></svg>`;
+  const SUPPORT_COLLAPSED_KEY = "course-guide:support-collapsed:v1";
+  const SUPPORT_INTERNAL_NAVIGATION_KEY = "course-guide:support-internal-navigation:v1";
+  const icon = (name) => `<svg class="icon" aria-hidden="true"><use href="icons.svg?v=20260907-1#${name}"></use></svg>`;
   const shorten = (value, maximum = 180) => {
     const text = String(value ?? "").replace(/\s*\/\s*/g, " · ").replace(/\s+/g, " ").trim();
     return text.length > maximum ? `${text.slice(0, maximum).trim()}…` : text;
@@ -17,6 +19,25 @@
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 
+  function supportStorage() {
+    try {
+      return window.sessionStorage;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function restoredSupportCollapsed() {
+    const storage = supportStorage();
+    if (!storage) return false;
+    const isReload = window.performance?.getEntriesByType?.("navigation")?.[0]?.type === "reload";
+    const isInternalNavigation = !isReload && storage.getItem(SUPPORT_INTERNAL_NAVIGATION_KEY) === "1";
+    const collapsed = isInternalNavigation && storage.getItem(SUPPORT_COLLAPSED_KEY) === "1";
+    storage.removeItem(SUPPORT_INTERNAL_NAVIGATION_KEY);
+    storage.removeItem(SUPPORT_COLLAPSED_KEY);
+    return collapsed;
+  }
+
   const state = {
     database: null,
     engine: null,
@@ -24,7 +45,7 @@
     readyPromise: null,
     open: false,
     faqOpen: false,
-    collapsed: false
+    collapsed: restoredSupportCollapsed()
   };
 
   const shell = document.createElement("div");
@@ -90,16 +111,23 @@
             <p>고시 외 과목일 가능성이 높습니다. 고시 외 과목은 학교 선생님께 문의하세요.</p>
           </details>
           <details class="course-chatbot-faq-item">
-            <summary><span>05</span><strong>제가 희망하는 학과의 정보가 없어요.</strong></summary>
+            <summary><span>05</span><strong>듣고 싶은 과목이 있는데 우리 학교에 개설되지 않았어요.</strong></summary>
+            <p>해당하는 지역의 공동 교육과정 및 온라인 학교에 개설된 강의가 있는지 확인해 보세요.</p>
+          </details>
+          <details class="course-chatbot-faq-item">
+            <summary><span>06</span><strong>제가 희망하는 학과의 정보가 없어요.</strong></summary>
             <p>해당 학과가 커리어넷 또는 출처상 자료에 없는 학과일 수 있습니다. 자세한 내용은 해당 학과의 홈페이지를 참고해 주세요.</p>
           </details>
           <details class="course-chatbot-faq-item">
-            <summary><span>06</span><strong>학교 데이터는 어떻게 연동하나요?</strong></summary>
-            <p>데이터 연동 탭에서 학교 편제표 표준 양식을 업로드할 수 있습니다.</p>
+            <summary><span>07</span><strong>학교 편제표는 어떻게 연동하나요?</strong></summary>
+            <p>데이터 연동탭에서 각 학교의 학년도별 신입생 편제표를 업로드할 수 있습니다.</p>
           </details>
           <details class="course-chatbot-faq-item">
-            <summary><span>07</span><strong>앱 관련 문의 사항이 있어요. 어디에 문의해야 할까요?</strong></summary>
-            <p>원주여자고등학교 김범준으로 메신저 혹은 fromjuly31@gmail.com으로 메일 주세요.</p>
+            <summary><span>08</span><strong>앱 관련 문의 사항이 있어요. 어디에 문의해야 할까요?</strong></summary>
+            <div class="course-faq-contact" aria-label="앱 문의 연락처">
+              <span>${icon("message")}<b>메신저:</b><em>원주여자고등학교 교육과정부 김범준</em></span>
+              <span>${icon("mail")}<b>메일:</b><a href="mailto:fromjuly31@gmail.com">fromjuly31@gmail.com</a></span>
+            </div>
           </details>
         </div>
       </div>
@@ -481,7 +509,7 @@
     if (!open) faqLauncher.focus();
   }
 
-  function setSupportCollapsed(collapsed) {
+  function setSupportCollapsed(collapsed, focusControl = true) {
     if (collapsed) {
       if (state.open) setOpen(false);
       if (state.faqOpen) setFaqOpen(false);
@@ -492,7 +520,14 @@
     collapseControl.setAttribute("aria-expanded", String(!collapsed));
     collapseControl.setAttribute("aria-label", collapsed ? "학과 비교와 도움 버튼 펼치기" : "학과 비교와 도움 버튼 접기");
     collapseControl.setAttribute("title", collapsed ? "버튼 펼치기" : "버튼 접기");
-    collapseControl.focus();
+    if (focusControl) collapseControl.focus();
+  }
+
+  function prepareInternalNavigation() {
+    const storage = supportStorage();
+    if (!storage) return;
+    storage.setItem(SUPPORT_COLLAPSED_KEY, state.collapsed ? "1" : "0");
+    storage.setItem(SUPPORT_INTERNAL_NAVIGATION_KEY, "1");
   }
 
   launcher.addEventListener("click", () => setOpen(!state.open));
@@ -529,5 +564,6 @@
     else if (event.key === "Escape" && state.faqOpen) setFaqOpen(false);
   });
 
-  window.CourseChatbot = { prepareDatabase, scoreCourses, answer, getState: () => state };
+  setSupportCollapsed(state.collapsed, false);
+  window.CourseChatbot = { prepareDatabase, scoreCourses, answer, prepareInternalNavigation, getState: () => state };
 })();

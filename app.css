@@ -3378,6 +3378,11 @@ body.is-platform-image-capturing .platform-print-root {
     height: 4mm;
   }
 
+  .platform-print-inline-icon {
+    display: block;
+    flex: 0 0 auto;
+  }
+
   .platform-print-brand strong,
   .platform-print-brand b {
     font-size: 10pt;
@@ -3587,6 +3592,28 @@ body.is-platform-image-capturing .platform-print-root {
     letter-spacing: -0.05em;
   }
 
+  .platform-print-department .platform-print-title h1 {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+  }
+
+  .platform-print-title-icon {
+    display: grid;
+    width: 9mm;
+    height: 9mm;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 2.5mm;
+    color: var(--print-field-accent, #08745b);
+    background: var(--print-field-soft, #dcefe8);
+  }
+
+  .platform-print-title-icon .icon {
+    width: 5mm;
+    height: 5mm;
+  }
+
   .platform-print-title > div {
     display: flex;
     gap: 1.5mm;
@@ -3674,6 +3701,18 @@ body.is-platform-image-capturing .platform-print-root {
     line-height: 1.55;
   }
 
+  .platform-print-careers {
+    margin-bottom: 0;
+    white-space: pre-line;
+  }
+
+  .platform-print-careers.is-truncated {
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-box-orient: vertical;
+  }
+
   .platform-print-course-section {
     margin-top: 3mm;
     padding: 3mm;
@@ -3699,6 +3738,27 @@ body.is-platform-image-capturing .platform-print-root {
     font-weight: 900;
   }
 
+  .platform-print-section-heading {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 1.5mm;
+  }
+
+  .platform-print-section-heading > .icon {
+    width: 4mm;
+    height: 4mm;
+    color: #08745b;
+  }
+
+  .platform-print-section-heading.is-reflected > .icon {
+    color: #ad6a00;
+  }
+
+  .platform-print-section-heading.is-science > .icon {
+    color: #2671a5;
+  }
+
   .platform-print-course-groups {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3714,10 +3774,29 @@ body.is-platform-image-capturing .platform-print-root {
 
   .platform-print-course-groups > section > header {
     display: flex;
+    align-items: center;
     justify-content: space-between;
     gap: 2mm;
     color: #627670;
     font-size: 6pt;
+  }
+
+  .platform-print-course-group-title {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 1mm;
+  }
+
+  .platform-print-course-group-title .icon {
+    width: 3.3mm;
+    height: 3.3mm;
+    color: #08745b;
+  }
+
+  .platform-print-course-groups > section > header > em {
+    flex: 0 0 auto;
+    font-style: normal;
   }
 
   .platform-print-course-groups > section > div {
@@ -3889,14 +3968,19 @@ body.is-platform-image-capturing .platform-print-root {
 
   .platform-print-recommendation-groups > section > header {
     display: grid;
-    grid-template-columns: 8mm minmax(0, 1fr) auto;
+    grid-template-columns: 5mm 8mm minmax(0, 1fr) auto;
     align-items: center;
-    gap: 2mm;
+    gap: 1.5mm;
     padding: 2.5mm;
     background: #eef7f3;
   }
 
-  .platform-print-recommendation-groups > section > header > span {
+  .platform-print-priority-order {
+    color: #6c817b;
+    font: 800 6.5pt Consolas, monospace;
+  }
+
+  .platform-print-priority-icon {
     display: grid;
     width: 8mm;
     height: 8mm;
@@ -3907,6 +3991,11 @@ body.is-platform-image-capturing .platform-print-root {
     background: #fff;
     font-size: 8pt;
     font-weight: 900;
+  }
+
+  .platform-print-priority-icon .icon {
+    width: 4.5mm;
+    height: 4.5mm;
   }
 
   .platform-print-recommendation-groups h2,
@@ -8785,8 +8874,13 @@ body.is-platform-image-capturing .platform-print-root {
   line-height: 1.82;
 }
 
-.major-guide-sections .preserve-lines {
-  white-space: pre-wrap;
+.career-guide-line {
+  display: block;
+}
+
+.career-guide-line.is-detail {
+  padding-left: 2ch;
+  text-indent: -1ch;
 }
 
 .major-book-section {
