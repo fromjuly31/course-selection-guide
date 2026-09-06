@@ -844,12 +844,9 @@
     renderHeaderSchoolPicker();
     if (!menu.open) menu.showModal();
     picker.querySelector("[data-school-trigger]")?.setAttribute("aria-expanded", "true");
-    requestAnimationFrame(() => {
-      const focusTarget = state.schoolPickerPendingId
-        ? menu.querySelector("[data-school-connect-year]")
-        : menu.querySelector("[data-header-school-search]");
-      focusTarget?.focus();
-    });
+    if (state.schoolPickerPendingId) {
+      requestAnimationFrame(() => menu.querySelector("[data-school-connect-year]")?.focus());
+    }
   }
 
   function compareSchools(a, b) {
@@ -7207,7 +7204,6 @@
     if (event.target.closest(".header-school-picker [data-school-year-back]")) {
       state.schoolPickerPendingId = "";
       renderHeaderSchoolPicker();
-      requestAnimationFrame(() => picker?.querySelector("[data-header-school-search]")?.focus());
       return;
     }
     const schoolYearOption = event.target.closest(".header-school-picker [data-school-connect-year]");

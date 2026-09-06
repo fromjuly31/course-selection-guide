@@ -65,7 +65,6 @@
     pendingSchoolId = "";
     if (listView) listView.hidden = false;
     if (yearView) yearView.hidden = true;
-    requestAnimationFrame(() => search?.focus());
   }
 
   function showAdmissionYears(school) {

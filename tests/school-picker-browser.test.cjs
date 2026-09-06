@@ -252,6 +252,12 @@ async function main() {
     const mobileScreenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     fs.writeFileSync(path.join(projectRoot, "previews", "school-linkage-header-mobile.png"), Buffer.from(mobileScreenshot.data, "base64"));
 
+    await evaluate("document.querySelector('.header-school-picker [data-school-trigger]').click()");
+    await waitFor(async () => evaluate("document.querySelector('.header-school-picker [data-school-menu]').open"));
+    assert.equal(await evaluate("document.activeElement.matches('[data-header-school-search]')"), false);
+    await evaluate("document.querySelector('.header-school-picker [data-school-menu-close]').click()");
+    await waitFor(async () => evaluate("!document.querySelector('.header-school-picker [data-school-menu]').open"));
+
     await evaluate("document.querySelector('[data-school-disconnect]').click()");
     await waitFor(async () => evaluate("window.SchoolStore.getSnapshot().selectedSchool === null"));
     const disconnectedUi = await evaluate(`(() => ({
@@ -327,6 +333,11 @@ async function main() {
     }))()`);
     assert.ok(landingMobileUi.brandFontSize >= 12);
     assert.notEqual(landingMobileUi.leadBreakDisplay, "none");
+    await evaluate("document.querySelector('.landing-school-picker [data-school-trigger]').click()");
+    await waitFor(async () => evaluate("document.querySelector('.landing-school-picker [data-school-menu]').open"));
+    assert.equal(await evaluate("document.activeElement.matches('[data-school-search]')"), false);
+    await evaluate("document.querySelector('.landing-school-picker [data-school-menu-close]').click()");
+    await waitFor(async () => evaluate("!document.querySelector('.landing-school-picker [data-school-menu]').open"));
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 820, deviceScaleFactor: 1, mobile: false });
     await evaluate("document.querySelector('.landing-school-picker [data-school-disconnect]').click()");
     await waitFor(async () => evaluate("window.SchoolStore.getSnapshot().selectedSchool === null"));
@@ -359,6 +370,13 @@ async function main() {
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 820, deviceScaleFactor: 1, mobile: false });
     await client.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/section.html?tab=admin` });
     await waitFor(async () => evaluate("document.readyState === 'complete' && document.querySelectorAll('.curriculum-format-notice li').length === 3"));
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await evaluate("document.querySelector('[data-open-connected-school-list]').click()");
+    await waitFor(async () => evaluate("document.querySelector('.header-school-picker [data-school-menu]').open"));
+    assert.equal(await evaluate("document.activeElement.matches('[data-header-school-search]')"), false);
+    await evaluate("document.querySelector('.header-school-picker [data-school-menu-close]').click()");
+    await waitFor(async () => evaluate("!document.querySelector('.header-school-picker [data-school-menu]').open"));
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 820, deviceScaleFactor: 1, mobile: false });
     const uploadNotice = await evaluate(`(() => {
       const notice = document.querySelector('.curriculum-format-notice');
       const title = notice.querySelector('header');
