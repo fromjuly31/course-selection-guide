@@ -97,6 +97,94 @@ async function main() {
     assert.equal(initialSupportDock.collapsed, false);
     assert.equal(initialSupportDock.launchersVisible, "visible");
     assert.equal(initialSupportDock.expanded, "true");
+
+    const responsiveOnly = process.argv.includes("--responsive-only");
+    if (responsiveOnly) {
+      await client.send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+      await waitFor(async () => evaluate("document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width > 150"));
+      const labelledSupportDock = await evaluate(`(() => ({
+      width: document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width,
+      label: getComputedStyle(document.querySelector('.course-chatbot-launcher > span')).display
+    }))()`);
+      assert.ok(labelledSupportDock.width >= 150 && labelledSupportDock.width <= 164);
+      assert.notEqual(labelledSupportDock.label, "none");
+
+      await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 1024, deviceScaleFactor: 1, mobile: false });
+      await waitFor(async () => evaluate("document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width === 50"));
+      const squareSupportDock = await evaluate(`(() => ({
+      chatbotWidth: document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width,
+      faqWidth: document.querySelector('.course-faq-launcher').getBoundingClientRect().width,
+      chatbotLabel: getComputedStyle(document.querySelector('.course-chatbot-launcher > span')).display,
+      faqLabel: getComputedStyle(document.querySelector('.course-faq-launcher > span')).display
+    }))()`);
+      assert.equal(squareSupportDock.chatbotWidth, 50);
+      assert.equal(squareSupportDock.faqWidth, 50);
+      assert.equal(squareSupportDock.chatbotLabel, "none");
+      assert.equal(squareSupportDock.faqLabel, "none");
+
+      await client.send("Emulation.setDeviceMetricsOverride", { width: 1404, height: 818, deviceScaleFactor: 1, mobile: false });
+      await waitFor(async () => evaluate("document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width === 50"));
+      const attachedViewportSupportDock = await evaluate(`(() => ({
+        width: document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width,
+        label: getComputedStyle(document.querySelector('.course-chatbot-launcher > span')).display
+      }))()`);
+      assert.equal(attachedViewportSupportDock.width, 50);
+      assert.equal(attachedViewportSupportDock.label, "none");
+
+      await client.send("Emulation.setDeviceMetricsOverride", { width: 1822, height: 726, deviceScaleFactor: 1, mobile: false });
+      await waitFor(async () => evaluate("document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width > 150"));
+      const wideShortSupportDock = await evaluate(`(() => ({
+        width: document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width,
+        label: getComputedStyle(document.querySelector('.course-chatbot-launcher > span')).display
+      }))()`);
+      assert.ok(wideShortSupportDock.width > 150);
+      assert.notEqual(wideShortSupportDock.label, "none");
+
+      await client.send("Emulation.setDeviceMetricsOverride", { width: 1600, height: 1080, deviceScaleFactor: 1, mobile: false });
+      const compactBoundaryDock = await evaluate(`(() => ({
+        width: document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width,
+        label: getComputedStyle(document.querySelector('.course-chatbot-launcher > span')).display
+      }))()`);
+      assert.equal(compactBoundaryDock.width, 50);
+      assert.equal(compactBoundaryDock.label, "none");
+
+      await client.send("Emulation.setDeviceMetricsOverride", { width: 1601, height: 600, deviceScaleFactor: 1, mobile: false });
+      const labelledBoundaryDock = await evaluate(`(() => ({
+        width: document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width,
+        label: getComputedStyle(document.querySelector('.course-chatbot-launcher > span')).display
+      }))()`);
+      assert.ok(labelledBoundaryDock.width > 150);
+      assert.notEqual(labelledBoundaryDock.label, "none");
+
+      await client.send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
+      await waitFor(async () => evaluate("document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width === 50"));
+      assert.equal(await evaluate("document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width"), 50);
+
+      await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+      await waitFor(async () => evaluate("document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width === 50"));
+      const collapsedDockHitTest = await evaluate(`(() => {
+      const support = document.querySelector('.course-chatbot');
+      const launchers = [...document.querySelectorAll('.course-chatbot-launcher, .course-faq-launcher')];
+      const points = launchers.map((button) => {
+        const bounds = button.getBoundingClientRect();
+        return { x: bounds.left + 10, y: bounds.top + 10 };
+      });
+      const probe = document.createElement('button');
+      probe.type = 'button';
+      probe.style.cssText = 'position:fixed;inset:0;z-index:89';
+      document.body.append(probe);
+      document.querySelector('[data-support-collapse]').click();
+      const targets = points.map(({ x, y }) => document.elementFromPoint(x, y));
+      const passThrough = targets.every((target) => target === probe);
+      const rootPointerEvents = getComputedStyle(support).pointerEvents;
+      document.querySelector('[data-support-collapse]').click();
+      probe.remove();
+      return { passThrough, rootPointerEvents, targets: targets.map((target) => (target?.tagName || '') + '.' + (target?.className || '')) };
+    })()`);
+      assert.equal(collapsedDockHitTest.passThrough, true, JSON.stringify(collapsedDockHitTest));
+      assert.equal(collapsedDockHitTest.rootPointerEvents, "none");
+    }
+
     await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     const mobileSupportDock = await evaluate(`(() => ({
       chatbotWidth: document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width,
@@ -108,6 +196,10 @@ async function main() {
     assert.equal(mobileSupportDock.faqWidth, 46);
     assert.equal(mobileSupportDock.chatbotLabel, "none");
     assert.equal(mobileSupportDock.faqLabel, "none");
+    if (responsiveOnly) {
+      console.log("responsive support dock browser tests passed");
+      return;
+    }
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
     const faqSources = await evaluate(`(() => {
       document.querySelector('.course-faq-launcher').click();

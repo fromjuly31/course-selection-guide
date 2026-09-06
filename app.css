@@ -20171,3 +20171,27 @@ body:has(dialog[open]) {
     white-space: nowrap;
   }
 }
+
+/* Size the recommendation title from its own column, so it never wraps or overlaps progress. */
+.recommend-wizard-head > div:first-child {
+  min-width: 0;
+  container: recommendation-title / inline-size;
+}
+
+.recommend-wizard[data-recommend-step] .recommend-wizard-head h1 {
+  font-size: clamp(25px, 12.5cqi, 56px);
+  white-space: nowrap;
+}
+
+@media (min-width: 821px) and (max-width: 1100px) {
+  .recommend-wizard-head {
+    grid-template-columns: minmax(230px, 0.65fr) minmax(0, 1.35fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 820px) {
+  .recommend-wizard[data-recommend-step] .recommend-wizard-head h1 {
+    font-size: clamp(25px, 8.75cqi, 30px);
+  }
+}

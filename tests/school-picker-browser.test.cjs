@@ -572,6 +572,45 @@ async function main() {
     assert.ok(compactDepartmentLayout.cardHeight <= 86);
     assert.equal(compactDepartmentLayout.allCardsAboveNav, true);
     assert.equal(compactDepartmentLayout.allCardsInsideGrid, true);
+
+    await evaluate(`location.href = ${JSON.stringify(`http://127.0.0.1:${webPort}/section.html?tab=recommend`)}`);
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 1024, height: 768, deviceScaleFactor: 1, mobile: false });
+    await waitFor(async () => evaluate("Boolean(document.querySelector('.recommend-wizard-head h1'))"));
+    await waitFor(async () => evaluate("document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width === 50"));
+    const squareRecommendationTitle = await evaluate(`(() => {
+      const heading = document.querySelector('.recommend-wizard-head');
+      const titleColumn = heading.firstElementChild;
+      const title = titleColumn.querySelector('h1');
+      return {
+        text: title.textContent.trim(),
+        lineCount: Math.round(title.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(title).lineHeight)),
+        fitsColumn: title.scrollWidth <= titleColumn.clientWidth + 1,
+        headingFitsViewport: heading.getBoundingClientRect().right <= innerWidth + 1
+      };
+    })()`);
+    assert.equal(squareRecommendationTitle.text, "나만의 과목 추천");
+    assert.equal(squareRecommendationTitle.lineCount, 1);
+    assert.equal(squareRecommendationTitle.fitsColumn, true);
+    assert.equal(squareRecommendationTitle.headingFitsViewport, true);
+
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 1822, height: 726, deviceScaleFactor: 1, mobile: false });
+    await waitFor(async () => evaluate("document.querySelector('.course-chatbot-launcher').getBoundingClientRect().width > 150"));
+    const wideShortRecommendationDock = await evaluate(`(() => ({
+      label: getComputedStyle(document.querySelector('.course-chatbot-launcher > span')).display
+    }))()`);
+    assert.notEqual(wideShortRecommendationDock.label, "none");
+
+    await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    const mobileRecommendationTitle = await evaluate(`(() => {
+      const titleColumn = document.querySelector('.recommend-wizard-head').firstElementChild;
+      const title = titleColumn.querySelector('h1');
+      return {
+        lineCount: Math.round(title.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(title).lineHeight)),
+        fitsColumn: title.scrollWidth <= titleColumn.clientWidth + 1
+      };
+    })()`);
+    assert.equal(mobileRecommendationTitle.lineCount, 1);
+    assert.equal(mobileRecommendationTitle.fitsColumn, true);
     console.log("school picker and upload notice browser tests passed");
   } finally {
     if (client) {
