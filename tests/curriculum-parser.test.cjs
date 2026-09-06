@@ -49,6 +49,8 @@ const curriculumAlertMessage = elementStub();
 const curriculumLeaveDialog = elementStub();
 const toast = elementStub();
 const body = elementStub();
+const windowListeners = new Map();
+const settingsWrites = [];
 
 global.location = { search: "?tab=admin", href: "http://localhost/section.html?tab=admin" };
 global.history = { replaceState() {} };
@@ -87,10 +89,17 @@ const dataset = {
 
 global.window = {
   DatabaseStore: {
-    getSettings() { return {}; },
+    getSettings() {
+      return {
+        pageSize: 25,
+        simulationSubjects: ["이전 선택 과목"],
+        schoolSelections: { "old-school:2026": { "grade-2:old-option": ["이전 선택 과목"] } },
+        completedCourseSelections: { "old-school:2026": ["이전 이수 과목"] }
+      };
+    },
     loadDatabase: async () => ({ database: dataset, notices: [] }),
     loadDepartmentDatabase: async () => ({ meta: {}, fields: [], departments: [] }),
-    saveSettings() {}
+    saveSettings(settings) { settingsWrites.push(JSON.parse(JSON.stringify(settings))); }
   },
   SchoolStore: {
     regions: ["강원특별자치도"],
@@ -99,7 +108,13 @@ global.window = {
     init: async () => ({ schools: [], connection: "local" })
   },
   matchMedia: () => ({ matches: false }),
-  addEventListener() {},
+  addEventListener(type, callback) {
+    if (!windowListeners.has(type)) windowListeners.set(type, []);
+    windowListeners.get(type).push(callback);
+  },
+  async dispatchTestEvent(type, event = {}) {
+    for (const callback of windowListeners.get(type) || []) await callback(event);
+  },
   dispatchEvent() {}
 };
 
@@ -213,12 +228,18 @@ async function main() {
   assert.match(appSource, /const accessible = allSelectionsComplete \|\| gradeProgress\.grade <= state\.simulationMaxGradeStep \|\| state\.simulationResultUnlocked/);
   assert.match(appSource, /state\.simulationMaxGradeStep = Math\.max\(firstGrade, state\.simulationMaxGradeStep\)/);
   assert.match(appSource, /state\.simulationResultUnlocked = true;\s*state\.simulationHistoryOpen = false;\s*state\.simulationResultOpen = true/);
+  assert.doesNotMatch(appSource, /state\.settings\.(?:simulationSubjects|schoolSelections|completedCourseSelections)/);
+  assert.match(appSource, /transientSimulationSettingKeys = \["simulationSubjects", "schoolSelections", "completedCourseSelections"\]/);
+  assert.match(appSource, /window\.addEventListener\("pagehide"/);
+  assert.match(appSource, /window\.addEventListener\("pageshow"/);
   assert.match(appSource, /const descendantBottom = \[\.\.\.printDocument\.querySelectorAll\("\*"\)\]/);
   assert.match(appSource, /measuredHeight \* 1\.015 \+ 4/);
   assert.match(appSource, /PLATFORM_PRINTABLE_HEIGHT_MM \/ PLATFORM_PRINTABLE_WIDTH_MM/);
   assert.match(appDataSource, /INDEXED_DB_OPEN_TIMEOUT = 2500/);
   assert.match(appDataSource, /fetchWithTimeout/);
   assert.match(appDataSource, /STATIC_DATA_VERSION = "20260905-3"/);
+  assert.match(appDataSource, /TRANSIENT_SETTING_KEYS = Object\.freeze\(\["simulationSubjects", "schoolSelections", "completedCourseSelections"\]\)/);
+  assert.match(appDataSource, /TRANSIENT_SETTING_KEYS\.forEach\(\(key\) => \{ delete persistentSettings\[key\]; \}\)/);
   assert.match(appSource, /"success",\s*\(\) => requestCurriculumLeave\(closeCurriculumPreview\)\s*\)/);
   assert.match(appSource, /if \(confirmAction\) await confirmAction\(\)/);
   assert.match(appSource, /requestCurriculumLeave\(\(\) => location\.assign/);
@@ -303,8 +324,9 @@ async function main() {
   assert.match(sectionHtml, /data-school-picker-label>미선택/);
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
   assert.match(sectionHtml, /school-data\.js\?v=20260905-6/);
-  assert.match(sectionHtml, /app\.css\?v=20260905-43/);
-  assert.match(sectionHtml, /app\.js\?v=20260905-26/);
+  assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
+  assert.match(sectionHtml, /app\.css\?v=20260906-1/);
+  assert.match(sectionHtml, /app\.js\?v=20260906-1/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 
@@ -313,6 +335,12 @@ async function main() {
   }
   assert.ok(window.DatabaseApp, "앱 테스트 API가 초기화되어야 합니다.");
   const state = window.DatabaseApp.getState();
+  assert.deepEqual(state.simulationSubjects, []);
+  assert.deepEqual(state.simulationSelections, {});
+  assert.equal(Object.hasOwn(state.settings, "simulationSubjects"), false);
+  assert.equal(Object.hasOwn(state.settings, "schoolSelections"), false);
+  assert.equal(Object.hasOwn(state.settings, "completedCourseSelections"), false);
+  assert.deepEqual(settingsWrites, [{ pageSize: 25 }]);
 
   root.innerHTML = '<div class="initial-loading">데이터베이스를 불러오고 있습니다.</div>';
   state.tab = "recommend";
@@ -798,6 +826,17 @@ async function main() {
   assert.match(root.innerHTML, /편제표 연동됨/);
   assert.match(root.innerHTML, /2026년 입학생/);
 
+  const settingsWriteCountBeforeSimulation = settingsWrites.length;
+  await root.dispatchTestEvent("click", {
+    target: {
+      dataset: { selectionKey: "grade-2:test-option", courseName: "물리학", choose: "1" },
+      closest(selector) { return selector === "[data-curriculum-choice]" ? this : null; },
+      matches() { return false; }
+    }
+  });
+  assert.deepEqual(state.simulationSelections["grade-2:test-option"], ["물리학"]);
+  assert.equal(settingsWrites.length, settingsWriteCountBeforeSimulation, "모의 수강신청 선택은 브라우저 설정에 저장하면 안 됩니다.");
+
   state.simulationHistoryOpen = true;
   window.DatabaseApp.renderSimulation();
   assert.match(root.innerHTML, /<h2>수강 완료 과목<\/h2>/);
@@ -819,6 +858,21 @@ async function main() {
   assert.match(root.innerHTML, /COMPLETED COURSES/);
   assert.match(root.innerHTML, /<h2>수강 완료 과목<\/h2>/);
   assert.doesNotMatch(root.innerHTML, /현재까지 들은 과목/);
+
+  state.tab = "simulation";
+  state.simulationResultUnlocked = true;
+  state.simulationResultOpen = true;
+  state.simulationHistoryOpen = false;
+  await window.dispatchTestEvent("pagehide");
+  assert.deepEqual(state.simulationSelections, {});
+  assert.deepEqual(state.simulationSubjects, []);
+  assert.equal(state.simulationResultUnlocked, false);
+  assert.equal(state.simulationResultOpen, false);
+  assert.equal(state.simulationHistoryOpen, true);
+  root.innerHTML = "<section class=\"simulation-final-document\">이전 결과</section>";
+  await window.dispatchTestEvent("pageshow", { persisted: true });
+  assert.doesNotMatch(root.innerHTML, /simulation-final-document/);
+  assert.match(root.innerHTML, /<h2>수강 완료 과목<\/h2>/);
 
   state.selectedAdmissionYear = 2025;
   state.curriculum = freshmanResult.curricula[0];

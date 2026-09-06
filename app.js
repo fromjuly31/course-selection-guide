@@ -86,6 +86,12 @@
   const allowedTabs = ["subjects", "departments", "recommend", "simulation", "admin"];
   const initialTab = requestedTab === "view" ? "departments" : requestedTab;
   const savedSettings = store.getSettings();
+  // 모의 수강신청은 학생마다 새로 시작하는 일회성 작업이다.
+  // 이전 버전이 localStorage에 남긴 선택값도 시작 시 즉시 제거한다.
+  const transientSimulationSettingKeys = ["simulationSubjects", "schoolSelections", "completedCourseSelections"];
+  const hasPersistedSimulationSettings = transientSimulationSettingKeys.some((key) => Object.prototype.hasOwnProperty.call(savedSettings, key));
+  transientSimulationSettingKeys.forEach((key) => { delete savedSettings[key]; });
+  if (hasPersistedSimulationSettings) store.saveSettings(savedSettings);
   const state = {
     tab: allowedTabs.includes(initialTab) ? initialTab : "subjects",
     dataset: { meta: {}, columns: [], rows: [] },
@@ -122,9 +128,8 @@
     simulationHistoryOpen: true,
     simulationHistoryCategory: "전체",
     simulationHistorySearch: "",
-    simulationSubjects: Array.isArray(savedSettings.simulationSubjects) ? savedSettings.simulationSubjects : [],
-    schoolSelections: savedSettings.schoolSelections && typeof savedSettings.schoolSelections === "object" ? savedSettings.schoolSelections : {},
-    completedCourseSelections: savedSettings.completedCourseSelections && typeof savedSettings.completedCourseSelections === "object" ? savedSettings.completedCourseSelections : {},
+    simulationSubjects: [],
+    simulationSelections: {},
     schoolOnlyCourses: pageParams.get("schoolOnly") === "1" || Boolean(savedSettings.schoolOnlyCourses),
     schools: [],
     selectedSchool: null,
@@ -200,13 +205,7 @@
     state.schoolUser = snapshot.user || null;
     state.accessRole = snapshot.accessRole || "";
     if (selectionChanged) {
-      state.simulationResultOpen = false;
-      state.simulationHistoryOpen = true;
-      state.simulationHistoryCategory = "전체";
-      state.simulationHistorySearch = "";
-      state.simulationGradeStep = 1;
-      state.simulationMaxGradeStep = 1;
-      state.simulationResultUnlocked = false;
+      resetSimulationAttempt();
     }
     if (!state.selectedSchool || !state.curriculum) state.schoolOnlyCourses = false;
   }
@@ -2242,27 +2241,24 @@
     }).sort((a, b) => b.score - a.score || b.completed.length - a.completed.length).slice(0, 12);
   }
 
-  function schoolSelectionMap() {
-    const schoolId = state.selectedSchool?.id;
-    if (!schoolId) return {};
-    const storageKey = state.selectedAdmissionYear ? `${schoolId}:${state.selectedAdmissionYear}` : schoolId;
-    if (!state.schoolSelections[storageKey] || typeof state.schoolSelections[storageKey] !== "object") {
-      const legacySelection = state.selectedAdmissionYear && state.schoolSelections[schoolId]
-        && typeof state.schoolSelections[schoolId] === "object" ? state.schoolSelections[schoolId] : null;
-      state.schoolSelections[storageKey] = legacySelection ? { ...legacySelection } : {};
-      if (legacySelection) delete state.schoolSelections[schoolId];
-    }
-    return state.schoolSelections[storageKey];
+  function simulationSelectionMap() {
+    return state.selectedSchool ? state.simulationSelections : {};
   }
 
-  function schoolSimulationStorageKey() {
-    const schoolId = state.selectedSchool?.id;
-    if (!schoolId) return "";
-    return state.selectedAdmissionYear ? `${schoolId}:${state.selectedAdmissionYear}` : schoolId;
+  function resetSimulationAttempt() {
+    state.simulationSubjects = [];
+    state.simulationSelections = {};
+    state.simulationResultOpen = false;
+    state.simulationHistoryOpen = true;
+    state.simulationHistoryCategory = "전체";
+    state.simulationHistorySearch = "";
+    state.simulationGradeStep = 1;
+    state.simulationMaxGradeStep = 1;
+    state.simulationResultUnlocked = false;
   }
 
   function completedCourseSubjects() {
-    const selections = schoolSelectionMap();
+    const selections = simulationSelectionMap();
     const completed = [];
     completedCurriculumGrades().forEach((grade) => {
       grade.semesters.forEach((semesterData) => {
@@ -2310,7 +2306,7 @@
   }
 
   function selectedCurriculumSubjects() {
-    const map = schoolSelectionMap();
+    const map = simulationSelectionMap();
     const selected = [];
     curriculumGrades().forEach((grade) => {
       grade.semesters.forEach((semesterData) => {
@@ -2326,7 +2322,7 @@
   }
 
   function curriculumSelectionProgress(grades = curriculumGrades()) {
-    const selections = schoolSelectionMap();
+    const selections = simulationSelectionMap();
     const gradeProgress = grades.map((grade) => {
       const semesterProgress = grade.semesters.map((semesterData) => {
         const options = semesterData.options.map((option, index) => {
@@ -2408,7 +2404,7 @@
   }
 
   function curriculumCoursePlan() {
-    const selections = schoolSelectionMap();
+    const selections = simulationSelectionMap();
     const gradePlan = (grade, completed = false) => {
       const entries = new Map();
       const add = (name, source, semester) => {
@@ -2470,16 +2466,12 @@
     </section>`;
   }
 
-  function syncSchoolSimulationSubjects(save = false) {
-    state.settings.schoolSelections = state.schoolSelections;
-    state.settings.completedCourseSelections = state.completedCourseSelections;
+  function syncSimulationSubjects() {
     state.simulationSubjects = uniqueCourseNames([...completedCourseSubjects(), ...selectedCurriculumSubjects()]);
-    state.settings.simulationSubjects = state.simulationSubjects;
-    if (save) store.saveSettings(state.settings);
   }
 
-  function saveSchoolSelections() {
-    syncSchoolSimulationSubjects(true);
+  function applySimulationSelectionChange() {
+    syncSimulationSubjects();
   }
 
   function curriculumCourseDisplayMarkup(course) {
@@ -2489,7 +2481,7 @@
   }
 
   function semesterCurriculumMarkup(gradeData, semesterData, semesterProgress, locked = false) {
-    const selections = schoolSelectionMap();
+    const selections = simulationSelectionMap();
     const standalone = semesterStandaloneCourses(semesterData);
     const commonMarkup = semesterData.common.length
       ? semesterData.common.map((course) => `<span class="common-course-chip is-fixed-selected" aria-label="${escapeHtml(canonicalCourseTypography(course))} 자동 선택 완료"><span class="fixed-course-check" aria-hidden="true">✓</span>${curriculumCourseDisplayMarkup(course)}</span>`).join("")
@@ -5714,22 +5706,6 @@
       return;
     }
 
-    const simulationHistoryCourse = event.target.closest("[data-simulation-history-course]");
-    if (simulationHistoryCourse) {
-      const storageKey = schoolSimulationStorageKey();
-      if (!storageKey) return;
-      const courseName = canonicalCourseTypography(simulationHistoryCourse.dataset.courseName);
-      const courseKey = curriculumCourseAliasKey(courseName);
-      const current = completedCourseSubjects();
-      const currentIndex = current.findIndex((course) => curriculumCourseAliasKey(course) === courseKey);
-      if (currentIndex >= 0) current.splice(currentIndex, 1);
-      else current.push(courseName);
-      state.completedCourseSelections[storageKey] = current;
-      saveSchoolSelections();
-      renderSimulation();
-      return;
-    }
-
     const simulationHistoryCategory = event.target.closest("[data-simulation-history-category]");
     if (simulationHistoryCategory) {
       state.simulationHistoryCategory = simulationHistoryCategory.dataset.simulationHistoryCategory || "전체";
@@ -5748,7 +5724,7 @@
       state.simulationResultOpen = false;
       state.simulationGradeStep = firstGrade;
       state.simulationMaxGradeStep = Math.max(firstGrade, state.simulationMaxGradeStep);
-      saveSchoolSelections();
+      applySimulationSelectionChange();
       renderSimulation();
       focusSimulationStageStart();
       return;
@@ -5824,7 +5800,7 @@
 
     const curriculumChoice = event.target.closest("[data-curriculum-choice]");
     if (curriculumChoice) {
-      const selections = schoolSelectionMap();
+      const selections = simulationSelectionMap();
       const key = curriculumChoice.dataset.selectionKey;
       const course = curriculumChoice.dataset.courseName;
       const choose = Math.max(0, Number(curriculumChoice.dataset.choose) || 0);
@@ -5837,19 +5813,15 @@
       } else current.push(course);
       selections[key] = current;
       state.simulationResultOpen = false;
-      saveSchoolSelections();
+      applySimulationSelectionChange();
       renderSimulation();
       return;
     }
 
     if (event.target.closest("[data-clear-school-simulation]")) {
-      if (state.selectedSchool) {
-        const key = state.selectedAdmissionYear ? `${state.selectedSchool.id}:${state.selectedAdmissionYear}` : state.selectedSchool.id;
-        state.schoolSelections[key] = {};
-        state.completedCourseSelections[key] = [];
-      }
+      state.simulationSelections = {};
       state.simulationResultOpen = false;
-      saveSchoolSelections();
+      applySimulationSelectionChange();
       renderSimulation();
       showToast("이 학교의 과목 선택을 초기화했습니다.");
       return;
@@ -6401,7 +6373,7 @@
         if (workspaceSaved) markPendingCurriculaSaved();
         else markPendingCurriculaSaved([state.curriculumPreviewIndex]);
         syncSchoolState(result);
-        syncSchoolSimulationSubjects(true);
+        syncSimulationSubjects();
         const actionLabel = result.action === "updated" ? "교체" : "등록";
         state.curriculumImportMessage = `${state.selectedSchool?.name || "학교"} ${publishingCurriculum.admissionYear}년 입학생 편제표를 ${actionLabel}했습니다.`;
         state.curriculumBusy = false;
@@ -6441,7 +6413,7 @@
       try {
         const result = await schoolStore?.deleteCurriculum(deleteCurriculumButton.dataset.curriculumId);
         syncSchoolState(result);
-        syncSchoolSimulationSubjects(true);
+        syncSimulationSubjects();
         renderAdmin();
         showToast("편제표를 삭제했습니다.", 4000);
       } catch (error) {
@@ -6479,7 +6451,7 @@
       try {
         const result = await schoolStore?.deleteSchool(deleteSchoolButton.dataset.schoolId);
         syncSchoolState(result);
-        syncSchoolSimulationSubjects(true);
+        syncSimulationSubjects();
         renderAdmin();
         showToast(`${schoolName}의 연동 데이터를 삭제했습니다.`, 4000);
       } catch (error) {
@@ -6518,8 +6490,6 @@
       state.simulationSubjects = wasSelected
         ? state.simulationSubjects.filter((item) => item !== subject)
         : [...state.simulationSubjects, subject];
-      state.settings.simulationSubjects = state.simulationSubjects;
-      store.saveSettings(state.settings);
       renderSubjects();
       showToast(wasSelected ? "모의 수강신청에서 과목을 제거했습니다." : "모의 수강신청에 과목을 추가했습니다.");
       return;
@@ -6531,16 +6501,12 @@
       state.simulationSubjects = state.simulationSubjects.includes(subject)
         ? state.simulationSubjects.filter((item) => item !== subject)
         : [...state.simulationSubjects, subject];
-      state.settings.simulationSubjects = state.simulationSubjects;
-      store.saveSettings(state.settings);
       renderSimulation();
       return;
     }
 
     if (event.target.closest("[data-clear-simulation]")) {
       state.simulationSubjects = [];
-      state.settings.simulationSubjects = [];
-      store.saveSettings(state.settings);
       renderSimulation();
       showToast("선택한 과목을 모두 해제했습니다.");
       return;
@@ -7122,7 +7088,7 @@
       try {
         const result = await schoolStore.disconnectSchool();
         syncSchoolState(result);
-        syncSchoolSimulationSubjects(true);
+        syncSimulationSubjects();
         state.headerSchoolSearch = "";
         state.schoolPickerPendingId = "";
         state.subjectCategory = "전체";
@@ -7155,7 +7121,7 @@
       try {
         const result = await schoolStore.selectSchoolAdmissionYear(state.schoolPickerPendingId, Number(schoolYearOption.dataset.schoolConnectYear));
         syncSchoolState(result);
-        syncSchoolSimulationSubjects(true);
+        syncSimulationSubjects();
         state.headerSchoolSearch = "";
         state.subjectCategory = "전체";
         state.subjectPage = 1;
@@ -7311,6 +7277,14 @@
     event.returnValue = "";
   });
 
+  window.addEventListener("pagehide", () => {
+    if (state.tab === "simulation" && state.simulationResultUnlocked) resetSimulationAttempt();
+  });
+
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted && state.tab === "simulation") renderSimulation();
+  });
+
   // QA와 향후 Firebase/Supabase 어댑터 연결을 위해 핵심 함수를 명시적으로 노출한다.
   window.DatabaseApp = {
     readExcelFile,
@@ -7356,7 +7330,7 @@
     schoolStore.init().then(async (snapshot) => {
       syncSchoolState(snapshot);
       if (state.accessRole === "teacher") await releaseTeacherCurriculumAccess();
-      syncSchoolSimulationSubjects(false);
+      syncSimulationSubjects();
       if (appDataReady) render();
     }).catch((error) => {
       console.error("학교 데이터 초기화 실패:", error);
@@ -7367,7 +7341,7 @@
 
   try {
     await Promise.all([loadDatabase(), loadDepartmentDatabase()]);
-    syncSchoolSimulationSubjects(false);
+    syncSimulationSubjects();
   } catch (error) {
     console.error("앱 초기화 실패:", error);
     state.notices = ["데이터베이스를 시작하지 못했습니다. 페이지를 새로고침해 주세요."];

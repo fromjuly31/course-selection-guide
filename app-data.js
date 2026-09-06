@@ -8,6 +8,7 @@
   const STORE_NAME = "databases";
   const ACTIVE_KEY = "active";
   const SETTINGS_KEY = "course-guide:settings:v2";
+  const TRANSIENT_SETTING_KEYS = Object.freeze(["simulationSubjects", "schoolSelections", "completedCourseSelections"]);
   const DEFAULT_DATABASE_URL = "./data/database.json";
   const DEPARTMENT_DATABASE_URL = "./data/departments.json";
   const STATIC_DATA_VERSION = "20260905-3";
@@ -302,7 +303,9 @@
 
   function saveSettings(settings) {
     // 페이지 크기·마지막 시트 같은 작은 UI 설정만 localStorage에 둔다.
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings || {}));
+    const persistentSettings = settings && typeof settings === "object" ? { ...settings } : {};
+    TRANSIENT_SETTING_KEYS.forEach((key) => { delete persistentSettings[key]; });
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(persistentSettings));
   }
 
   function clearSettings() {
