@@ -449,6 +449,7 @@ async function main() {
       const dialog = document.querySelector('[data-school-auth-dialog]');
       const inputs = [...dialog.querySelectorAll('[data-auth-curriculum-file]')];
       const yearCheckboxes = [...dialog.querySelectorAll('[data-upload-year-select]')];
+      const yearChoices = [...dialog.querySelectorAll('[data-upload-year-choice]')];
       const draftButton = dialog.querySelector('[data-load-upload-curriculum-draft]');
       return {
         title: dialog.querySelector('h3').textContent.trim(),
@@ -457,6 +458,7 @@ async function main() {
         checkboxCount: yearCheckboxes.length,
         checkedYears: yearCheckboxes.filter((input) => input.checked).map((input) => Number(input.value)),
         visibleSlotYears: [...dialog.querySelectorAll('[data-upload-year-slot]:not([hidden])')].map((slot) => Number(slot.dataset.uploadYearSlot)),
+        choicesStacked: yearChoices.length === 2 && yearChoices[1].getBoundingClientRect().top >= yearChoices[0].getBoundingClientRect().bottom,
         yearStatuses: Object.fromEntries([...dialog.querySelectorAll('[data-upload-year-choice]')].map((choice) => [choice.dataset.uploadYearChoice, choice.querySelector('[data-upload-year-status]').textContent.replace(/\s+/g, ' ').trim()])),
         acceptsHwp: inputs.every((input) => input.accept.includes('.hwp') && input.accept.includes('.hwpx')),
         draftButton: draftButton?.textContent.replace(/\s+/g, ' ').trim() || '',
@@ -472,6 +474,7 @@ async function main() {
     assert.equal(uploadWorkspace.checkboxCount, 2);
     assert.deepEqual(uploadWorkspace.checkedYears, [2026]);
     assert.deepEqual(uploadWorkspace.visibleSlotYears, [2026]);
+    assert.equal(uploadWorkspace.choicesStacked, true);
     assert.match(uploadWorkspace.yearStatuses["2026"], /현재 편제표 연동됨/);
     assert.match(uploadWorkspace.yearStatuses["2025"], /아직 등록된 편제표 없음/);
     assert.equal(uploadWorkspace.acceptsHwp, true);

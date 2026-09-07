@@ -251,7 +251,7 @@ async function main() {
   assert.match(appDataSource, /STATIC_DATA_VERSION = "20260905-3"/);
   assert.match(appDataSource, /TRANSIENT_SETTING_KEYS = Object\.freeze\(\["simulationSubjects", "schoolSelections", "completedCourseSelections"\]\)/);
   assert.match(appDataSource, /TRANSIENT_SETTING_KEYS\.forEach\(\(key\) => \{ delete persistentSettings\[key\]; \}\)/);
-  assert.match(appSource, /"success",\s*\(\) => requestCurriculumLeave\(closeCurriculumPreview\)\s*\)/);
+  assert.match(appSource, /continueUploadFlow\s*\?\s*\(\) => returnToTeacherCurriculumUpload/);
   assert.match(appSource, /if \(confirmAction\) await confirmAction\(\)/);
   assert.match(appSource, /requestCurriculumLeave\(\(\) => \{\s*schoolStore\?\.prepareInternalNavigation\?\.\(\);/);
   assert.match(appSource, /schoolStore\?\.prepareInternalNavigation\?\.\(\);\s*window\.CourseChatbot\?\.prepareInternalNavigation\?\.\(\);\s*location\.assign/);
@@ -341,8 +341,8 @@ async function main() {
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
   assert.match(sectionHtml, /school-data\.js\?v=20260906-1/);
   assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
-  assert.match(sectionHtml, /app\.css\?v=20260907-4/);
-  assert.match(sectionHtml, /app\.js\?v=20260907-4/);
+  assert.match(sectionHtml, /app\.css\?v=20260907-5/);
+  assert.match(sectionHtml, /app\.js\?v=20260907-5/);
   assert.match(sectionHtml, /chatbot\.js\?v=20260907-2/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
@@ -574,20 +574,21 @@ async function main() {
   assert.match(root.innerHTML, /data-open-admin-login/);
   assert.doesNotMatch(root.innerHTML, /school-access-login/);
   assert.ok(root.innerHTML.indexOf("curriculum-entry-methods") < root.innerHTML.indexOf("curriculum-format-notice"));
-  assert.match(root.innerHTML, /data-curriculum-year-toggle/);
-  assert.match(root.innerHTML, /data-curriculum-year-option="0"/);
+  assert.doesNotMatch(root.innerHTML, /data-curriculum-year-toggle/);
+  assert.doesNotMatch(root.innerHTML, /data-curriculum-year-option="0"/);
   assert.match(root.innerHTML, /CURRENT ADMISSION YEAR/);
   assert.match(root.innerHTML, /아래 ‘편제표 등록’은 현재 2026학년도 편제표 한 건만 저장합니다/);
   assert.doesNotMatch(root.innerHTML, /data-curriculum-preview-page/);
   assert.doesNotMatch(root.innerHTML, /data-curriculum-year-select/);
   assert.doesNotMatch(root.innerHTML, /data-curriculum-admission-year/);
-  assert.ok(root.innerHTML.indexOf("curriculum-editor-school-fields") < root.innerHTML.indexOf("curriculum-year-workspace-selector"));
-  assert.ok(root.innerHTML.indexOf("curriculum-year-workspace-selector") < root.innerHTML.indexOf("curriculum-current-year-panel"));
+  assert.ok(root.innerHTML.indexOf("curriculum-editor-school-fields") < root.innerHTML.indexOf("curriculum-current-year-panel"));
   assert.doesNotMatch(root.innerHTML, /data-curriculum-region-edit/);
 
   state.pendingCurriculum = window.DatabaseApp.createBlankCurriculumImport();
   window.DatabaseApp.renderAdmin();
   assert.match(root.innerHTML, /CURRICULUM EDITOR/);
+  assert.match(root.innerHTML, /data-curriculum-year-toggle/);
+  assert.match(root.innerHTML, /data-curriculum-year-option="0"/);
   assert.doesNotMatch(root.innerHTML, /유연 분석 결과를 확인하세요/);
   assert.doesNotMatch(root.innerHTML, /<header><div>[\s\S]*?<\/div><span>직접 작성<\/span><\/header>/);
   assert.match(root.innerHTML, /data-curriculum-semester-editor/);
@@ -737,7 +738,11 @@ async function main() {
   assert.equal(blank.curricula[1].admissionYear, 2025);
 
   blank.region = "강원특별자치도";
-  blank.curricula.forEach((curriculum) => { curriculum.region = "강원특별자치도"; });
+  blank.sourceFormat = "freshman-three-file-batch";
+  blank.curricula.forEach((curriculum) => {
+    curriculum.region = "강원특별자치도";
+    curriculum.sourceFormat = "freshman-three-year-standard";
+  });
   let autoSavedWorkspace = null;
   let publishedCurriculum = null;
   const publishOrder = [];
@@ -778,7 +783,22 @@ async function main() {
   assert.ok(publishedCurriculum.grades.some((grade) => grade.options.length > 0));
   assert.equal(state.curriculumDraftId, "draft-latest");
   assert.match(curriculumAlertMessage.textContent, /현재 작업 화면의 편제표를 그대로 등록/);
+  assert.match(curriculumAlertMessage.textContent, /다음 입학년도 업로드 화면으로 돌아갑니다/);
+  await curriculumAlertDialog.dispatchTestEvent("click", {
+    target: {
+      closest(selector) { return selector === "[data-curriculum-alert-close]" ? this : null; }
+    }
+  });
+  assert.equal(state.pendingCurriculum, null);
+  assert.equal(state.schoolAuthDialogMode, "teacher");
+  assert.equal(state.schoolAuthStep, 3);
+  assert.equal(state.schoolAuthUploadYear, 2026);
+  assert.match(root.innerHTML, /2025학년도 신입생 편제표 등록이 완료되었습니다/);
+  assert.match(root.innerHTML, /다음으로 2026학년도를 선택했습니다/);
+  assert.doesNotMatch(root.innerHTML, /curriculum-year-workspace-selector/);
 
+  state.schoolAuthDialogMode = "";
+  state.schoolAuthStep = 1;
   window.DatabaseApp.openStoredCurriculumDraft({
     id: "draft-latest",
     updatedAt: "2026-09-05T12:00:00.000Z",

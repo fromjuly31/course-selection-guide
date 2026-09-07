@@ -148,6 +148,7 @@
     schoolAuthSchoolName: "",
     schoolAuthRegion: "",
     schoolAuthUploadYear: SUPPORTED_ADMISSION_YEARS[0],
+    schoolAuthUploadMessage: "",
     pendingCurriculumAction: "",
     pendingCurriculumIdentity: null,
     uploadCurriculumDraft: null,
@@ -4024,6 +4025,7 @@
     state.schoolAuthUploadYear = SUPPORTED_ADMISSION_YEARS.includes(Number(state.selectedAdmissionYear))
       ? Number(state.selectedAdmissionYear)
       : SUPPORTED_ADMISSION_YEARS[0];
+    state.schoolAuthUploadMessage = "";
     state.uploadCurriculumDraft = null;
     if (state.schoolAuthDialogMode === "teacher") {
       resetCurriculumDraftState();
@@ -4039,6 +4041,7 @@
     state.schoolAuthStep = 1;
     state.schoolAuthRegionOpen = false;
     state.schoolAuthUploadYear = SUPPORTED_ADMISSION_YEARS[0];
+    state.schoolAuthUploadMessage = "";
     state.pendingCurriculumAction = "";
     state.uploadCurriculumDraft = null;
   }
@@ -4106,6 +4109,40 @@
     resetCurriculumDraftState();
     await releaseTeacherCurriculumAccess();
     renderAdmin();
+  }
+
+  function returnToTeacherCurriculumUpload(publishedAdmissionYear, identity) {
+    const linkedYears = new Set((state.selectedSchool?.admissionYears || []).map(Number));
+    const nextUnregisteredYear = SUPPORTED_ADMISSION_YEARS.find((year) => year !== Number(publishedAdmissionYear) && !linkedYears.has(year));
+    const nextUploadYear = nextUnregisteredYear
+      || SUPPORTED_ADMISSION_YEARS.find((year) => year !== Number(publishedAdmissionYear))
+      || SUPPORTED_ADMISSION_YEARS[0];
+    state.pendingCurriculum = null;
+    state.curriculumPreviewIndex = 0;
+    state.curriculumPreviewGradeIndex = 0;
+    state.curriculumYearPickerOpen = false;
+    state.curriculumRegionPickerOpen = false;
+    state.curriculumCoursePicker = null;
+    state.curriculumSavedFingerprints = {};
+    state.curriculumBusy = false;
+    state.schoolAuthDialogMode = "teacher";
+    state.schoolAuthStep = 3;
+    state.schoolAuthRegionOpen = false;
+    state.pendingCurriculumAction = "upload";
+    state.pendingCurriculumIdentity = { schoolName: identity.schoolName, region: identity.region };
+    state.schoolAuthSchoolName = identity.schoolName;
+    state.schoolAuthRegion = identity.region;
+    state.schoolAuthUploadYear = nextUploadYear;
+    state.schoolAuthUploadMessage = nextUnregisteredYear
+      ? `${publishedAdmissionYear}학년도 신입생 편제표 등록이 완료되었습니다. 다음으로 ${nextUploadYear}학년도를 선택했습니다.`
+      : `${publishedAdmissionYear}학년도 신입생 편제표 등록이 완료되었습니다. 다른 입학년도를 선택하면 해당 편제표를 확인하거나 교체할 수 있습니다.`;
+    state.uploadCurriculumDraft = null;
+    state.curriculumImportMessage = "";
+    curriculumLeaveConfirmAction = null;
+    resetCurriculumDraftState({ clearIdentity: false });
+    closeHeaderSchoolPicker();
+    renderAdmin();
+    requestAnimationFrame(() => root.querySelector("[data-upload-year-select]:checked")?.focus({ preventScroll: true }));
   }
 
   function openBlankCurriculumEditor() {
@@ -4597,10 +4634,10 @@
         <label><span>학교명</span><input type="text" value="${escapeHtml(completeSchoolName(curricula[0]?.schoolName || pending.schoolName))}" placeholder="예: 우리고등학교" aria-label="학교명" data-curriculum-school-name ${isAdminEdit ? "readonly aria-readonly=\"true\"" : ""}></label>
         <div><span>${isManual ? "작성 현황" : isAdminEdit ? "등록 현황" : "파싱 현황"}</span><strong data-curriculum-total-summary>총 ${pending.courseCount.toLocaleString("ko-KR")}과목</strong><small data-curriculum-unlisted-summary>${pending.unlistedCourseCount ? `고시 외 ${pending.unlistedCourseCount.toLocaleString("ko-KR")}과목` : "모든 과목이 앱 DB와 연결됨"}</small></div>
       </div>
-      <section class="curriculum-year-workspace-selector" aria-label="신입생 입학년도 선택">
+      ${isBatch ? `<section class="curriculum-year-workspace-selector" aria-label="신입생 입학년도 선택">
         <span>작업할 신입생 입학년도</span>
         <div class="curriculum-year-custom-select"><button type="button" data-curriculum-year-toggle aria-haspopup="listbox" aria-expanded="${state.curriculumYearPickerOpen}"><span><strong>${activeCurriculum.admissionYear}학년도 신입생</strong><small data-curriculum-year-current-summary>${activeEditStatus}${activePublishStatus}</small></span>${icon("arrow")}</button><div class="curriculum-year-options" role="listbox" ${state.curriculumYearPickerOpen ? "" : "hidden"}>${yearOptions}</div></div>
-      </section>
+      </section>` : ""}
       <div class="curriculum-current-year-panel"><small>CURRENT ADMISSION YEAR</small><strong><b>${activeCurriculum.admissionYear}</b>학년도 신입생</strong><p>아래 ‘편제표 등록’은 현재 ${activeCurriculum.admissionYear}학년도 편제표 한 건만 저장합니다.</p></div>
       ${!isManual && Array.isArray(pending.parseWarnings) && pending.parseWarnings.length ? `<aside class="curriculum-parse-warning" role="status">${icon("warning")}<div><strong>유연 분석 결과를 확인하세요.</strong>${pending.parseWarnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div></aside>` : ""}
       <div class="curriculum-editor-cohorts"><article class="curriculum-editor-cohort">
@@ -4642,6 +4679,7 @@
       ? `마지막 저장 ${uploadDraftDate.toLocaleString("ko-KR")}`
       : "저장된 마지막 작업본";
     const uploadDraftResume = state.uploadCurriculumDraft ? `<aside class="curriculum-upload-draft-resume" role="status"><div><span>임시저장본이 있습니다.</span><strong>${escapeHtml(uploadDraftStatus)}</strong><small>새 파일을 선택하거나, 저장했던 작업 화면을 그대로 이어서 편집할 수 있습니다.</small></div><button type="button" data-load-upload-curriculum-draft>${icon("download")}임시저장 불러오기</button></aside>` : "";
+    const uploadCompletionNotice = state.schoolAuthUploadMessage ? `<aside class="curriculum-upload-completion" role="status">${icon("check")}<p>${escapeHtml(state.schoolAuthUploadMessage)}</p></aside>` : "";
     const authRegionOptions = SCHOOL_REGIONS.map((regionName) => `<button type="button" class="${state.schoolAuthRegion === regionName ? "is-selected" : ""}" data-school-auth-region-option="${escapeHtml(regionName)}" role="option" aria-selected="${state.schoolAuthRegion === regionName}">${state.schoolAuthRegion === regionName ? icon("check") : ""}<span>${escapeHtml(regionName)}</span></button>`).join("");
     const teacherPasswordForm = `<form class="school-auth-form" data-teacher-password-form>
       <label><span>등록 비밀번호</span><input type="password" name="password" autocomplete="current-password" required placeholder="설정한 비밀번호"></label>
@@ -4673,6 +4711,7 @@
     </article>`;
     }).join("");
     const teacherUploadForm = `<form class="school-auth-form curriculum-year-upload-form" data-teacher-upload-form>
+      ${uploadCompletionNotice}
       ${uploadDraftResume}
       <section class="curriculum-upload-year-picker"><div><span>업로드할 신입생 입학년도</span><small>한 개 입학년도만 체크하세요. 체크한 연도의 업로드 화면만 아래에 표시됩니다.</small></div><div role="group" aria-label="업로드할 신입생 입학년도">${uploadYearNavigation}</div></section>
       <div class="curriculum-year-upload-list">${uploadYearSlots}</div>
@@ -6467,17 +6506,20 @@
         syncSchoolState(result);
         syncSimulationSubjects();
         const actionLabel = result.action === "updated" ? "교체" : "등록";
+        const continueUploadFlow = state.accessRole === "teacher" && entryMode === "upload";
         state.curriculumImportMessage = `${state.selectedSchool?.name || "학교"} ${publishingCurriculum.admissionYear}년 입학생 편제표를 ${actionLabel}했습니다.`;
         state.curriculumBusy = false;
         refreshCurriculumPreviewSelectionInPlace({ pageChanged: true });
         showCurriculumAlert(
           `${publishingCurriculum.admissionYear}년 입학생 편제표 ${actionLabel} 완료`,
           workspaceSaved
-            ? "현재 작업 화면의 편제표를 그대로 등록하고 마지막 작업본도 함께 보관했습니다. 확인을 누르면 편제표 등록 화면으로 돌아갑니다."
-            : "현재 작업 화면의 편제표는 정상적으로 등록했습니다. 다만 마지막 작업본은 별도로 보관하지 못했습니다.",
+            ? `현재 작업 화면의 편제표를 그대로 등록하고 마지막 작업본도 함께 보관했습니다.${continueUploadFlow ? " 확인을 누르면 다음 입학년도 업로드 화면으로 돌아갑니다." : " 확인을 누르면 편제표 등록 화면으로 돌아갑니다."}`
+            : `현재 작업 화면의 편제표는 정상적으로 등록했습니다. 다만 마지막 작업본은 별도로 보관하지 못했습니다.${continueUploadFlow ? " 확인을 누르면 다음 입학년도 업로드 화면으로 돌아갑니다." : ""}`,
           "편제표 저장 완료",
           "success",
-          () => requestCurriculumLeave(closeCurriculumPreview)
+          continueUploadFlow
+            ? () => returnToTeacherCurriculumUpload(publishingCurriculum.admissionYear, { schoolName, region })
+            : () => requestCurriculumLeave(closeCurriculumPreview)
         );
       } catch (error) {
         console.error("학교 편제표 공개 실패:", error);
@@ -7364,8 +7406,13 @@
     requestAnimationFrame(() => root.querySelector("[data-recommend-field]")?.focus({ preventScroll: true }));
   });
 
+  curriculumAlertDialog?.addEventListener("cancel", (event) => {
+    if (curriculumAlertConfirmAction) event.preventDefault();
+  });
+
   curriculumAlertDialog?.addEventListener("click", async (event) => {
     if (event.target === curriculumAlertDialog) {
+      if (curriculumAlertConfirmAction) return;
       curriculumAlertConfirmAction = null;
       curriculumAlertDialog.close();
       return;
