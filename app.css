@@ -2946,28 +2946,8 @@ body.is-platform-image-capturing .platform-print-root {
   gap: 16px;
 }
 
-.curriculum-upload-completion {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 13px 15px;
-  border: 1px solid #a7d6c7;
-  border-radius: 14px;
-  color: #075e49;
-  background: #eaf8f3;
-}
-
-.curriculum-upload-completion .icon {
-  width: 19px;
-  height: 19px;
-  flex: 0 0 auto;
-}
-
-.curriculum-upload-completion p {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.55;
+.curriculum-year-upload-form [data-upload-year-submit][hidden] {
+  display: none;
 }
 
 .curriculum-upload-draft-resume {
@@ -3034,11 +3014,10 @@ body.is-platform-image-capturing .platform-print-root {
 .curriculum-upload-year-picker {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid #c9e1d8;
-  border-radius: 16px;
-  background: #f3faf7;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .curriculum-upload-year-picker > div:first-child {
@@ -3047,99 +3026,87 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 .curriculum-upload-year-picker > div:first-child > span {
-  color: #244c41;
-  font-size: 14px;
-  font-weight: 850;
+  color: #193f35;
+  font-size: 15px;
+  font-weight: 900;
 }
 
 .curriculum-upload-year-picker > div:first-child > small {
   color: var(--muted);
   font-size: 11px;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .curriculum-upload-year-picker > div:last-child {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .curriculum-upload-year-choice {
   display: grid;
-  min-height: 76px;
-  grid-template-columns: auto 1fr;
+  width: 100%;
+  min-height: 82px;
+  grid-template-columns: 42px minmax(0, 1fr) 18px;
   align-items: center;
-  gap: 10px;
-  padding: 13px 15px;
-  border: 1px solid #c8dcd5;
-  border-radius: 13px;
-  color: #38584f;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d4e1dd;
+  border-radius: 15px;
+  color: #294b42;
   background: #fff;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
-.curriculum-upload-year-choice input[type="checkbox"] {
-  display: grid;
-  width: 23px;
-  height: 23px;
+.curriculum-upload-year-choice:hover {
+  border-color: #96c5b6;
+  transform: translateY(-1px);
+}
+
+.curriculum-upload-year-choice:focus-visible {
+  outline: 3px solid rgba(8, 116, 91, 0.17);
+  outline-offset: 2px;
+}
+
+.curriculum-upload-year-choice-icon {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
   flex: 0 0 auto;
-  margin: 0;
-  border: 2px solid #9eb9b0;
-  border-radius: 6px;
-  appearance: none;
-  background: #fff;
-  cursor: pointer;
-  place-content: center;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: #527068;
+  background: #eef4f2;
 }
 
-.curriculum-upload-year-choice input[type="checkbox"]::before {
-  width: 11px;
-  height: 6px;
-  border-bottom: 2px solid #fff;
-  border-left: 2px solid #fff;
-  content: "";
-  opacity: 0;
-  transform: translateY(-1px) rotate(-45deg) scale(0.6);
-  transition: opacity 120ms ease, transform 120ms ease;
-}
-
-.curriculum-upload-year-choice input[type="checkbox"]:checked {
-  border-color: var(--primary);
-  background: var(--primary);
-}
-
-.curriculum-upload-year-choice input[type="checkbox"]:checked::before {
-  opacity: 1;
-  transform: translateY(-1px) rotate(-45deg) scale(1);
-}
-
-.curriculum-upload-year-choice input[type="checkbox"]:focus-visible {
-  outline: 3px solid rgba(8, 116, 91, 0.2);
-  outline-offset: 3px;
+.curriculum-upload-year-choice-icon .icon {
+  width: 20px;
+  height: 20px;
 }
 
 .curriculum-upload-year-choice-copy {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 3px;
+  gap: 4px;
 }
 
 .curriculum-upload-year-choice strong {
-  grid-column: 1;
   white-space: nowrap;
   font-size: 15px;
+  line-height: 1.3;
 }
 
 .curriculum-upload-year-choice small {
   display: inline-flex;
-  grid-column: 1;
   align-items: center;
   justify-self: start;
-  gap: 4px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 750;
 }
 
 .curriculum-upload-year-choice small.is-linked,
@@ -3148,35 +3115,31 @@ body.is-platform-image-capturing .platform-print-root {
   font-weight: 850;
 }
 
-.curriculum-upload-year-choice small .icon {
-  width: 12px;
-  height: 12px;
+.curriculum-upload-year-choice-arrow {
+  display: inline-flex;
+  color: #8ba099;
 }
 
-.curriculum-upload-year-choice em {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
-  padding: 5px 8px;
-  border-radius: 999px;
-  color: #71847e;
-  background: #f0f4f2;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 750;
+.curriculum-upload-year-choice-arrow .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .curriculum-upload-year-choice.is-selected {
   border-color: var(--primary);
   color: var(--primary-dark);
-  background: #e9f7f2;
-  box-shadow: inset 0 0 0 1px var(--primary);
+  background: #f0faf6;
+  box-shadow: inset 0 0 0 1px var(--primary), 0 8px 22px rgba(8, 116, 91, 0.08);
 }
 
-.curriculum-upload-year-choice.is-selected em {
+.curriculum-upload-year-choice.is-selected .curriculum-upload-year-choice-icon {
+  color: #fff;
+  background: var(--primary);
+}
+
+.curriculum-upload-year-choice.is-selected .curriculum-upload-year-choice-arrow {
   color: var(--primary);
-  background: #d9eee7;
-  font-weight: 850;
+  transform: rotate(180deg);
 }
 
 .curriculum-year-upload-list {
@@ -3185,10 +3148,10 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 .curriculum-year-upload-slot {
-  padding: 15px;
+  padding: 18px;
   border: 1px solid #d4e2dd;
   border-radius: 16px;
-  background: #fbfdfc;
+  background: #f8fbfa;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
@@ -3211,7 +3174,7 @@ body.is-platform-image-capturing .platform-print-root {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .curriculum-year-upload-slot > header div {
@@ -3230,27 +3193,73 @@ body.is-platform-image-capturing .platform-print-root {
   font-size: 17px;
 }
 
-.curriculum-year-upload-slot > header > span {
-  padding: 5px 8px;
-  border-radius: 999px;
-  color: #6a7c77;
-  background: #eef2f1;
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.curriculum-year-upload-slot > header > span.is-linked {
-  color: #08745b;
-  background: #def3eb;
-}
-
 .curriculum-year-upload-slot .school-auth-file {
   display: block;
-  padding: 12px;
+  padding: 14px;
   border: 1px dashed #a9c9be;
   border-radius: 13px;
   background: #fff;
+}
+
+.curriculum-upload-existing {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 11px 12px;
+  border: 1px solid #b9ddd1;
+  border-radius: 13px;
+  color: #08654f;
+  background: #eaf7f2;
+}
+
+.curriculum-upload-existing > span {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: #fff;
+  background: var(--primary);
+}
+
+.curriculum-upload-existing > span .icon {
+  width: 17px;
+  height: 17px;
+}
+
+.curriculum-upload-existing > strong {
+  font-size: 13px;
+}
+
+.curriculum-upload-existing > button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid #8fcab8;
+  border-radius: 10px;
+  color: #075e49;
+  background: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.curriculum-upload-existing > button:hover,
+.curriculum-upload-existing > button:focus-visible {
+  border-color: var(--primary);
+  background: #f7fffb;
+}
+
+.curriculum-upload-existing > button .icon {
+  width: 14px;
+  height: 14px;
 }
 
 .curriculum-year-upload-slot .school-auth-file input {
@@ -3270,21 +3279,6 @@ body.is-platform-image-capturing .platform-print-root {
 }
 
 .curriculum-year-upload-slot.has-file [data-upload-file-name] {
-  color: var(--primary-dark);
-}
-
-.curriculum-upload-review-help {
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
-  color: #4c665e;
-  background: #eef7f3;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.55;
-}
-
-.curriculum-upload-review-help strong {
   color: var(--primary-dark);
 }
 
@@ -3397,14 +3391,8 @@ body.is-platform-image-capturing .platform-print-root {
     grid-template-columns: 1fr;
   }
 
-  .curriculum-upload-year-choice-copy {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .curriculum-upload-year-choice em {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: start;
+  .curriculum-upload-year-picker > div:last-child {
+    grid-template-columns: 1fr;
   }
 
   .school-auth-dialog > header {
@@ -19164,10 +19152,10 @@ body.curriculum-preview-open {
 
 .curriculum-entry-methods > .curriculum-upload-zone small {
   width: 100%;
-  max-width: 330px;
+  max-width: none;
   text-align: center;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 @media (min-width: 1200px) {

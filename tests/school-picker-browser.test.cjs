@@ -401,7 +401,7 @@ async function main() {
     assert.equal(uploadNotice.itemCount, 3);
     assert.equal(uploadNotice.listBelowTitle, true);
     assert.equal(uploadNotice.hasLegacyMark, false);
-    assert.equal(uploadNotice.uploadSubtitle, "엑셀, 한글 편제표를 한 번에 한 입학년도씩 등록합니다.");
+    assert.equal(uploadNotice.uploadSubtitle, "입학년도별 엑셀·한글 편제표를 등록합니다.");
     assert.ok(uploadNotice.uploadIconOffset <= 1);
     assert.ok(uploadNotice.uploadTitleOffset <= 1);
     assert.equal(uploadNotice.uploadSubtitleAlignment, "center");
@@ -438,6 +438,7 @@ async function main() {
       state.schoolAuthStep = 3;
       state.schoolAuthRegion = '강원특별자치도';
       state.schoolAuthSchoolName = '원주여자고등학교';
+      state.schoolAuthUploadYear = null;
       state.pendingCurriculumIdentity = { schoolName: '원주여자고등학교', region: '강원특별자치도' };
       state.uploadCurriculumDraft = {
         id: 'upload-draft-test',
@@ -448,54 +449,64 @@ async function main() {
       window.DatabaseApp.renderAdmin();
       const dialog = document.querySelector('[data-school-auth-dialog]');
       const inputs = [...dialog.querySelectorAll('[data-auth-curriculum-file]')];
-      const yearCheckboxes = [...dialog.querySelectorAll('[data-upload-year-select]')];
+      const yearButtons = [...dialog.querySelectorAll('[data-upload-year-select]')];
       const yearChoices = [...dialog.querySelectorAll('[data-upload-year-choice]')];
       const draftButton = dialog.querySelector('[data-load-upload-curriculum-draft]');
       return {
         title: dialog.querySelector('h3').textContent.trim(),
         inputCount: inputs.length,
         years: inputs.map((input) => Number(input.dataset.uploadAdmissionYear)),
-        checkboxCount: yearCheckboxes.length,
-        checkedYears: yearCheckboxes.filter((input) => input.checked).map((input) => Number(input.value)),
+        yearButtonCount: yearButtons.length,
+        pressedYears: yearButtons.filter((button) => button.getAttribute('aria-pressed') === 'true').map((button) => Number(button.value)),
         visibleSlotYears: [...dialog.querySelectorAll('[data-upload-year-slot]:not([hidden])')].map((slot) => Number(slot.dataset.uploadYearSlot)),
-        choicesStacked: yearChoices.length === 2 && yearChoices[1].getBoundingClientRect().top >= yearChoices[0].getBoundingClientRect().bottom,
+        choicesSideBySide: yearChoices.length === 2 && Math.abs(yearChoices[1].getBoundingClientRect().top - yearChoices[0].getBoundingClientRect().top) < 2,
         yearStatuses: Object.fromEntries([...dialog.querySelectorAll('[data-upload-year-choice]')].map((choice) => [choice.dataset.uploadYearChoice, choice.querySelector('[data-upload-year-status]').textContent.replace(/\s+/g, ' ').trim()])),
         acceptsHwp: inputs.every((input) => input.accept.includes('.hwp') && input.accept.includes('.hwpx')),
         draftButton: draftButton?.textContent.replace(/\s+/g, ' ').trim() || '',
         draftNotice: dialog.querySelector('.curriculum-upload-draft-resume')?.textContent.replace(/\s+/g, ' ').trim() || '',
-        confirmation: dialog.querySelector('button[type="submit"]').textContent.trim(),
-        helper: dialog.querySelector('.curriculum-upload-review-help').textContent.trim(),
+        confirmation: dialog.querySelector('[data-upload-year-submit]').textContent.trim(),
+        confirmationHidden: dialog.querySelector('[data-upload-year-submit]').hidden,
+        confirmationDisabled: dialog.querySelector('[data-upload-year-submit]').disabled,
+        confirmationDisplay: getComputedStyle(dialog.querySelector('[data-upload-year-submit]')).display,
+        editAction: dialog.querySelector('[data-edit-uploaded-curriculum="2026"]')?.textContent.replace(/\s+/g, ' ').trim() || '',
         width: dialog.getBoundingClientRect().width
       };
     })()`);
-    assert.equal(uploadWorkspace.title, "신입생 입학년도별 편제표 업로드");
+    assert.equal(uploadWorkspace.title, "신입생 편제표 업로드");
     assert.equal(uploadWorkspace.inputCount, 2);
     assert.deepEqual(uploadWorkspace.years, [2026, 2025]);
-    assert.equal(uploadWorkspace.checkboxCount, 2);
-    assert.deepEqual(uploadWorkspace.checkedYears, [2026]);
-    assert.deepEqual(uploadWorkspace.visibleSlotYears, [2026]);
-    assert.equal(uploadWorkspace.choicesStacked, true);
-    assert.match(uploadWorkspace.yearStatuses["2026"], /현재 편제표 연동됨/);
-    assert.match(uploadWorkspace.yearStatuses["2025"], /아직 등록된 편제표 없음/);
+    assert.equal(uploadWorkspace.yearButtonCount, 2);
+    assert.deepEqual(uploadWorkspace.pressedYears, []);
+    assert.deepEqual(uploadWorkspace.visibleSlotYears, []);
+    assert.equal(uploadWorkspace.choicesSideBySide, true);
+    assert.equal(uploadWorkspace.yearStatuses["2026"], "업로드 완료");
+    assert.equal(uploadWorkspace.yearStatuses["2025"], "업로드 전");
     assert.equal(uploadWorkspace.acceptsHwp, true);
     assert.equal(uploadWorkspace.draftButton, "임시저장 불러오기");
     assert.match(uploadWorkspace.draftNotice, /임시저장본이 있습니다/);
-    assert.equal(uploadWorkspace.confirmation, "2026학년도 업로드 확인");
-    assert.match(uploadWorkspace.helper, /마지막에 ‘편제표 등록’을 눌러야 연동됩니다/);
+    assert.equal(uploadWorkspace.confirmation, "파일 확인");
+    assert.equal(uploadWorkspace.confirmationHidden, true);
+    assert.equal(uploadWorkspace.confirmationDisabled, true);
+    assert.equal(uploadWorkspace.confirmationDisplay, "none");
+    assert.equal(uploadWorkspace.editAction, "편제표 수정");
     assert.ok(uploadWorkspace.width >= 700);
 
     const switchedUploadYear = await evaluate(`(() => {
       document.querySelector('[data-upload-year-select][value="2025"]').click();
       const dialog = document.querySelector('[data-school-auth-dialog]');
       return {
-        checkedYears: [...dialog.querySelectorAll('[data-upload-year-select]')].filter((input) => input.checked).map((input) => Number(input.value)),
+        pressedYears: [...dialog.querySelectorAll('[data-upload-year-select]')].filter((button) => button.getAttribute('aria-pressed') === 'true').map((button) => Number(button.value)),
         visibleSlotYears: [...dialog.querySelectorAll('[data-upload-year-slot]:not([hidden])')].map((slot) => Number(slot.dataset.uploadYearSlot)),
-        confirmation: dialog.querySelector('[data-upload-year-submit]').textContent.trim()
+        confirmation: dialog.querySelector('[data-upload-year-submit]').textContent.trim(),
+        confirmationHidden: dialog.querySelector('[data-upload-year-submit]').hidden,
+        confirmationDisabled: dialog.querySelector('[data-upload-year-submit]').disabled
       };
     })()`);
-    assert.deepEqual(switchedUploadYear.checkedYears, [2025]);
+    assert.deepEqual(switchedUploadYear.pressedYears, [2025]);
     assert.deepEqual(switchedUploadYear.visibleSlotYears, [2025]);
-    assert.equal(switchedUploadYear.confirmation, "2025학년도 업로드 확인");
+    assert.equal(switchedUploadYear.confirmation, "2025학년도 파일 확인");
+    assert.equal(switchedUploadYear.confirmationHidden, false);
+    assert.equal(switchedUploadYear.confirmationDisabled, true);
 
     await evaluate("document.querySelector('[data-load-upload-curriculum-draft]').click()");
     await waitFor(async () => evaluate("Boolean(document.querySelector('[data-curriculum-preview-overlay]'))"));

@@ -341,8 +341,8 @@ async function main() {
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
   assert.match(sectionHtml, /school-data\.js\?v=20260906-1/);
   assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
-  assert.match(sectionHtml, /app\.css\?v=20260907-5/);
-  assert.match(sectionHtml, /app\.js\?v=20260907-5/);
+  assert.match(sectionHtml, /app\.css\?v=20260907-6/);
+  assert.match(sectionHtml, /app\.js\?v=20260907-6/);
   assert.match(sectionHtml, /chatbot\.js\?v=20260907-2/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
@@ -661,18 +661,20 @@ async function main() {
   state.schoolAuthStep = 3;
   window.DatabaseApp.renderAdmin();
   assert.match(root.innerHTML, /data-teacher-upload-form/);
-  assert.match(root.innerHTML, /신입생 입학년도별 편제표 업로드/);
+  assert.match(root.innerHTML, /신입생 편제표 업로드/);
   assert.equal((root.innerHTML.match(/data-auth-curriculum-file/g) || []).length, 2);
   assert.match(root.innerHTML, /data-upload-admission-year="2026"/);
   assert.match(root.innerHTML, /data-upload-admission-year="2025"/);
   assert.equal((root.innerHTML.match(/data-upload-year-select(?:\s|=)/g) || []).length, 2);
-  assert.match(root.innerHTML, /value="2026" data-upload-year-select[^>]*checked/);
+  assert.equal(state.schoolAuthUploadYear, null);
+  assert.match(root.innerHTML, /value="2026" data-upload-year-select[^>]*aria-pressed="false"/);
+  assert.match(root.innerHTML, /data-upload-year-slot="2026" hidden/);
   assert.match(root.innerHTML, /data-upload-year-slot="2025" hidden/);
-  assert.match(root.innerHTML, /한 개 입학년도만 체크하세요/);
+  assert.match(root.innerHTML, /등록할 입학년도를 누르세요/);
   assert.match(root.innerHTML, /\.hwp,\.hwpx/);
   assert.doesNotMatch(root.innerHTML, /\smultiple(?:\s|>)/);
-  assert.match(root.innerHTML, />2026학년도 업로드 확인<\/button>/);
-  assert.match(root.innerHTML, /‘편제표 등록’을 눌러야 연동됩니다/);
+  assert.match(root.innerHTML, /data-upload-year-submit hidden disabled>파일 확인<\/button>/);
+  assert.doesNotMatch(root.innerHTML, /현재 편제표 연동됨|업로드 대상으로 선택됨|선택하기/);
   state.schoolAuthDialogMode = "";
   state.schoolAuthStep = 1;
   state.pendingCurriculumAction = "";
@@ -792,10 +794,26 @@ async function main() {
   assert.equal(state.pendingCurriculum, null);
   assert.equal(state.schoolAuthDialogMode, "teacher");
   assert.equal(state.schoolAuthStep, 3);
-  assert.equal(state.schoolAuthUploadYear, 2026);
-  assert.match(root.innerHTML, /2025학년도 신입생 편제표 등록이 완료되었습니다/);
-  assert.match(root.innerHTML, /다음으로 2026학년도를 선택했습니다/);
+  assert.equal(state.schoolAuthUploadYear, null);
+  assert.match(root.innerHTML, /2025학년도 신입생/);
+  assert.match(root.innerHTML, /업로드 완료/);
+  assert.match(root.innerHTML, /data-edit-uploaded-curriculum="2025"/);
+  assert.doesNotMatch(root.innerHTML, /편제표 등록이 완료되었습니다|다음으로 2026학년도를 선택했습니다/);
   assert.doesNotMatch(root.innerHTML, /curriculum-year-workspace-selector/);
+
+  window.SchoolStore.loadCurriculumForCopy = async () => JSON.parse(JSON.stringify(publishedCurriculum));
+  const editUploadedCurriculumButton = {
+    dataset: { editUploadedCurriculum: "2025" },
+    disabled: false,
+    isConnected: true,
+    textContent: "편제표 수정",
+    closest(selector) { return selector === "[data-edit-uploaded-curriculum]" ? this : null; },
+    matches() { return false; }
+  };
+  await root.dispatchTestEvent("click", { target: editUploadedCurriculumButton });
+  assert.equal(state.schoolAuthDialogMode, "");
+  assert.equal(state.pendingCurriculum.sourceFormat, "admin-edit");
+  assert.equal(state.pendingCurriculum.admissionYear, 2025);
 
   state.schoolAuthDialogMode = "";
   state.schoolAuthStep = 1;
