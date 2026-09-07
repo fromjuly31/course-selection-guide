@@ -318,7 +318,7 @@ async function main() {
     assert.deepEqual(faqItems[3], {
       number: "04",
       question: "우리 학교에 개설된 과목 안내가 없어요.",
-      answer: "고시 외 과목일 가능성이 높습니다. 고시 외 과목은 학교 선생님께 문의하세요.",
+      answer: "앱 과목 안내와 연결되지 않은 과목은 ‘기타’로 표시됩니다. 세부 내용은 학교 선생님께 문의하세요.",
       questionOverflow: 0
     });
     assert.deepEqual(faqItems[4], {

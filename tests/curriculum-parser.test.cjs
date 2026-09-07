@@ -342,8 +342,8 @@ async function main() {
   assert.match(sectionHtml, /school-data\.js\?v=20260906-1/);
   assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
   assert.match(sectionHtml, /app\.css\?v=20260907-6/);
-  assert.match(sectionHtml, /app\.js\?v=20260907-6/);
-  assert.match(sectionHtml, /chatbot\.js\?v=20260907-2/);
+  assert.match(sectionHtml, /app\.js\?v=20260907-7/);
+  assert.match(sectionHtml, /chatbot\.js\?v=20260907-3/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
 
@@ -886,7 +886,7 @@ async function main() {
   state.curriculumCoursePicker.customEntryOpen = true;
   window.DatabaseApp.renderAdmin();
   assert.match(root.innerHTML, /data-curriculum-custom-course-form/);
-  assert.match(root.innerHTML, /고시 외 과목.*분류됩니다/);
+  assert.match(root.innerHTML, /목록에 없는 과목은 ‘기타’로 분류됩니다/);
   assert.match(root.innerHTML, /<button type="submit">저장<\/button>/);
 
   const customCourseInput = { value: "학교자율탐구", focus() {}, select() {} };
@@ -896,7 +896,7 @@ async function main() {
   };
   await root.dispatchTestEvent("submit", { target: customCourseForm, preventDefault() {} });
   assert.deepEqual(state.curriculumCoursePicker.customCourses, ["학교자율탐구"]);
-  assert.equal(state.curriculumCoursePickerCategory, "고시 외 과목");
+  assert.equal(state.curriculumCoursePickerCategory, "기타");
   assert.equal(state.curriculumCoursePicker.customEntryOpen, false);
 
   const confirmCustomCourse = {
@@ -905,9 +905,15 @@ async function main() {
   };
   await root.dispatchTestEvent("click", { target: confirmCustomCourse, preventDefault() {} });
   assert.ok(result.curricula[0].grades[1].semesters[0].standalone.includes("학교자율탐구"));
-  assert.ok(Object.values(result.curricula[0].courseMetadata).some((metadata) => metadata.category === "고시 외 과목"));
+  assert.ok(Object.values(result.curricula[0].courseMetadata).some((metadata) => metadata.category === "기타"));
 
   state.curriculumCoursePicker = null;
+  const legacyMetadataKey = Object.keys(result.curricula[0].courseMetadata).find((key) => result.curricula[0].courseMetadata[key].category === "기타");
+  result.curricula[0].courseMetadata[legacyMetadataKey].category = "고시 외 과목";
+  window.DatabaseApp.renderAdmin();
+  assert.equal(result.curricula[0].courseMetadata[legacyMetadataKey].category, "기타", "기존 저장값도 편집 화면에서 기타로 변환해야 합니다.");
+  assert.doesNotMatch(root.innerHTML, /고시 외 과목/);
+
   state.selectedSchool = { id: "test-school", name: "테스트고등학교", region: "강원특별자치도" };
   state.selectedAdmissionYear = 2026;
   state.curriculum = result.curricula[0];

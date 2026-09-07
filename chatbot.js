@@ -108,7 +108,7 @@
           </details>
           <details class="course-chatbot-faq-item">
             <summary><span>04</span><strong>우리 학교에 개설된 과목 안내가 없어요.</strong></summary>
-            <p>고시 외 과목일 가능성이 높습니다. 고시 외 과목은 학교 선생님께 문의하세요.</p>
+            <p>앱 과목 안내와 연결되지 않은 과목은 ‘기타’로 표시됩니다. 세부 내용은 학교 선생님께 문의하세요.</p>
           </details>
           <details class="course-chatbot-faq-item">
             <summary><span>05</span><strong>듣고 싶은 과목이 있는데 우리 학교에 개설되지 않았어요.</strong></summary>

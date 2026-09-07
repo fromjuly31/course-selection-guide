@@ -593,6 +593,7 @@
   function normalizeCourseGroup(value) {
     const category = canonicalCourseTypography(value);
     if (category === "제2외국어" || category === "한문" || category === "제2외국어/한문") return "제2외국어/한문";
+    if (category === "고시 외 과목") return "기타";
     return category || "교과군 미분류";
   }
 
@@ -2443,7 +2444,7 @@
       source,
       semester,
       type,
-      category: uploadedMetadata.category || (row ? reference.category || majorSubjectGroup(name).name || "교과군 미분류" : "고시 외 과목"),
+      category: normalizeCourseGroup(uploadedMetadata.category || (row ? reference.category || majorSubjectGroup(name).name || "교과군 미분류" : "기타")),
       row
     };
   }
@@ -2487,7 +2488,7 @@
   ]);
 
   function simulationCourseGroupMarkup(entries) {
-    return groupedRecommendationSubjects(entries).map((group) => `<section class="simulation-final-course-group"><header><span>${escapeHtml(group.category)}</span><em>${group.entries.length}</em></header><ul>${group.entries.map((entry) => `<li><small>${entry.source === "completed" ? "이수" : `${entry.semester}학기`}</small>${entry.row ? `<button type="button" data-simulation-course="${escapeHtml(entry.name)}" aria-haspopup="dialog" aria-label="${escapeHtml(entry.name)} 과목 안내 열기">${escapeHtml(entry.name)}</button>` : `<span>${escapeHtml(entry.name)}</span><em>고시 외 과목</em>`}</li>`).join("")}</ul></section>`).join("");
+    return groupedRecommendationSubjects(entries).map((group) => `<section class="simulation-final-course-group"><header><span>${escapeHtml(group.category)}</span><em>${group.entries.length}</em></header><ul>${group.entries.map((entry) => `<li><small>${entry.source === "completed" ? "이수" : `${entry.semester}학기`}</small>${entry.row ? `<button type="button" data-simulation-course="${escapeHtml(entry.name)}" aria-haspopup="dialog" aria-label="${escapeHtml(entry.name)} 과목 안내 열기">${escapeHtml(entry.name)}</button>` : `<span>${escapeHtml(entry.name)}</span><em>기타</em>`}</li>`).join("")}</ul></section>`).join("");
   }
 
   function simulationFinalGradeMarkup(gradePlan) {
@@ -2522,7 +2523,7 @@
   function curriculumCourseDisplayMarkup(course) {
     const name = canonicalCourseTypography(course);
     const isUnlisted = !curriculumCourseReference(name);
-    return `<b>${escapeHtml(name)}</b>${isUnlisted ? '<small class="curriculum-unlisted-badge">고시 외 과목</small>' : ""}`;
+    return `<b>${escapeHtml(name)}</b>${isUnlisted ? '<small class="curriculum-unlisted-badge">기타</small>' : ""}`;
   }
 
   function semesterCurriculumMarkup(gradeData, semesterData, semesterProgress, locked = false) {
@@ -2870,7 +2871,7 @@
       ["선택 옵션", "같은 학년·학기·옵션의 과목은 한 칸에 쉼표(,)로 구분해 입력합니다.", "물리학, 화학, 생명과학, 지구과학"],
       ["선택 수", "각 옵션에서 골라야 하는 과목 수를 1~10 사이의 정수로 입력합니다.", "4개 과목 중 2개 선택 → 2"],
       ["과목명 자동 인식", "띄어쓰기와 로마숫자·숫자 표기 차이는 앱의 정식 과목명으로 자동 변환합니다.", "미적분I / 미적분1 → 미적분Ⅰ"],
-      ["고시 외 과목", "정식 과목 DB와 확실히 일치하지 않는 이름은 추측해서 연결하지 않고 입력한 이름 그대로 하나의 과목으로 저장합니다.", "학교 자체 개설 과목 → 고시 외 과목"],
+      ["기타 과목", "앱 과목 안내와 확실히 일치하지 않는 이름은 추측해서 연결하지 않고 입력한 이름 그대로 하나의 과목으로 저장합니다.", "학교 자체 개설·전문 과목 → 기타"],
       ["빈 옵션", "사용하지 않는 옵션 행은 선택 수와 과목명을 비워 둡니다.", "옵션 4를 사용하지 않으면 빈칸 유지"],
       ["확인 사항", "선택 수는 해당 옵션의 과목 수보다 클 수 없습니다.", "3개 과목이면 선택 수는 최대 3"],
       [],
@@ -3908,6 +3909,17 @@
       return grade;
     }).sort((a, b) => a.grade - b.grade);
     const allCourseNames = curriculum.grades.flatMap((grade) => [...grade.common, ...grade.electives]);
+    allCourseNames.forEach((course) => {
+      if (curriculumCourseReference(course)) return;
+      const metadataKey = curriculumCourseAliasKey(course);
+      if (!metadataKey) return;
+      const metadata = courseMetadata[metadataKey] || {};
+      courseMetadata[metadataKey] = {
+        ...metadata,
+        category: metadata.category ? normalizeCourseGroup(metadata.category) : "기타"
+      };
+    });
+    curriculum.courseMetadata = courseMetadata;
     curriculum.courseCount = new Set(allCourseNames.map(curriculumCourseAliasKey).filter(Boolean)).size;
     curriculum.unlistedCourseCount = new Set(allCourseNames.filter((course) => !curriculumCourseReference(course)).map(curriculumCourseAliasKey)).size;
     return curriculum;
@@ -4271,7 +4283,7 @@
       byKey.set(key, {
         key,
         name,
-        category: normalizeCourseGroup(metadata.category || "고시 외 과목"),
+        category: normalizeCourseGroup(metadata.category || "기타"),
         type: uploadedCourseType(metadata.type) || "기타"
       });
     });
@@ -4282,7 +4294,7 @@
       byKey.set(key, {
         key,
         name,
-        category: "고시 외 과목",
+        category: "기타",
         type: "기타"
       });
     });
@@ -4317,7 +4329,7 @@
       ? `<section class="curriculum-picker-custom-action">
           ${picker.customEntryOpen
             ? `<form class="curriculum-picker-custom-course" data-curriculum-custom-course-form>
-                <div><strong>직접 추가</strong><small>목록에 없는 과목은 ‘고시 외 과목’으로 분류됩니다.</small></div>
+                <div><strong>직접 추가</strong><small>목록에 없는 과목은 ‘기타’로 분류됩니다.</small></div>
                 <div><input type="text" name="customCourse" placeholder="과목명을 입력하세요" autocomplete="off" aria-label="목록에 없는 과목명"><button type="submit">저장</button><button type="button" class="curriculum-picker-custom-close" data-toggle-curriculum-custom-course>닫기</button></div>
               </form>`
             : '<button type="button" class="curriculum-picker-custom-toggle" data-toggle-curriculum-custom-course aria-expanded="false">＋ 직접 추가</button>'}
@@ -4344,13 +4356,13 @@
     const isUnlisted = !reference;
     const metadata = courseMetadata[curriculumCourseAliasKey(course)] || {};
     const referenceType = reference?.row ? courseBadge(reference.row)?.label : "";
-    const detail = [metadata.category || reference?.category, metadata.type || referenceType]
-      .filter((value) => value && !(isUnlisted && value === "고시 외 과목"))
+    const detail = [metadata.category ? normalizeCourseGroup(metadata.category) : reference?.category, metadata.type || referenceType]
+      .filter((value) => value && !(isUnlisted && value === "기타"))
       .join(" · ");
     return `<div class="curriculum-editor-course ${isUnlisted ? "is-unlisted" : ""}" draggable="true" data-curriculum-course-drag data-course-index="${courseIndex}" ${attributes} title="드래그하여 다른 영역으로 이동">
       <span class="curriculum-course-grip" aria-hidden="true">⠿</span>
       <button type="button" data-edit-curriculum-course><strong>${escapeHtml(course)}</strong></button>
-      <button class="curriculum-course-meta" type="button" data-edit-curriculum-course-meta>${isUnlisted ? "고시 외 과목" : ""}${isUnlisted && detail ? " · " : ""}${escapeHtml(detail || (isUnlisted ? "" : "분류 정보 확인"))}</button>
+      <button class="curriculum-course-meta" type="button" data-edit-curriculum-course-meta>${isUnlisted ? "기타" : ""}${isUnlisted && detail ? " · " : ""}${escapeHtml(detail || (isUnlisted ? "" : "분류 정보 확인"))}</button>
       <button class="curriculum-course-remove" type="button" data-remove-curriculum-course aria-label="${escapeHtml(course)} 삭제">×</button>
     </div>`;
   }
@@ -4452,9 +4464,9 @@
     const totalSummary = root.querySelector("[data-curriculum-total-summary]");
     if (totalSummary) totalSummary.textContent = `총 ${pending.courseCount.toLocaleString("ko-KR")}과목`;
     const unlistedSummary = root.querySelector("[data-curriculum-unlisted-summary]");
-    if (unlistedSummary) unlistedSummary.textContent = pending.unlistedCourseCount ? `고시 외 ${pending.unlistedCourseCount.toLocaleString("ko-KR")}과목` : "모든 과목이 앱 DB와 연결됨";
+    if (unlistedSummary) unlistedSummary.textContent = pending.unlistedCourseCount ? `기타 ${pending.unlistedCourseCount.toLocaleString("ko-KR")}과목` : "모든 과목이 앱 DB와 연결됨";
     const cohortSummary = root.querySelector("[data-curriculum-cohort-summary]");
-    if (cohortSummary && activeCurriculum) cohortSummary.textContent = `${activeCurriculum.courseCount}과목${activeCurriculum.unlistedCourseCount ? ` · 고시 외 ${activeCurriculum.unlistedCourseCount}` : ""}`;
+    if (cohortSummary && activeCurriculum) cohortSummary.textContent = `${activeCurriculum.courseCount}과목${activeCurriculum.unlistedCourseCount ? ` · 기타 ${activeCurriculum.unlistedCourseCount}` : ""}`;
     const gradeEditorSummary = root.querySelector("[data-curriculum-grade-editor-summary]");
     if (gradeEditorSummary && activeGrade) gradeEditorSummary.textContent = `${activeGrade.common.length + activeGrade.electives.length}과목 · 선택 옵션 ${activeGrade.options.length}`;
   }
@@ -4619,7 +4631,7 @@
       <div class="curriculum-editor-school-fields">
         <div class="curriculum-region-field"><span>지역</span><div class="curriculum-region-picker"><button type="button" data-curriculum-region-toggle aria-haspopup="listbox" aria-expanded="${state.curriculumRegionPickerOpen}" ${isAdminEdit ? "disabled" : ""}><span>${escapeHtml(selectedRegion || "지역을 선택하세요")}</span>${icon("arrow")}</button><div class="curriculum-region-options" role="listbox" ${state.curriculumRegionPickerOpen ? "" : "hidden"}>${regionOptions}</div></div></div>
         <label><span>학교명</span><input type="text" value="${escapeHtml(completeSchoolName(curricula[0]?.schoolName || pending.schoolName))}" placeholder="예: 우리고등학교" aria-label="학교명" data-curriculum-school-name ${isAdminEdit ? "readonly aria-readonly=\"true\"" : ""}></label>
-        <div><span>${isManual ? "작성 현황" : isAdminEdit ? "등록 현황" : "파싱 현황"}</span><strong data-curriculum-total-summary>총 ${pending.courseCount.toLocaleString("ko-KR")}과목</strong><small data-curriculum-unlisted-summary>${pending.unlistedCourseCount ? `고시 외 ${pending.unlistedCourseCount.toLocaleString("ko-KR")}과목` : "모든 과목이 앱 DB와 연결됨"}</small></div>
+        <div><span>${isManual ? "작성 현황" : isAdminEdit ? "등록 현황" : "파싱 현황"}</span><strong data-curriculum-total-summary>총 ${pending.courseCount.toLocaleString("ko-KR")}과목</strong><small data-curriculum-unlisted-summary>${pending.unlistedCourseCount ? `기타 ${pending.unlistedCourseCount.toLocaleString("ko-KR")}과목` : "모든 과목이 앱 DB와 연결됨"}</small></div>
       </div>
       ${isBatch ? `<section class="curriculum-year-workspace-selector" aria-label="신입생 입학년도 선택">
         <span>작업할 신입생 입학년도</span>
@@ -4628,12 +4640,12 @@
       <div class="curriculum-current-year-panel"><small>CURRENT ADMISSION YEAR</small><strong><b>${activeCurriculum.admissionYear}</b>학년도 신입생</strong><p>아래 ‘편제표 등록’은 현재 ${activeCurriculum.admissionYear}학년도 편제표 한 건만 저장합니다.</p></div>
       ${!isManual && Array.isArray(pending.parseWarnings) && pending.parseWarnings.length ? `<aside class="curriculum-parse-warning" role="status">${icon("warning")}<div><strong>유연 분석 결과를 확인하세요.</strong>${pending.parseWarnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div></aside>` : ""}
       <div class="curriculum-editor-cohorts"><article class="curriculum-editor-cohort">
-        <header><div><small>${isManual ? "1·2·3학년 전체 편제 입력" : "신입생 3개년 · 1·2·3학년 전체 편제"}</small><h4 class="curriculum-current-cohort-title"><strong>${activeCurriculum.admissionYear}학년도</strong><span>신입생 편제표</span></h4></div><span data-curriculum-cohort-summary>${activeCurriculum.courseCount}과목${activeCurriculum.unlistedCourseCount ? ` · 고시 외 ${activeCurriculum.unlistedCourseCount}` : ""}</span></header>
+        <header><div><small>${isManual ? "1·2·3학년 전체 편제 입력" : "신입생 3개년 · 1·2·3학년 전체 편제"}</small><h4 class="curriculum-current-cohort-title"><strong>${activeCurriculum.admissionYear}학년도</strong><span>신입생 편제표</span></h4></div><span data-curriculum-cohort-summary>${activeCurriculum.courseCount}과목${activeCurriculum.unlistedCourseCount ? ` · 기타 ${activeCurriculum.unlistedCourseCount}` : ""}</span></header>
         ${copyTools}
         <nav class="curriculum-preview-grade-pages" aria-label="학년별 편제 페이지">${gradeTabs}</nav>
         <div class="curriculum-editor-grades"><section class="curriculum-grade-editor"><header><strong>${activeGrade.grade}학년 편제</strong><span data-curriculum-grade-editor-summary>${activeGrade.common.length + activeGrade.electives.length}과목 · 선택 옵션 ${activeGrade.options.length}</span></header><div>${activeGrade.semesters.map((semester) => curriculumEditorSemesterMarkup(activeCurriculum, state.curriculumPreviewIndex, activeGrade, semester)).join("")}</div></section></div>
       </article></div>
-      <aside class="curriculum-editor-legend"><span><i></i> 앱 과목 안내와 연결</span><span class="is-unlisted"><i></i> 고시 외 과목 · 입력명 그대로 저장</span><small>작성 중인 내용은 임시저장할 수 있으며, ‘편제표 등록’을 눌러야 학생 모의 수강신청에 공개됩니다.</small></aside>
+      <aside class="curriculum-editor-legend"><span><i></i> 앱 과목 안내와 연결</span><span class="is-unlisted"><i></i> 기타 · 입력명 그대로 저장</span><small>작성 중인 내용은 임시저장할 수 있으며, ‘편제표 등록’을 눌러야 학생 모의 수강신청에 공개됩니다.</small></aside>
       ${isAdminEdit ? "" : `<p class="curriculum-draft-status" data-curriculum-draft-status>${escapeHtml(draftStatus)}</p>`}
       <div class="admin-button-row"><button class="primary-action" type="button" data-publish-curriculum ${state.curriculumBusy || !canPublish ? "disabled" : ""}>${publishLabel}</button>${isAdminEdit ? "" : `<button class="secondary-action" type="button" data-save-curriculum-draft ${state.curriculumBusy || !canPublish ? "disabled" : ""}>임시저장</button>`}<button class="text-action" type="button" data-clear-curriculum-preview>취소</button></div>
       ${!canPublish ? '<small class="preview-help">등록 비밀번호를 확인하면 편제표 등록과 임시저장을 사용할 수 있습니다.</small>' : `<small class="preview-help">현재 선택한 ${activeCurriculum.admissionYear}학년도 신입생 편제표 한 건만 등록됩니다. 다른 입학년도는 위 선택창에서 열어 별도로 등록하세요.</small>`}
@@ -6396,7 +6408,7 @@
       if (selectedCustomCourses.length) {
         if (!context.curriculum.courseMetadata) context.curriculum.courseMetadata = {};
         selectedCustomCourses.forEach((course) => {
-          context.curriculum.courseMetadata[curriculumCourseAliasKey(course)] = { category: "고시 외 과목" };
+          context.curriculum.courseMetadata[curriculumCourseAliasKey(course)] = { category: "기타" };
         });
       }
       courses.splice(0, courses.length, ...uniqueCourseNames(selectedNames));
@@ -6849,13 +6861,13 @@
       input.value = "";
       if (!reference) {
         state.curriculumCoursePickerSearch = "";
-        state.curriculumCoursePickerCategory = "고시 외 과목";
+        state.curriculumCoursePickerCategory = "기타";
         const searchInput = root.querySelector("[data-curriculum-course-picker-search]");
         if (searchInput) searchInput.value = "";
       }
       picker.customEntryOpen = false;
       refreshCurriculumCoursePickerInPlace();
-      showToast(reference ? `${courseName} 과목을 선택했습니다.` : `${courseName}을(를) 고시 외 과목으로 추가했습니다.`);
+      showToast(reference ? `${courseName} 과목을 선택했습니다.` : `${courseName}을(를) 기타 과목으로 추가했습니다.`);
       return;
     }
     const keywordForm = event.target.closest("[data-recommend-keyword-form]");
