@@ -401,7 +401,7 @@ async function main() {
     assert.equal(uploadNotice.itemCount, 3);
     assert.equal(uploadNotice.listBelowTitle, true);
     assert.equal(uploadNotice.hasLegacyMark, false);
-    assert.equal(uploadNotice.uploadSubtitle, "엑셀, 한글 편제표를 입학년도별로 선택합니다.");
+    assert.equal(uploadNotice.uploadSubtitle, "엑셀, 한글 편제표를 한 번에 한 입학년도씩 등록합니다.");
     assert.ok(uploadNotice.uploadIconOffset <= 1);
     assert.ok(uploadNotice.uploadTitleOffset <= 1);
     assert.equal(uploadNotice.uploadSubtitleAlignment, "center");
@@ -448,11 +448,16 @@ async function main() {
       window.DatabaseApp.renderAdmin();
       const dialog = document.querySelector('[data-school-auth-dialog]');
       const inputs = [...dialog.querySelectorAll('[data-auth-curriculum-file]')];
+      const yearCheckboxes = [...dialog.querySelectorAll('[data-upload-year-select]')];
       const draftButton = dialog.querySelector('[data-load-upload-curriculum-draft]');
       return {
         title: dialog.querySelector('h3').textContent.trim(),
         inputCount: inputs.length,
         years: inputs.map((input) => Number(input.dataset.uploadAdmissionYear)),
+        checkboxCount: yearCheckboxes.length,
+        checkedYears: yearCheckboxes.filter((input) => input.checked).map((input) => Number(input.value)),
+        visibleSlotYears: [...dialog.querySelectorAll('[data-upload-year-slot]:not([hidden])')].map((slot) => Number(slot.dataset.uploadYearSlot)),
+        yearStatuses: Object.fromEntries([...dialog.querySelectorAll('[data-upload-year-choice]')].map((choice) => [choice.dataset.uploadYearChoice, choice.querySelector('[data-upload-year-status]').textContent.replace(/\s+/g, ' ').trim()])),
         acceptsHwp: inputs.every((input) => input.accept.includes('.hwp') && input.accept.includes('.hwpx')),
         draftButton: draftButton?.textContent.replace(/\s+/g, ' ').trim() || '',
         draftNotice: dialog.querySelector('.curriculum-upload-draft-resume')?.textContent.replace(/\s+/g, ' ').trim() || '',
@@ -461,15 +466,33 @@ async function main() {
         width: dialog.getBoundingClientRect().width
       };
     })()`);
-    assert.equal(uploadWorkspace.title, "입학년도별 신입생 편제표 업로드");
+    assert.equal(uploadWorkspace.title, "신입생 입학년도별 편제표 업로드");
     assert.equal(uploadWorkspace.inputCount, 2);
     assert.deepEqual(uploadWorkspace.years, [2026, 2025]);
+    assert.equal(uploadWorkspace.checkboxCount, 2);
+    assert.deepEqual(uploadWorkspace.checkedYears, [2026]);
+    assert.deepEqual(uploadWorkspace.visibleSlotYears, [2026]);
+    assert.match(uploadWorkspace.yearStatuses["2026"], /현재 편제표 연동됨/);
+    assert.match(uploadWorkspace.yearStatuses["2025"], /아직 등록된 편제표 없음/);
     assert.equal(uploadWorkspace.acceptsHwp, true);
     assert.equal(uploadWorkspace.draftButton, "임시저장 불러오기");
     assert.match(uploadWorkspace.draftNotice, /임시저장본이 있습니다/);
-    assert.equal(uploadWorkspace.confirmation, "업로드 확인");
+    assert.equal(uploadWorkspace.confirmation, "2026학년도 업로드 확인");
     assert.match(uploadWorkspace.helper, /마지막에 ‘편제표 등록’을 눌러야 연동됩니다/);
-    assert.ok(uploadWorkspace.width >= 800);
+    assert.ok(uploadWorkspace.width >= 700);
+
+    const switchedUploadYear = await evaluate(`(() => {
+      document.querySelector('[data-upload-year-select][value="2025"]').click();
+      const dialog = document.querySelector('[data-school-auth-dialog]');
+      return {
+        checkedYears: [...dialog.querySelectorAll('[data-upload-year-select]')].filter((input) => input.checked).map((input) => Number(input.value)),
+        visibleSlotYears: [...dialog.querySelectorAll('[data-upload-year-slot]:not([hidden])')].map((slot) => Number(slot.dataset.uploadYearSlot)),
+        confirmation: dialog.querySelector('[data-upload-year-submit]').textContent.trim()
+      };
+    })()`);
+    assert.deepEqual(switchedUploadYear.checkedYears, [2025]);
+    assert.deepEqual(switchedUploadYear.visibleSlotYears, [2025]);
+    assert.equal(switchedUploadYear.confirmation, "2025학년도 업로드 확인");
 
     await evaluate("document.querySelector('[data-load-upload-curriculum-draft]').click()");
     await waitFor(async () => evaluate("Boolean(document.querySelector('[data-curriculum-preview-overlay]'))"));
