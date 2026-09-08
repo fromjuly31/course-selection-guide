@@ -409,6 +409,42 @@ async function main() {
     fs.writeFileSync(path.join(projectRoot, "previews", "upload-format-notice.png"), Buffer.from(uploadNoticeScreenshot.data, "base64"));
     assert.equal(await evaluate("window.SchoolStore.getSnapshot().schools.some((school) => school.id === 'draft-only')"), false);
 
+    const simulationTypography = await evaluate(`(() => {
+      const state = window.DatabaseApp.getState();
+      const blank = window.DatabaseApp.createBlankCurriculumImport();
+      state.selectedSchool = { id: 'typography-school', name: '글자크기고등학교', region: '강원특별자치도', admissionYears: [2025] };
+      state.selectedAdmissionYear = 2025;
+      state.curriculum = blank.curricula.find((curriculum) => curriculum.admissionYear === 2025);
+      state.curriculum.grades[0].semesters[0].options.push({ id: 'type-test', label: '선택', choose: 1, semester: 1, courses: ['문학', '대수'] });
+      state.curriculum.grades[0].semesters[0].electives.push('문학', '대수');
+      state.simulationHistoryOpen = true;
+      state.simulationResultOpen = false;
+      window.DatabaseApp.renderSimulation();
+      const progressButton = document.querySelector('.simulation-grade-progress button');
+      const nextButton = document.querySelector('.simulation-history-stage > footer .simulation-final-open');
+      const emptyNote = document.querySelector('.semester-empty-option p');
+      const disabledStep = document.querySelector('.simulation-grade-progress button:disabled');
+      const result = {
+        stepTitle: progressButton ? Number.parseFloat(getComputedStyle(progressButton.querySelector('strong')).fontSize) : 0,
+        stepMeta: progressButton ? Number.parseFloat(getComputedStyle(progressButton.querySelector('small')).fontSize) : 0,
+        emptyNote: emptyNote ? Number.parseFloat(getComputedStyle(emptyNote).fontSize) : 0,
+        nextButton: nextButton ? Number.parseFloat(getComputedStyle(nextButton).fontSize) : 0,
+        disabledOpacity: disabledStep ? Number.parseFloat(getComputedStyle(disabledStep).opacity) : 0,
+        html: document.querySelector('#app-root').textContent.replace(/\s+/g, ' ').trim().slice(0, 300)
+      };
+      state.tab = 'admin';
+      state.selectedSchool = null;
+      state.selectedAdmissionYear = null;
+      state.curriculum = null;
+      window.DatabaseApp.renderAdmin();
+      return result;
+    })()`);
+    assert.ok(simulationTypography.stepTitle >= 15, JSON.stringify(simulationTypography));
+    assert.ok(simulationTypography.stepMeta >= 11, JSON.stringify(simulationTypography));
+    assert.ok(simulationTypography.emptyNote >= 13, JSON.stringify(simulationTypography));
+    assert.ok(simulationTypography.nextButton >= 15, JSON.stringify(simulationTypography));
+    assert.ok(simulationTypography.disabledOpacity >= 0.6, JSON.stringify(simulationTypography));
+
     const schoolNameFormatWarning = await evaluate(`(async () => {
       window.SchoolStore.isConfigured = () => true;
       const state = window.DatabaseApp.getState();

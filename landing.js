@@ -3,6 +3,62 @@
 
   requestAnimationFrame(() => document.body.classList.add("is-ready"));
 
+  const visitorCounter = document.querySelector("[data-visitor-counter]");
+  const visitorToday = visitorCounter?.querySelector("[data-visitor-today]");
+  const visitorTotal = visitorCounter?.querySelector("[data-visitor-total]");
+
+  function showVisitorCounter(todayCount, totalCount) {
+    if (!visitorCounter || !visitorToday || !visitorTotal) return;
+    const formatCount = (value) => Number(value).toLocaleString("ko-KR");
+    visitorToday.textContent = formatCount(todayCount);
+    visitorTotal.textContent = formatCount(totalCount);
+    visitorCounter.setAttribute("aria-label", `오늘 접속 ${formatCount(todayCount)}회, 누적 접속 ${formatCount(totalCount)}회`);
+    visitorCounter.title = "동일 사용자의 재접속을 포함한 접속 횟수";
+    visitorCounter.hidden = false;
+    requestAnimationFrame(() => visitorCounter.classList.add("is-visible"));
+  }
+
+  async function registerPageVisit() {
+    const config = window.SUPABASE_CONFIG || {};
+    const baseUrl = String(config.url || "").replace(/\/$/, "");
+    const apiKey = String(config.publishableKey || "").trim();
+    if (!visitorCounter || !baseUrl || !apiKey) return;
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(`${baseUrl}/rest/v1/rpc/register_page_visit`, {
+        method: "POST",
+        headers: {
+          apikey: apiKey,
+          "Content-Type": "application/json"
+        },
+        body: "{}",
+        cache: "no-store",
+        keepalive: true,
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      const statistics = Array.isArray(payload) ? payload[0] : payload;
+      const todayCount = Number(statistics?.today_count);
+      const totalCount = Number(statistics?.total_count);
+      if (!Number.isSafeInteger(todayCount) || !Number.isSafeInteger(totalCount)) {
+        throw new Error("방문 횟수 응답 형식이 올바르지 않습니다.");
+      }
+      showVisitorCounter(todayCount, totalCount);
+    } catch (error) {
+      if (error?.name !== "AbortError") console.warn("방문 횟수를 기록하지 못했습니다.", error);
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
+  registerPageVisit();
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) registerPageVisit();
+  });
+
   const contactTrigger = document.querySelector("[data-contact-open]");
   const contactDialog = document.querySelector("[data-contact-dialog]");
 

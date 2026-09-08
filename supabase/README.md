@@ -1,6 +1,6 @@
 # Supabase 학교 편제표 연동
 
-이 폴더의 `schema.sql`은 학교 목록, 관리자·담당 교사 권한, 학교별 편제표를 만듭니다. 공통 과목 설명 DB(`data/database.json`)는 기존처럼 GitHub Pages에서 읽고, 학교별 편제표만 Supabase에서 읽고 씁니다.
+이 폴더의 `schema.sql`은 학교 목록, 관리자·담당 교사 권한, 학교별 편제표와 메인 화면 접속 횟수 카운터를 만듭니다. 공통 과목 설명 DB(`data/database.json`)는 기존처럼 GitHub Pages에서 읽고, 학교별 편제표와 방문 통계만 Supabase에서 읽고 씁니다.
 
 ## 1. Supabase 프로젝트 준비
 
@@ -31,6 +31,10 @@ window.SUPABASE_CONFIG = {
 ```
 
 `teacherEmail`에는 담당 교사 공용 계정의 이메일을 입력합니다. 화면에는 이 이메일이 표시되지 않고 담당 교사는 비밀번호만 입력합니다. `service_role` 또는 secret key는 브라우저 파일이나 GitHub에 절대로 넣지 않습니다. Publishable key만 사용하며 실제 읽기·쓰기 권한은 `schema.sql`의 RLS 정책이 제한합니다.
+
+## TODAY / TOTAL 접속 횟수 설치
+
+기존 Supabase 프로젝트에는 **SQL Editor → New query**에서 `supabase/install-visitor-counter.sql` 전체를 한 번 실행합니다. 이후 메인 화면이 열리거나 브라우저의 뒤로 가기로 다시 표시될 때마다 접속 횟수가 1씩 증가합니다. `TODAY`는 한국 시간 자정에 1부터 다시 시작하고 `TOTAL`은 계속 누적됩니다. 동일 사용자의 재접속과 새로고침도 별도 접속으로 포함합니다.
 
 ## 3. 학교 편제표 등록
 

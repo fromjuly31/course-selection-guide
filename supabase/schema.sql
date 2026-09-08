@@ -76,6 +76,48 @@ create table if not exists public.curriculum_drafts (
   unique (updated_by, region, school_name)
 );
 
+-- 메인 화면 접속 횟수입니다. 동일 사용자의 재접속과 새로고침도 각각 1회로 집계합니다.
+create table if not exists public.visitor_statistics (
+  singleton boolean primary key default true check (singleton = true),
+  counter_date date not null,
+  today_count bigint not null default 0 check (today_count >= 0),
+  total_count bigint not null default 0 check (total_count >= 0),
+  updated_at timestamptz not null default now()
+);
+
+create or replace function public.register_page_visit()
+returns table (today_count bigint, total_count bigint)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  current_korea_date date := (pg_catalog.now() at time zone 'Asia/Seoul')::date;
+begin
+  insert into public.visitor_statistics as counters (
+    singleton,
+    counter_date,
+    today_count,
+    total_count,
+    updated_at
+  )
+  values (true, current_korea_date, 1, 1, pg_catalog.now())
+  on conflict (singleton) do update
+  set
+    counter_date = excluded.counter_date,
+    today_count = case
+      when counters.counter_date = excluded.counter_date then counters.today_count + 1
+      else 1
+    end,
+    total_count = counters.total_count + 1,
+    updated_at = excluded.updated_at
+  returning counters.today_count, counters.total_count
+  into today_count, total_count;
+
+  return next;
+end;
+$$;
+
 create index if not exists curricula_school_published_idx
   on public.curricula (school_id, is_published, admission_year desc);
 
@@ -87,15 +129,19 @@ alter table public.school_members enable row level security;
 alter table public.platform_users enable row level security;
 alter table public.curricula enable row level security;
 alter table public.curriculum_drafts enable row level security;
+alter table public.visitor_statistics enable row level security;
 
 revoke all on table public.schools, public.school_members, public.platform_users, public.curricula from anon, authenticated;
 revoke all on table public.curriculum_drafts from anon, authenticated;
+revoke all on table public.visitor_statistics from anon, authenticated;
+revoke execute on function public.register_page_visit() from public;
 grant select on table public.schools to anon, authenticated;
 grant select on table public.curricula to anon, authenticated;
 grant select on table public.platform_users to authenticated;
 grant insert on table public.schools, public.curricula to authenticated;
 grant update, delete on table public.schools, public.curricula to authenticated;
 grant select, insert, update, delete on table public.curriculum_drafts to authenticated;
+grant execute on function public.register_page_visit() to anon, authenticated;
 
 drop policy if exists "active schools are public" on public.schools;
 create policy "active schools are public"

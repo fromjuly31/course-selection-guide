@@ -7,7 +7,7 @@
   <title>선택 과목 안내 플랫폼</title>
   <meta name="description" content="학교 교육과정에 맞춰 선택과목을 이해하고 진로에 맞는 과목을 설계하는 안내 플랫폼">
   <link rel="stylesheet" href="styles.css?v=20260905-5">
-  <link rel="stylesheet" href="landing.css?v=20260907-1">
+  <link rel="stylesheet" href="landing.css?v=20260908-2">
   <link rel="stylesheet" href="chatbot.css?v=20260907-1">
 </head>
 <body class="landing-page landing-one-screen">
@@ -16,7 +16,15 @@
       <span class="landing-brand-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#school"></use></svg></span>
       <span><strong>선택 과목 안내 플랫폼</strong></span>
     </a>
-    <button class="edition-chip" type="button" data-contact-open aria-haspopup="dialog" aria-controls="landing-contact-dialog" aria-label="제작자 및 문의 연락처 열기" title="문의"><svg class="icon" aria-hidden="true"><use href="icons.svg#user"></use></svg><span>Made by 비범쌤(원주여고 김범준)</span></button>
+    <div class="landing-header-actions">
+      <div class="visitor-counter" data-visitor-counter hidden role="status" aria-live="polite">
+        <span class="visitor-live-dot" aria-hidden="true"></span>
+        <span class="visitor-stat"><small>TODAY</small><strong data-visitor-today>0</strong></span>
+        <span class="visitor-divider" aria-hidden="true"></span>
+        <span class="visitor-stat"><small>TOTAL</small><strong data-visitor-total>0</strong></span>
+      </div>
+      <button class="edition-chip" type="button" data-contact-open aria-haspopup="dialog" aria-controls="landing-contact-dialog" aria-label="제작자 및 문의 연락처 열기" title="문의"><svg class="icon" aria-hidden="true"><use href="icons.svg#user"></use></svg><span>Made by 비범쌤(원주여고 김범준)</span></button>
+    </div>
   </header>
 
   <dialog class="landing-contact-dialog" id="landing-contact-dialog" data-contact-dialog aria-labelledby="landing-contact-title">
@@ -109,7 +117,7 @@
 
   <script src="supabase-config.js?v=20260905-2"></script>
   <script src="school-data.js?v=20260906-1"></script>
-  <script src="landing.js?v=20260907-2"></script>
+  <script src="landing.js?v=20260908-1"></script>
   <script src="app-data.js?v=20260906-1"></script>
   <script src="chatbot-engine.js?v=20260905-10"></script>
   <script src="chatbot.js?v=20260907-3"></script>
