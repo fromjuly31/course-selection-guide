@@ -18,6 +18,10 @@ insert into public.platform_users (user_id, role) values
 - `admin`: 이메일·비밀번호로 로그인하며 새 등록, 기존 편제표 수정·삭제 가능
 - `teacher`: 화면에서는 공용 관리 비밀번호만 입력하며 편제표 등록과 같은 학교·입학년도의 새 파일 교체 가능
 
+### 기존 관리자 계정 교체
+
+관리자 계정을 새로 만들거나 완전히 교체할 때는 `replace-admin-account.sql`의 `new_admin_email` 한 줄을 새 관리자 이메일로 바꾼 뒤 SQL Editor에서 파일 전체를 실행합니다. 새 Auth 계정이 실제로 존재하는지 먼저 확인한 다음 기존 `admin` 역할만 제거하므로, 계정을 찾지 못한 경우에는 기존 권한도 유지됩니다. 학교·편제표·방문 통계와 `teacher` 역할은 삭제하지 않습니다.
+
 ## 2. 웹 프로젝트 연결
 
 Supabase의 **Project URL**과 **Publishable key**를 확인한 뒤 루트의 `supabase-config.js`에 입력합니다.
@@ -34,7 +38,9 @@ window.SUPABASE_CONFIG = {
 
 ## TODAY / TOTAL 접속 횟수 설치
 
-기존 Supabase 프로젝트에는 **SQL Editor → New query**에서 `supabase/install-visitor-counter.sql` 전체를 한 번 실행합니다. 이후 메인 화면이 열리거나 브라우저의 뒤로 가기로 다시 표시될 때마다 접속 횟수가 1씩 증가합니다. `TODAY`는 한국 시간 자정에 1부터 다시 시작하고 `TOTAL`은 계속 누적됩니다. 동일 사용자의 재접속과 새로고침도 별도 접속으로 포함합니다.
+기존 Supabase 프로젝트에는 **SQL Editor → New query**에서 `supabase/install-visitor-counter.sql` 최신 내용 전체를 실행합니다. 초기 카운터 버전을 이미 설치한 프로젝트도 같은 파일을 다시 실행하면 기존 TODAY·TOTAL 값은 유지되고 날짜별 집계와 관리자 통계 기능이 추가됩니다. 이후 메인 화면이 열리거나 브라우저의 뒤로 가기로 다시 표시될 때마다 접속 횟수가 1씩 증가합니다. `TODAY`는 한국 시간 자정에 1부터 다시 시작하고 `TOTAL`은 계속 누적됩니다. 동일 사용자의 재접속과 새로고침도 별도 접속으로 포함합니다.
+
+날짜별 그래프는 최신 SQL을 실행한 날짜부터 기록됩니다. 접속 건별 개인정보나 로그는 저장하지 않고 `visitor_daily_counts`에 하루 한 행의 합계만 보관합니다. 데이터 연동 탭에서 관리자로 로그인하면 편제표 등록 영역 아래에 오늘·이번 달·올해·누적 요약과 일별·월별·연도별 그래프가 표시됩니다.
 
 ## 3. 학교 편제표 등록
 

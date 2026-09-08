@@ -118,6 +118,13 @@
       && /curriculum_drafts/.test(detail);
   }
 
+  function isMissingVisitorStatisticsError(error) {
+    const code = String(error?.code || "").trim().toUpperCase();
+    const detail = [error?.message, error?.details, error?.hint].filter(Boolean).join(" ").toLowerCase();
+    return ["PGRST202", "PGRST205", "42P01", "42883"].includes(code)
+      || /get_visitor_statistics|visitor_daily_counts|schema cache|does not exist/.test(detail);
+  }
+
   function schoolSnapshot(school) {
     return school ? {
       ...school,
@@ -453,6 +460,34 @@
     return snapshot();
   }
 
+  async function loadVisitorStatistics() {
+    await init();
+    if (!client || !user || accessRole !== "admin") throw new Error("관리자 로그인이 필요합니다.");
+    const { data, error } = await client.rpc("get_visitor_statistics");
+    if (error) {
+      if (isMissingVisitorStatisticsError(error)) {
+        throw new Error("Supabase에 최신 방문 통계 SQL을 적용해 주세요.");
+      }
+      throw error;
+    }
+
+    const safeCount = (value) => {
+      const count = Number(value);
+      return Number.isSafeInteger(count) && count >= 0 ? count : 0;
+    };
+    const series = (Array.isArray(data?.series) ? data.series : []).map((item) => ({
+      date: String(item?.date || ""),
+      count: safeCount(item?.count)
+    })).filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item.date)).sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      counterDate: /^\d{4}-\d{2}-\d{2}$/.test(String(data?.counter_date || "")) ? String(data.counter_date) : "",
+      todayCount: safeCount(data?.today_count),
+      totalCount: safeCount(data?.total_count),
+      series
+    };
+  }
+
   function comparable(value) {
     return String(value || "").replace(/\s+/g, "").toLocaleLowerCase("ko");
   }
@@ -770,6 +805,7 @@
     signInTeacher,
     signInAdmin,
     signOut,
+    loadVisitorStatistics,
     loadCurriculumDraft,
     saveCurriculumDraft,
     deleteCurriculumDraft,

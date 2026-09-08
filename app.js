@@ -81,11 +81,24 @@
     "기타": { icon: "shapes", accent: "#586c76", soft: "#eaf0f2", description: "여러 학문을 융합해 새롭게 등장하는 진로를 탐색합니다." }
   };
 
+  const KOREA_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+
+  function koreaDateKey(date = new Date()) {
+    const parts = Object.fromEntries(KOREA_DATE_FORMATTER.formatToParts(date).map((part) => [part.type, part.value]));
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  }
+
   const pageParams = new URLSearchParams(location.search);
   const requestedTab = pageParams.get("tab");
   const allowedTabs = ["subjects", "departments", "recommend", "simulation", "admin"];
   const initialTab = requestedTab === "view" ? "departments" : requestedTab;
   const savedSettings = store.getSettings();
+  const initialKoreaDate = koreaDateKey();
   // 모의 수강신청은 학생마다 새로 시작하는 일회성 작업이다.
   // 이전 버전이 localStorage에 남긴 선택값도 시작 시 즉시 제거한다.
   const transientSimulationSettingKeys = ["simulationSubjects", "schoolSelections", "completedCourseSelections"];
@@ -142,6 +155,12 @@
     simulationSchoolSearch: "",
     schoolUser: null,
     accessRole: "",
+    visitorStatistics: null,
+    visitorStatisticsStatus: "idle",
+    visitorStatisticsError: "",
+    visitorChartMode: "day",
+    visitorChartMonth: initialKoreaDate.slice(0, 7),
+    visitorChartYear: initialKoreaDate.slice(0, 4),
     schoolAuthDialogMode: "",
     schoolAuthStep: 1,
     schoolAuthRegionOpen: false,
@@ -194,6 +213,7 @@
   ]);
 
   function syncSchoolState(snapshot = schoolStore?.getSnapshot?.() || {}) {
+    const previousAccessRole = state.accessRole;
     const nextSchoolId = snapshot.selectedSchool?.id || "";
     const nextAdmissionYear = Number(snapshot.selectedAdmissionYear) || null;
     const selectionChanged = (state.selectedSchool?.id || "") !== nextSchoolId || state.selectedAdmissionYear !== nextAdmissionYear;
@@ -205,6 +225,11 @@
     state.schoolConnectionMessage = snapshot.message || "";
     state.schoolUser = snapshot.user || null;
     state.accessRole = snapshot.accessRole || "";
+    if (previousAccessRole === "admin" && state.accessRole !== "admin") {
+      state.visitorStatistics = null;
+      state.visitorStatisticsStatus = "idle";
+      state.visitorStatisticsError = "";
+    }
     if (selectionChanged) {
       resetSimulationAttempt();
     }
@@ -4654,6 +4679,163 @@
     </div>`;
   }
 
+  function visitorCountLabel(value) {
+    return Math.max(0, Number(value) || 0).toLocaleString("ko-KR");
+  }
+
+  function visitorSeriesMap() {
+    return new Map((state.visitorStatistics?.series || []).map((item) => [item.date, Number(item.count) || 0]));
+  }
+
+  function visitorAvailableYears() {
+    const currentDate = state.visitorStatistics?.counterDate || koreaDateKey();
+    const years = new Set((state.visitorStatistics?.series || []).map((item) => item.date.slice(0, 4)));
+    years.add(currentDate.slice(0, 4));
+    return [...years].filter((year) => /^\d{4}$/.test(year)).sort((a, b) => Number(b) - Number(a));
+  }
+
+  function visitorChartData() {
+    const counts = visitorSeriesMap();
+    const currentDate = state.visitorStatistics?.counterDate || koreaDateKey();
+    if (state.visitorChartMode === "day") {
+      const selectedMonth = /^\d{4}-\d{2}$/.test(state.visitorChartMonth)
+        ? state.visitorChartMonth
+        : currentDate.slice(0, 7);
+      const [year, month] = selectedMonth.split("-").map(Number);
+      const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      return {
+        title: `${year}년 ${month}월 일별 접속 횟수`,
+        points: Array.from({ length: lastDay }, (_unused, index) => {
+          const day = String(index + 1).padStart(2, "0");
+          const date = `${selectedMonth}-${day}`;
+          return { key: date, label: `${index + 1}일`, count: counts.get(date) || 0 };
+        })
+      };
+    }
+
+    if (state.visitorChartMode === "month") {
+      const selectedYear = /^\d{4}$/.test(state.visitorChartYear)
+        ? state.visitorChartYear
+        : currentDate.slice(0, 4);
+      return {
+        title: `${selectedYear}년 월별 접속 횟수`,
+        points: Array.from({ length: 12 }, (_unused, index) => {
+          const month = String(index + 1).padStart(2, "0");
+          const prefix = `${selectedYear}-${month}`;
+          const count = [...counts].reduce((sum, [date, value]) => date.startsWith(prefix) ? sum + value : sum, 0);
+          return { key: prefix, label: `${index + 1}월`, count };
+        })
+      };
+    }
+
+    const years = visitorAvailableYears().map(Number);
+    const firstYear = Math.min(...years);
+    const lastYear = Math.max(...years);
+    return {
+      title: `${firstYear}–${lastYear}년 연도별 접속 횟수`,
+      points: Array.from({ length: lastYear - firstYear + 1 }, (_unused, index) => {
+        const year = String(firstYear + index);
+        const count = [...counts].reduce((sum, [date, value]) => date.startsWith(`${year}-`) ? sum + value : sum, 0);
+        return { key: year, label: `${year}년`, count };
+      })
+    };
+  }
+
+  function visitorSummaryCounts() {
+    const statistics = state.visitorStatistics || {};
+    const currentDate = statistics.counterDate || koreaDateKey();
+    const monthPrefix = currentDate.slice(0, 7);
+    const yearPrefix = currentDate.slice(0, 4);
+    const series = statistics.series || [];
+    return {
+      today: Number(statistics.todayCount) || 0,
+      month: series.reduce((sum, item) => item.date.startsWith(monthPrefix) ? sum + (Number(item.count) || 0) : sum, 0),
+      year: series.reduce((sum, item) => item.date.startsWith(yearPrefix) ? sum + (Number(item.count) || 0) : sum, 0),
+      total: Number(statistics.totalCount) || 0
+    };
+  }
+
+  async function loadAdminVisitorStatistics({ force = false } = {}) {
+    if (state.accessRole !== "admin" || !schoolStore?.loadVisitorStatistics) return;
+    if (state.visitorStatisticsStatus === "loading") return;
+    if (!force && state.visitorStatisticsStatus === "ready" && state.visitorStatistics) return;
+    state.visitorStatisticsStatus = "loading";
+    state.visitorStatisticsError = "";
+    if (appDataReady && state.tab === "admin") renderAdmin();
+    try {
+      const statistics = await schoolStore.loadVisitorStatistics();
+      const firstLoad = !state.visitorStatistics;
+      state.visitorStatistics = statistics;
+      state.visitorStatisticsStatus = "ready";
+      if (firstLoad && statistics.counterDate) {
+        state.visitorChartMonth = statistics.counterDate.slice(0, 7);
+        state.visitorChartYear = statistics.counterDate.slice(0, 4);
+      }
+    } catch (error) {
+      console.error("방문 통계를 불러오지 못했습니다.", error);
+      state.visitorStatisticsStatus = "error";
+      state.visitorStatisticsError = error.message || "방문 통계를 불러오지 못했습니다.";
+    }
+    if (appDataReady && state.tab === "admin") renderAdmin();
+  }
+
+  function visitorStatisticsDashboardMarkup() {
+    if (state.accessRole !== "admin") return "";
+    const status = state.visitorStatisticsStatus;
+    const dashboardHead = `<header class="visitor-dashboard-head"><div><p class="section-kicker">VISITOR ANALYTICS</p><h2>${icon("chart")} 접속 횟수 대시보드</h2><p>동일 사용자의 재접속과 새로고침을 포함하며, 한국 시간 기준으로 집계합니다.</p></div><button type="button" data-refresh-visitor-statistics ${status === "loading" ? "disabled" : ""}>${icon("activity")} 새로고침</button></header>`;
+    if (status === "error") {
+      return `<section class="visitor-dashboard admin-card" aria-labelledby="visitor-dashboard-title">${dashboardHead}<div class="visitor-dashboard-state is-error">${icon("warning")}<div><strong id="visitor-dashboard-title">통계 데이터를 불러오지 못했습니다.</strong><p>${escapeHtml(state.visitorStatisticsError)}</p><small>Supabase SQL Editor에서 <code>install-visitor-counter.sql</code> 최신 내용을 다시 실행해 주세요.</small></div><button type="button" data-refresh-visitor-statistics>다시 시도</button></div></section>`;
+    }
+    if (status !== "ready" || !state.visitorStatistics) {
+      return `<section class="visitor-dashboard admin-card" aria-busy="true">${dashboardHead}<div class="visitor-dashboard-state">${icon("activity")}<div><strong>접속 통계를 불러오는 중입니다.</strong><p>날짜별 집계 데이터를 안전하게 확인하고 있습니다.</p></div></div></section>`;
+    }
+
+    const summary = visitorSummaryCounts();
+    const chart = visitorChartData();
+    const maximum = Math.max(0, ...chart.points.map((point) => point.count));
+    const chartScale = Math.max(1, maximum);
+    const chartWidth = state.visitorChartMode === "day"
+      ? Math.max(820, chart.points.length * 31)
+      : state.visitorChartMode === "month" ? 680 : Math.max(520, chart.points.length * 82);
+    const bars = chart.points.map((point) => {
+      const height = point.count ? Math.max(5, Math.round((point.count / chartScale) * 100)) : 2;
+      return `<span class="visitor-chart-item" title="${escapeHtml(point.label)} ${visitorCountLabel(point.count)}회" aria-label="${escapeHtml(point.label)} ${visitorCountLabel(point.count)}회"><b>${visitorCountLabel(point.count)}</b><i class="visitor-chart-track"><em style="height:${height}%"></em></i><small>${escapeHtml(point.label)}</small></span>`;
+    }).join("");
+    const years = visitorAvailableYears();
+    const yearOptions = years.map((year) => `<option value="${year}" ${state.visitorChartYear === year ? "selected" : ""}>${year}년</option>`).join("");
+    const firstDate = state.visitorStatistics.series[0]?.date || state.visitorStatistics.counterDate;
+    const currentMonth = state.visitorStatistics.counterDate.slice(0, 7);
+    const periodControl = state.visitorChartMode === "day"
+      ? `<label class="visitor-period-control"><span>조회 월</span><input type="month" data-visitor-chart-month min="${firstDate.slice(0, 7)}" max="${currentMonth}" value="${state.visitorChartMonth}"></label>`
+      : state.visitorChartMode === "month"
+        ? `<label class="visitor-period-control"><span>조회 연도</span><select data-visitor-chart-year>${yearOptions}</select></label>`
+        : `<span class="visitor-all-period">${firstDate.replaceAll("-", ".")}부터 전체 기록</span>`;
+
+    return `<section class="visitor-dashboard admin-card" aria-labelledby="visitor-dashboard-title">${dashboardHead}
+      <div class="visitor-summary-grid">
+        <article><span>${icon("calendar")}</span><small>오늘</small><strong>${visitorCountLabel(summary.today)}</strong><em>회</em></article>
+        <article><span>${icon("chart")}</span><small>이번 달</small><strong>${visitorCountLabel(summary.month)}</strong><em>회</em></article>
+        <article><span>${icon("activity")}</span><small>올해</small><strong>${visitorCountLabel(summary.year)}</strong><em>회</em></article>
+        <article class="is-total"><span>${icon("database")}</span><small>누적</small><strong>${visitorCountLabel(summary.total)}</strong><em>회</em></article>
+      </div>
+      <div class="visitor-chart-toolbar">
+        <div class="visitor-chart-modes" role="group" aria-label="통계 집계 단위">
+          <button type="button" data-visitor-chart-mode="day" aria-pressed="${state.visitorChartMode === "day"}">일별</button>
+          <button type="button" data-visitor-chart-mode="month" aria-pressed="${state.visitorChartMode === "month"}">월별</button>
+          <button type="button" data-visitor-chart-mode="year" aria-pressed="${state.visitorChartMode === "year"}">연도별</button>
+        </div>
+        ${periodControl}
+      </div>
+      <div class="visitor-chart-panel">
+        <header><div><small>ACCESS TREND</small><h3 id="visitor-dashboard-title">${escapeHtml(chart.title)}</h3></div><span>최고 <strong>${visitorCountLabel(maximum)}</strong>회</span></header>
+        <div class="visitor-chart-scroll" tabindex="0" aria-label="${escapeHtml(chart.title)} 그래프. 가로로 스크롤하여 전체 기간을 확인할 수 있습니다.">
+          <div class="visitor-chart-bars" style="width:${chartWidth}px">${bars}</div>
+        </div>
+      </div>
+      <p class="visitor-dashboard-footnote">접속 건별 개인정보는 저장하지 않으며, 하루 한 행의 합계만 보관합니다.</p>
+    </section>`;
+  }
+
   function schoolAdminAccessMarkup() {
     if (state.accessRole === "admin") return `<div class="school-admin-access is-signed-in"><span>${icon("user")} 관리자 접속 중</span><button type="button" data-school-signout>로그아웃</button></div>`;
     return `<div class="school-admin-access"><button type="button" data-open-admin-login ${schoolStore?.isConfigured?.() ? "" : "disabled"}>${icon("user")} 관리자 로그인</button></div>`;
@@ -4756,6 +4938,7 @@
           <div class="active-school-summary ${state.selectedSchool && state.selectedAdmissionYear ? "" : "is-empty"}"><small>${state.selectedSchool && state.selectedAdmissionYear ? `${escapeHtml(state.selectedSchool.region || "지역 정보 없음")} · ${state.selectedAdmissionYear}년 입학생` : "현재 연동 학교"}</small><strong>${state.selectedSchool && state.selectedAdmissionYear ? escapeHtml(state.selectedSchool.name) : "미선택"}</strong><span>${state.curriculum ? "편제표 연동됨" : "학교 카드에서 입학년도를 선택하면 연동됩니다."}</span>${state.accessRole === "admin" && state.selectedSchool ? `<div class="active-school-admin-actions">${state.curriculum?.id ? `<button class="school-edit-action" type="button" data-edit-curriculum>${icon("pen")} 편제표 열어 수정</button><button class="danger-action" type="button" data-delete-curriculum data-curriculum-id="${escapeHtml(state.curriculum.id)}">${state.curriculum.admissionYear}년 입학생 삭제</button>` : ""}<button class="danger-action is-school-delete" type="button" data-delete-school data-school-id="${escapeHtml(state.selectedSchool.id)}">학교 전체 데이터 삭제</button></div>` : ""}</div>
         </aside>
       </div>
+      ${visitorStatisticsDashboardMarkup()}
       ${schoolAuthDialogMarkup()}`;
   }
 
@@ -5658,6 +5841,21 @@
   }, true);
 
   root.addEventListener("click", async (event) => {
+    const visitorChartMode = event.target.closest("[data-visitor-chart-mode]");
+    if (visitorChartMode && state.accessRole === "admin") {
+      const mode = visitorChartMode.dataset.visitorChartMode;
+      if (["day", "month", "year"].includes(mode)) {
+        state.visitorChartMode = mode;
+        renderAdmin();
+      }
+      return;
+    }
+
+    if (event.target.closest("[data-refresh-visitor-statistics]") && state.accessRole === "admin") {
+      await loadAdminVisitorStatistics({ force: true });
+      return;
+    }
+
     const departmentField = event.target.closest("[data-department-field]");
     if (departmentField) {
       state.departmentField = departmentField.dataset.departmentField;
@@ -6961,6 +7159,7 @@
       syncSchoolState(result);
       closeSchoolAuthDialog();
       renderAdmin();
+      void loadAdminVisitorStatistics({ force: true });
       showToast("관리자 권한으로 로그인했습니다.");
     } catch (error) {
       console.error("데이터 연동 권한 확인 실패:", error);
@@ -6978,6 +7177,18 @@
   });
 
   root.addEventListener("change", async (event) => {
+    if (event.target.matches("[data-visitor-chart-month]") && state.accessRole === "admin") {
+      if (/^\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value)) state.visitorChartMonth = event.target.value;
+      renderAdmin();
+      return;
+    }
+
+    if (event.target.matches("[data-visitor-chart-year]") && state.accessRole === "admin") {
+      if (/^\d{4}$/.test(event.target.value)) state.visitorChartYear = event.target.value;
+      renderAdmin();
+      return;
+    }
+
     if (event.target.matches("[data-auth-curriculum-file]")) {
       let file = event.target.files?.[0];
       const extension = String(file?.name || "").split(".").pop().toLocaleLowerCase("en");
@@ -7562,6 +7773,7 @@
     schoolStore.init().then(async (snapshot) => {
       syncSchoolState(snapshot);
       if (state.accessRole === "teacher") await releaseTeacherCurriculumAccess();
+      if (state.accessRole === "admin" && state.tab === "admin") await loadAdminVisitorStatistics();
       syncSimulationSubjects();
       if (appDataReady) render();
     }).catch((error) => {
