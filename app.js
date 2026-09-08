@@ -819,7 +819,8 @@
     const yearName = picker?.querySelector("[data-school-year-name]");
     const yearOptions = picker?.querySelector("[data-school-year-options]");
     if (!picker || !label || !meta || !options) return;
-    const schools = filteredSchools(state.headerSchoolSearch);
+    const keyword = normalizedKey(state.headerSchoolSearch);
+    const schools = keyword ? filteredSchools(state.headerSchoolSearch) : [];
     const selected = state.selectedSchool && state.selectedAdmissionYear ? state.selectedSchool : null;
     label.textContent = selected?.name || "미선택";
     renderSchoolSelectionMeta(meta, selected, state.selectedAdmissionYear, "현재 연동 학교");
@@ -832,8 +833,11 @@
     });
     picker.classList.toggle("has-selection", Boolean(selected));
     if (search && search.value !== state.headerSchoolSearch) search.value = state.headerSchoolSearch;
-    if (count) count.textContent = `${state.schools.length.toLocaleString("ko-KR")}개 학교`;
-    options.innerHTML = schools.length
+    if (count) count.textContent = `${keyword ? `${schools.length.toLocaleString("ko-KR")}/` : ""}${state.schools.length.toLocaleString("ko-KR")}개 학교`;
+    options.hidden = !keyword;
+    options.innerHTML = !keyword
+      ? ""
+      : schools.length
       ? schools.map((school) => {
         const isSelected = selected?.id === school.id;
         const years = schoolAdmissionYears(school);
@@ -2601,7 +2605,8 @@
     </article>`;
   }
 
-  function simulationSchoolOptionsMarkup(schools) {
+  function simulationSchoolOptionsMarkup(schools, hasSearch = true) {
+    if (!hasSearch) return "";
     return schools.length
       ? schools.map((school, index) => {
         const selected = state.selectedSchool?.id === school.id && Boolean(state.selectedAdmissionYear);
@@ -2612,24 +2617,29 @@
   }
 
   function refreshSimulationSchoolResultsInPlace() {
-    const schools = filteredSchools(state.simulationSchoolSearch);
+    const hasSearch = Boolean(normalizedKey(state.simulationSchoolSearch));
+    const schools = hasSearch ? filteredSchools(state.simulationSchoolSearch) : [];
     const options = root.querySelector(".simulation-school-options");
     const count = root.querySelector("[data-simulation-school-count]");
     const clear = root.querySelector("[data-clear-simulation-school-search]");
-    if (options) options.innerHTML = simulationSchoolOptionsMarkup(schools);
-    if (count) count.textContent = `${state.simulationSchoolSearch ? `${schools.length}/${state.schools.length}` : state.schools.length.toLocaleString("ko-KR")}곳`;
+    if (options) {
+      options.hidden = !hasSearch;
+      options.innerHTML = simulationSchoolOptionsMarkup(schools, hasSearch);
+    }
+    if (count) count.textContent = `${hasSearch ? `${schools.length.toLocaleString("ko-KR")}/` : ""}${state.schools.length.toLocaleString("ko-KR")}곳`;
     if (clear) clear.hidden = !state.simulationSchoolSearch;
   }
 
   function simulationSchoolPickerMarkup() {
-    const schools = filteredSchools(state.simulationSchoolSearch);
-    const schoolOptions = simulationSchoolOptionsMarkup(schools);
+    const hasSearch = Boolean(normalizedKey(state.simulationSchoolSearch));
+    const schools = hasSearch ? filteredSchools(state.simulationSchoolSearch) : [];
+    const schoolOptions = simulationSchoolOptionsMarkup(schools, hasSearch);
     return `<div class="simulation-school-picker">
       <button class="primary-action" type="button" data-open-school-picker aria-expanded="false" aria-controls="simulation-school-menu">${state.selectedSchool && state.selectedAdmissionYear ? "연동 학교 변경" : "학교 선택 열기"}</button>
       <section class="simulation-school-menu" id="simulation-school-menu" data-simulation-school-menu hidden>
         <header><strong>연동 학교 목록</strong><span data-simulation-school-count>${state.schools.length.toLocaleString("ko-KR")}개 학교</span></header>
         <label class="simulation-school-search">${icon("search")}<input type="search" value="${escapeHtml(state.simulationSchoolSearch)}" placeholder="지역명 또는 학교명 검색" autocomplete="off" data-simulation-school-search><button type="button" data-clear-simulation-school-search aria-label="학교 검색어 지우기" ${state.simulationSchoolSearch ? "" : "hidden"}>×</button></label>
-        <div class="simulation-school-options">${schoolOptions}</div>
+        <div class="simulation-school-options" ${hasSearch ? "" : "hidden"}>${schoolOptions}</div>
       </section>
     </div>`;
   }

@@ -1094,15 +1094,21 @@
   }
 
   .landing-header-actions .edition-chip {
-    width: 36px;
+    width: auto;
+    max-width: min(180px, 42vw);
     min-height: 36px;
     justify-content: center;
-    padding: 0;
+    padding: 0 10px;
     border-radius: 12px;
   }
 
   .landing-header-actions .edition-chip > span {
-    display: none;
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+    text-align: left;
+    white-space: normal;
   }
 
   .visitor-counter {

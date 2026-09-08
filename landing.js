@@ -191,9 +191,13 @@
     });
     const schools = orderedSchools(snapshot.schools || []);
     const keyword = schoolSearch.replace(/\s+/g, "").toLocaleLowerCase("ko-KR");
-    const filtered = schools.filter((school) => !keyword || `${school.region || ""}${school.name || ""}`.replace(/\s+/g, "").toLocaleLowerCase("ko-KR").includes(keyword));
-    if (count) count.textContent = `${snapshot.schools.length.toLocaleString("ko-KR")}개 학교`;
+    const filtered = keyword
+      ? schools.filter((school) => `${school.region || ""}${school.name || ""}`.replace(/\s+/g, "").toLocaleLowerCase("ko-KR").includes(keyword))
+      : [];
+    if (count) count.textContent = `${keyword ? `${filtered.length.toLocaleString("ko-KR")}/` : ""}${snapshot.schools.length.toLocaleString("ko-KR")}개 학교`;
     options.replaceChildren();
+    options.hidden = !keyword;
+    if (!keyword) return;
     if (!filtered.length) {
       const empty = document.createElement("span");
       empty.className = "school-menu-empty";

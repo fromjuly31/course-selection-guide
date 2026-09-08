@@ -339,10 +339,10 @@ async function main() {
   assert.match(sectionHtml, /<dialog class="header-school-menu school-picker-dialog"/);
   assert.match(sectionHtml, /data-school-picker-label>미선택/);
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
-  assert.match(sectionHtml, /school-data\.js\?v=20260906-1/);
+  assert.match(sectionHtml, /school-data\.js\?v=20260908-1/);
   assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
-  assert.match(sectionHtml, /app\.css\?v=20260907-7/);
-  assert.match(sectionHtml, /app\.js\?v=20260907-7/);
+  assert.match(sectionHtml, /app\.css\?v=20260908-2/);
+  assert.match(sectionHtml, /app\.js\?v=20260908-2/);
   assert.match(sectionHtml, /chatbot\.js\?v=20260907-3/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
@@ -543,6 +543,11 @@ async function main() {
   assert.doesNotMatch(root.innerHTML, /하늘고등학교/);
 
   state.tab = "simulation";
+  state.simulationSchoolSearch = "";
+  window.DatabaseApp.renderSimulation();
+  assert.match(root.innerHTML, /class="simulation-school-options" hidden/);
+  assert.doesNotMatch(root.innerHTML, /가람고등학교|나래고등학교|하늘고등학교/);
+
   state.simulationSchoolSearch = "서울";
   window.DatabaseApp.renderSimulation();
   assert.match(root.innerHTML, /data-simulation-school-search/);

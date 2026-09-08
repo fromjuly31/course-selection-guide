@@ -117,6 +117,18 @@ async function main() {
     const connectHeaderSchool = async () => {
       await evaluate("document.querySelector('.header-school-picker [data-school-trigger]').click()");
       await waitFor(async () => evaluate("document.querySelector('.header-school-picker [data-school-menu]').open"));
+      const emptySearchUi = await evaluate(`(() => {
+        const options = document.querySelector('.header-school-picker [data-school-options]');
+        return { hidden: options.hidden, optionCount: options.querySelectorAll('[data-school-id]').length };
+      })()`);
+      assert.equal(emptySearchUi.hidden, true);
+      assert.equal(emptySearchUi.optionCount, 0);
+      await evaluate(`(() => {
+        const input = document.querySelector('.header-school-picker [data-header-school-search]');
+        input.value = '원주여자';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await waitFor(async () => evaluate("Boolean(document.querySelector('.header-school-picker [data-school-id=\"wonju-girls\"]'))"));
       await evaluate("document.querySelector('.header-school-picker [data-school-id=\"wonju-girls\"]').click()");
       await waitFor(async () => evaluate("!document.querySelector('.header-school-picker [data-school-year-view]').hidden"));
       await evaluate("document.querySelector('.header-school-picker [data-school-connect-year=\"2026\"]').click()");
@@ -329,13 +341,26 @@ async function main() {
     await wait(150);
     const landingMobileUi = await evaluate(`(() => ({
       brandFontSize: Number.parseFloat(getComputedStyle(document.querySelector('.landing-brand strong')).fontSize),
-      leadBreakDisplay: getComputedStyle(document.querySelector('.landing-lead .desktop-break')).display
+      leadBreakDisplay: getComputedStyle(document.querySelector('.landing-lead .desktop-break')).display,
+      makerTextVisible: document.querySelector('.edition-chip > span').getBoundingClientRect().width > 0,
+      makerButtonRight: document.querySelector('.edition-chip').getBoundingClientRect().right,
+      viewportWidth: innerWidth
     }))()`);
     assert.ok(landingMobileUi.brandFontSize >= 12);
     assert.notEqual(landingMobileUi.leadBreakDisplay, "none");
+    assert.equal(landingMobileUi.makerTextVisible, true);
+    assert.ok(landingMobileUi.makerButtonRight <= landingMobileUi.viewportWidth + 1, JSON.stringify(landingMobileUi));
     await evaluate("document.querySelector('.landing-school-picker [data-school-trigger]').click()");
     await waitFor(async () => evaluate("document.querySelector('.landing-school-picker [data-school-menu]').open"));
     assert.equal(await evaluate("document.activeElement.matches('[data-school-search]')"), false);
+    assert.equal(await evaluate("document.querySelector('.landing-school-picker [data-school-options]').hidden"), true);
+    assert.equal(await evaluate("document.querySelectorAll('.landing-school-picker [data-school-id]').length"), 0);
+    await evaluate(`(() => {
+      const input = document.querySelector('.landing-school-picker [data-school-search]');
+      input.value = '원주여자';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    await waitFor(async () => evaluate("Boolean(document.querySelector('.landing-school-picker [data-school-id=\"wonju-girls\"]'))"));
     await evaluate("document.querySelector('.landing-school-picker [data-school-menu-close]').click()");
     await waitFor(async () => evaluate("!document.querySelector('.landing-school-picker [data-school-menu]').open"));
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 820, deviceScaleFactor: 1, mobile: false });

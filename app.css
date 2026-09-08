@@ -8015,6 +8015,10 @@ body.is-platform-image-capturing .platform-print-root {
   gap: 8px;
 }
 
+.simulation-school-options[hidden] {
+  display: none;
+}
+
 .simulation-school-options > button {
   display: grid;
   min-width: 0;

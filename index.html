@@ -7,7 +7,7 @@
   <title>선택 과목 안내 플랫폼</title>
   <meta name="description" content="학교 교육과정에 맞춰 선택과목을 이해하고 진로에 맞는 과목을 설계하는 안내 플랫폼">
   <link rel="stylesheet" href="styles.css?v=20260905-5">
-  <link rel="stylesheet" href="landing.css?v=20260908-2">
+  <link rel="stylesheet" href="landing.css?v=20260908-3">
   <link rel="stylesheet" href="chatbot.css?v=20260907-1">
 </head>
 <body class="landing-page landing-one-screen">
@@ -66,7 +66,7 @@
                 <header class="school-picker-dialog-head"><div><small>CONNECTED SCHOOLS</small><h2 id="landing-school-dialog-title">연동 학교 목록</h2></div><strong data-school-list-count>0개 학교</strong></header>
                 <div class="school-picker-current" data-school-current><div class="school-picker-current-copy"><strong data-school-current-name>미선택</strong><small data-school-current-meta>현재 연동 학교</small></div><button class="school-disconnect-button" type="button" data-school-disconnect hidden>연동 해제</button></div>
                 <label class="school-picker-search"><svg class="icon" aria-hidden="true"><use href="icons.svg#search"></use></svg><input type="search" placeholder="지역명 또는 학교명 검색" autocomplete="off" data-school-search></label>
-                <div data-school-options><span class="school-menu-empty">학교 목록을 불러오는 중입니다.</span></div>
+                <div data-school-options hidden></div>
               </section>
               <section class="school-year-choice" data-school-year-view hidden>
                 <button class="school-year-back" type="button" data-school-year-back><svg class="icon" aria-hidden="true"><use href="icons.svg#arrow"></use></svg> 학교 목록</button>
@@ -117,7 +117,7 @@
 
   <script src="supabase-config.js?v=20260905-2"></script>
   <script src="school-data.js?v=20260906-1"></script>
-  <script src="landing.js?v=20260908-1"></script>
+  <script src="landing.js?v=20260908-2"></script>
   <script src="app-data.js?v=20260906-1"></script>
   <script src="chatbot-engine.js?v=20260905-10"></script>
   <script src="chatbot.js?v=20260907-3"></script>
