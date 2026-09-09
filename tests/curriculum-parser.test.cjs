@@ -84,7 +84,13 @@ global.document = {
 const dataset = {
   meta: {},
   columns: ["과목명", "교과군"],
-  rows: [{ "과목명": "기술·가정", "교과군": "기술·가정" }]
+  rows: [
+    { "과목명": "기술·가정", "교과군": "기술·가정" },
+    { "과목명": "화법과 언어", "교과군": "국어" },
+    { "과목명": "독서와 작문", "교과군": "국어" },
+    { "과목명": "대수", "교과군": "수학" },
+    { "과목명": "미적분Ⅰ", "교과군": "수학" }
+  ]
 };
 
 global.window = {
@@ -176,6 +182,35 @@ const freshmanWorkbook = {
         { s: { r: 2, c: 11 }, e: { r: 2, c: 12 } },
         { s: { r: 7, c: 10 }, e: { r: 8, c: 10 } },
         { s: { r: 10, c: 12 }, e: { r: 11, c: 12 } }
+      ]
+    }
+  }
+};
+
+const ambiguousCourseHeaderRows = [
+  ["2026학년도 입학생 3개년 교육과정 편제표(안)"],
+  ["양구고등학교"],
+  ["구분", "과목", "과목", "", "기준 학점", "운영 학점", "1학년", "", "2학년", "", "3학년", ""],
+  ["", "", "일반", "정보", "", "", "1학기", "2학기", "1학기", "2학기", "1학기", "2학기"],
+  ["학생 선택 교육과정", "국어", "일반", "화법과 언어", 4, 4, "", "", "", "", "택 3", ""],
+  ["학생 선택 교육과정", "국어", "일반", "독서와 작문", 4, 4, "", "", "", "", "", ""],
+  ["학생 선택 교육과정", "수학", "일반", "대수", 4, 4, "", "", "", "", "", ""],
+  ["학생 선택 교육과정", "수학", "일반", "미적분Ⅰ", 4, 4, "", "", "", "", "", "", ""]
+];
+
+const ambiguousCourseHeaderWorkbook = {
+  SheetNames: ["3개년 편제표"],
+  Sheets: {
+    "3개년 편제표": {
+      _matrix: ambiguousCourseHeaderRows,
+      "!merges": [
+        { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },
+        { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } },
+        { s: { r: 2, c: 2 }, e: { r: 2, c: 3 } },
+        { s: { r: 2, c: 6 }, e: { r: 2, c: 7 } },
+        { s: { r: 2, c: 8 }, e: { r: 2, c: 9 } },
+        { s: { r: 2, c: 10 }, e: { r: 2, c: 11 } },
+        { s: { r: 4, c: 10 }, e: { r: 7, c: 10 } }
       ]
     }
   }
@@ -342,7 +377,7 @@ async function main() {
   assert.match(sectionHtml, /school-data\.js\?v=20260908-1/);
   assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
   assert.match(sectionHtml, /app\.css\?v=20260908-2/);
-  assert.match(sectionHtml, /app\.js\?v=20260908-2/);
+  assert.match(sectionHtml, /app\.js\?v=20260909-1/);
   assert.match(sectionHtml, /chatbot\.js\?v=20260907-3/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
@@ -445,6 +480,17 @@ async function main() {
   assert.equal(freshmanResult.curricula[0].grades[1].semesters[1].options[0].choose, 1);
   assert.deepEqual(freshmanResult.curricula[0].grades[2].semesters[0].common, ["독서와 작문"]);
   assert.deepEqual(freshmanResult.curricula[0].grades[2].semesters[1].options[0].courses, ["전자기와 양자", "화학 반응의 세계"]);
+  activeWorkbook = ambiguousCourseHeaderWorkbook;
+  const ambiguousHeaderResult = await window.DatabaseApp.parseCurriculumFile({
+    name: "2026학년도 양구고등학교 신입생 편제표.xlsx",
+    arrayBuffer: async () => new ArrayBuffer(0)
+  });
+  activeWorkbook = workbook;
+  const ambiguousOption = ambiguousHeaderResult.curricula[0].grades[2].semesters[0].options[0];
+  assert.equal(ambiguousOption.choose, 3);
+  assert.deepEqual(ambiguousOption.courses, ["화법과 언어", "독서와 작문", "대수", "미적분Ⅰ"]);
+  assert.deepEqual(ambiguousHeaderResult.curricula[0].courseMetadata["화법과언어"], { category: "국어", type: "일반" });
+  assert.deepEqual(ambiguousHeaderResult.curricula[0].courseMetadata["대수"], { category: "수학", type: "일반" });
   const batchFiles = [2026, 2025, 2024].map((year) => ({ name: `${year}학년도 신입생.xlsx` }));
   const batchImports = [2026, 2025, 2024].map((year) => {
     const parsed = JSON.parse(JSON.stringify(freshmanResult));

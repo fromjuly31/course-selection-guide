@@ -3229,6 +3229,54 @@
     };
   }
 
+  function fullYearCurriculumColumnEvidence(source, column, dataStartRow) {
+    const referenceIndex = recommendationCourseIndex();
+    const knownGroupKeys = new Set([
+      ...COURSE_GROUP_ORDER,
+      ...referenceIndex.subjects.map((subject) => subject.category)
+    ].map((value) => normalizedCourseName(normalizeCourseGroup(value))).filter(Boolean));
+    const knownTypeKeys = new Set(["공통", "일반", "진로", "융합", "전문"].map(normalizedKey));
+    const values = source.filled.slice(dataStartRow)
+      .map((row) => compactText(row?.[column]))
+      .filter((value) => value && !/소계|합계/u.test(value));
+    const evidence = {
+      valueCount: values.length,
+      courseCount: 0,
+      courseOnlyCount: 0,
+      groupCount: 0,
+      groupOnlyCount: 0,
+      typeCount: 0
+    };
+    values.forEach((value) => {
+      const isCourse = Boolean(curriculumCourseReference(value, referenceIndex));
+      const isGroup = knownGroupKeys.has(normalizedCourseName(normalizeCourseGroup(value)));
+      if (isCourse) evidence.courseCount += 1;
+      if (isCourse && !isGroup) evidence.courseOnlyCount += 1;
+      if (isGroup) evidence.groupCount += 1;
+      if (isGroup && !isCourse) evidence.groupOnlyCount += 1;
+      if (knownTypeKeys.has(normalizedKey(uploadedCourseType(value)))) evidence.typeCount += 1;
+    });
+    return evidence;
+  }
+
+  function compareFullYearColumnRole(first, second, role) {
+    const ratio = (entry, key) => entry.evidence.valueCount ? entry.evidence[key] / entry.evidence.valueCount : 0;
+    if (role === "course") {
+      return second.evidence.courseOnlyCount - first.evidence.courseOnlyCount
+        || second.evidence.courseCount - first.evidence.courseCount
+        || ratio(second, "courseCount") - ratio(first, "courseCount")
+        || first.evidence.groupOnlyCount - second.evidence.groupOnlyCount;
+    }
+    if (role === "category") {
+      return second.evidence.groupOnlyCount - first.evidence.groupOnlyCount
+        || second.evidence.groupCount - first.evidence.groupCount
+        || ratio(second, "groupCount") - ratio(first, "groupCount")
+        || first.evidence.courseOnlyCount - second.evidence.courseOnlyCount;
+    }
+    return second.evidence.typeCount - first.evidence.typeCount
+      || ratio(second, "typeCount") - ratio(first, "typeCount");
+  }
+
   function parseSchoolFullYearCurriculumWorkbook(file, workbook) {
     let source = null;
     workbook.SheetNames.some((sheetName) => {
@@ -3273,11 +3321,30 @@
     const sectionIndex = headerKeys.findIndex((key) => ["구분", "편성구분", "교육과정구분", "이수구분"].map(normalizedKey).includes(key));
     const courseHeaderKeys = ["과목명", "교과목명", "교과목", "과목"].map(normalizedKey);
     const courseCandidates = headerKeys.map((key, index) => courseHeaderKeys.includes(key) ? index : -1).filter((index) => index >= 0);
-    const courseIndex = courseCandidates.find((index) => ["과목", "과목명", "교과목", "교과목명"].map(normalizedKey).includes(normalizedKey(source.filled[semesterRowIndex]?.[index])))
+    const dataStartRow = semesterRowIndex + 1;
+    const candidateEvidence = courseCandidates.map((index) => ({
+      index,
+      evidence: fullYearCurriculumColumnEvidence(source, index, dataStartRow)
+    }));
+    const headerCourseIndex = courseCandidates.find((index) => ["과목", "과목명", "교과목", "교과목명"].map(normalizedKey).includes(normalizedKey(source.filled[semesterRowIndex]?.[index])))
       ?? courseCandidates.at(-1) ?? -1;
-    const categoryIndex = headerKeys.findIndex((key) => ["교과군", "교과(군)", "교과", "과목군"].map(normalizedKey).includes(key));
+    const evidencedCourseIndex = candidateEvidence
+      .filter((candidate) => candidate.evidence.courseOnlyCount > 0)
+      .sort((first, second) => compareFullYearColumnRole(first, second, "course"))[0]?.index;
+    const courseIndex = evidencedCourseIndex ?? headerCourseIndex;
+    let categoryIndex = headerKeys.findIndex((key) => ["교과군", "교과(군)", "교과", "과목군"].map(normalizedKey).includes(key));
+    if (categoryIndex < 0) {
+      categoryIndex = candidateEvidence
+        .filter((candidate) => candidate.index !== courseIndex && candidate.evidence.groupCount > 0)
+        .sort((first, second) => compareFullYearColumnRole(first, second, "category"))[0]?.index ?? -1;
+    }
     let typeIndex = headerKeys.findIndex((key) => ["과목유형", "과목구분", "선택유형", "유형"].map(normalizedKey).includes(key));
     if (typeIndex < 0) typeIndex = headerKeys.findIndex((key, index) => key === normalizedKey("과목") && normalizedKey(source.filled[semesterRowIndex]?.[index]) === normalizedKey("구분"));
+    if (typeIndex < 0) {
+      typeIndex = candidateEvidence
+        .filter((candidate) => ![courseIndex, categoryIndex].includes(candidate.index) && candidate.evidence.typeCount > 0)
+        .sort((first, second) => compareFullYearColumnRole(first, second, "type"))[0]?.index ?? -1;
+    }
     const semesterColumns = [];
     for (let column = 0; column < Math.max(source.filled[headerRowIndex].length, source.filled[semesterRowIndex].length); column += 1) {
       const grade = Number(normalizedKey(source.filled[headerRowIndex]?.[column]).match(/^([123])학년$/)?.[1]);
@@ -3289,7 +3356,6 @@
       throw new Error("신입생 편제표에서 1·2·3학년의 1·2학기 열을 모두 찾지 못했습니다.");
     }
 
-    const dataStartRow = semesterRowIndex + 1;
     const dataEndRow = source.filled.findIndex((row, index) => index >= dataStartRow && row.some((value) => normalizedKey(value).includes(normalizedKey("교과 이수 학점 소계"))));
     const lastCourseRow = dataEndRow < 0 ? source.raw.length - 1 : dataEndRow - 1;
     const gradeData = new Map([1, 2, 3].map((grade) => [grade, {
