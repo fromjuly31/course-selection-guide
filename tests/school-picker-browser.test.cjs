@@ -119,9 +119,9 @@ async function main() {
       await waitFor(async () => evaluate("document.querySelector('.header-school-picker [data-school-menu]').open"));
       const emptySearchUi = await evaluate(`(() => {
         const options = document.querySelector('.header-school-picker [data-school-options]');
-        return { hidden: options.hidden, optionCount: options.querySelectorAll('[data-school-id]').length };
+        return { hidden: options.hidden, optionCount: options.querySelectorAll('[data-school-id]').length, height: options.getBoundingClientRect().height };
       })()`);
-      assert.equal(emptySearchUi.hidden, true);
+      assert.equal(emptySearchUi.hidden, false);
       assert.equal(emptySearchUi.optionCount, 0);
       await evaluate(`(() => {
         const input = document.querySelector('.header-school-picker [data-header-school-search]');
@@ -129,9 +129,22 @@ async function main() {
         input.dispatchEvent(new Event('input', { bubbles: true }));
       })()`);
       await waitFor(async () => evaluate("Boolean(document.querySelector('.header-school-picker [data-school-id=\"wonju-girls\"]'))"));
+      const filteredOptionsHeight = await evaluate("document.querySelector('.header-school-picker [data-school-options]').getBoundingClientRect().height");
+      assert.ok(Math.abs(filteredOptionsHeight - emptySearchUi.height) <= 1, `${emptySearchUi.height} -> ${filteredOptionsHeight}`);
       await evaluate("document.querySelector('.header-school-picker [data-school-id=\"wonju-girls\"]').click()");
       await waitFor(async () => evaluate("!document.querySelector('.header-school-picker [data-school-year-view]').hidden"));
-      await evaluate("document.querySelector('.header-school-picker [data-school-connect-year=\"2026\"]').click()");
+      const clickedUi = await evaluate(`(() => {
+        const button = document.querySelector('.header-school-picker [data-school-connect-year="2026"]');
+        button.click();
+        return {
+          clicked: button.classList.contains('is-clicked'),
+          pressed: button.getAttribute('aria-pressed'),
+          animationName: getComputedStyle(button).animationName
+        };
+      })()`);
+      assert.equal(clickedUi.clicked, true);
+      assert.equal(clickedUi.pressed, "true");
+      assert.equal(clickedUi.animationName, "school-year-click");
       await waitFor(async () => evaluate("document.querySelector('.header-school-picker')?.classList.contains('has-selection')"));
     };
 
@@ -287,6 +300,21 @@ async function main() {
     assert.equal(disconnectedUi.hasSchoolParam, false);
     assert.equal(disconnectedUi.hasYearParam, false);
 
+    await client.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/section.html?tab=simulation` });
+    await waitFor(async () => evaluate("Boolean(document.querySelector('[data-open-school-picker]'))"));
+    await evaluate("document.querySelector('[data-open-school-picker]').click()");
+    await waitFor(async () => evaluate("!document.querySelector('[data-simulation-school-menu]').hidden"));
+    assert.equal(await evaluate("document.querySelectorAll('[data-simulation-school-id]').length"), 0);
+    const simulationSchoolListHeight = await evaluate("document.querySelector('.simulation-school-options').getBoundingClientRect().height");
+    await evaluate(`(() => {
+      const input = document.querySelector('[data-simulation-school-search]');
+      input.value = '원주여자';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    await waitFor(async () => evaluate("Boolean(document.querySelector('[data-simulation-school-id=\"wonju-girls\"]'))"));
+    const filteredSimulationSchoolListHeight = await evaluate("document.querySelector('.simulation-school-options').getBoundingClientRect().height");
+    assert.ok(Math.abs(filteredSimulationSchoolListHeight - simulationSchoolListHeight) <= 1, `${simulationSchoolListHeight} -> ${filteredSimulationSchoolListHeight}`);
+
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 820, deviceScaleFactor: 1, mobile: false });
     await client.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/index.html?school=wonju-girls&admissionYear=2026` });
     await waitFor(async () => evaluate("document.readyState === 'complete' && window.SchoolStore?.getSnapshot().schools.length === 1 && window.SchoolStore.getSnapshot().selectedSchool === null"));
@@ -353,7 +381,7 @@ async function main() {
     await evaluate("document.querySelector('.landing-school-picker [data-school-trigger]').click()");
     await waitFor(async () => evaluate("document.querySelector('.landing-school-picker [data-school-menu]').open"));
     assert.equal(await evaluate("document.activeElement.matches('[data-school-search]')"), false);
-    assert.equal(await evaluate("document.querySelector('.landing-school-picker [data-school-options]').hidden"), true);
+    assert.equal(await evaluate("document.querySelector('.landing-school-picker [data-school-options]').hidden"), false);
     assert.equal(await evaluate("document.querySelectorAll('.landing-school-picker [data-school-id]').length"), 0);
     await evaluate(`(() => {
       const input = document.querySelector('.landing-school-picker [data-school-search]');
@@ -469,6 +497,69 @@ async function main() {
     assert.ok(simulationTypography.emptyNote >= 13, JSON.stringify(simulationTypography));
     assert.ok(simulationTypography.nextButton >= 15, JSON.stringify(simulationTypography));
     assert.ok(simulationTypography.disabledOpacity >= 0.6, JSON.stringify(simulationTypography));
+
+    const validationPickerUi = await evaluate(`(async () => {
+      const api = window.DatabaseApp;
+      const state = api.getState();
+      const blank = api.createBlankCurriculumImport();
+      const previousDepartmentDataset = state.departmentDataset;
+      state.tab = 'simulation';
+      state.selectedSchool = { id: 'validation-school', name: '검증고등학교', region: '강원특별자치도', admissionYears: [2025] };
+      state.selectedAdmissionYear = 2025;
+      state.curriculum = blank.curricula.find((curriculum) => curriculum.admissionYear === 2025);
+      state.simulationHistoryOpen = false;
+      state.simulationResultOpen = true;
+      state.simulationResultUnlocked = true;
+      state.simulationValidationPickerOpen = false;
+      state.simulationValidationDepartmentId = '';
+      state.simulationValidationSearch = '';
+      state.departmentDataset = {
+        meta: {},
+        fields: [{ name: '자연', departmentCount: 1 }, { name: '사회', departmentCount: 1 }],
+        departments: [
+          { id: 'validation-natural', field: '자연', name: '검증 자연학과', guide: {}, relatedSubjects: [], reflectedSubjects: [] },
+          { id: 'validation-social', field: '사회', name: '검증 사회학과', guide: {}, relatedSubjects: [], reflectedSubjects: [] }
+        ]
+      };
+      api.renderSimulation();
+      document.querySelector('[data-toggle-simulation-validation]').click();
+      await new Promise((resolve) => setTimeout(resolve, 650));
+      const picker = document.querySelector('#simulation-validation-picker');
+      const controls = picker.querySelector('.simulation-validation-picker-controls');
+      const controlsHeightBefore = controls.getBoundingClientRect().height;
+      const pickerFocused = document.activeElement === picker;
+      const input = picker.querySelector('[data-simulation-validation-search]');
+      input.focus();
+      input.value = '검증';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const resultsPanel = picker.querySelector('[data-simulation-validation-results-panel]');
+      const groups = [...resultsPanel.querySelectorAll('.simulation-validation-department-group')];
+      const result = {
+        pickerFocused,
+        inputFocused: document.activeElement === input,
+        controlsHeightBefore,
+        controlsHeightAfter: controls.getBoundingClientRect().height,
+        resultsHidden: resultsPanel.hidden,
+        resultsBelowControls: resultsPanel.getBoundingClientRect().top >= controls.getBoundingClientRect().bottom,
+        groupsDoNotOverlap: groups.every((group, index) => !groups[index + 1] || group.getBoundingClientRect().bottom <= groups[index + 1].getBoundingClientRect().top),
+        groupCount: groups.length
+      };
+      state.departmentDataset = previousDepartmentDataset;
+      state.selectedSchool = null;
+      state.selectedAdmissionYear = null;
+      state.curriculum = null;
+      state.tab = 'admin';
+      api.renderAdmin();
+      return result;
+    })()`, true);
+    assert.equal(validationPickerUi.pickerFocused, true, JSON.stringify(validationPickerUi));
+    assert.equal(validationPickerUi.inputFocused, true, JSON.stringify(validationPickerUi));
+    assert.ok(Math.abs(validationPickerUi.controlsHeightAfter - validationPickerUi.controlsHeightBefore) <= 1, JSON.stringify(validationPickerUi));
+    assert.equal(validationPickerUi.resultsHidden, false, JSON.stringify(validationPickerUi));
+    assert.equal(validationPickerUi.resultsBelowControls, true, JSON.stringify(validationPickerUi));
+    assert.equal(validationPickerUi.groupsDoNotOverlap, true, JSON.stringify(validationPickerUi));
+    assert.equal(validationPickerUi.groupCount, 2, JSON.stringify(validationPickerUi));
 
     const schoolNameFormatWarning = await evaluate(`(async () => {
       window.SchoolStore.isConfigured = () => true;

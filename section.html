@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#071720">
   <title>학과·선택과목 조회 · 선택 과목 안내 플랫폼</title>
   <meta name="description" content="학교별 편제표와 연동되는 과목 선택 안내 플랫폼">
-  <link rel="stylesheet" href="styles.css?v=20260905-5">
-  <link rel="stylesheet" href="app.css?v=20260909-3">
+  <link rel="stylesheet" href="styles.css?v=20260909-3">
+  <link rel="stylesheet" href="app.css?v=20260909-14">
   <link rel="stylesheet" href="chatbot.css?v=20260907-1">
 </head>
 <body class="app-page">
@@ -26,7 +26,7 @@
         <dialog class="header-school-menu school-picker-dialog" data-school-menu aria-labelledby="header-school-dialog-title">
           <button class="school-picker-dialog-close" type="button" data-school-menu-close aria-label="학교 목록 닫기">×</button>
           <section data-school-list-view>
-            <header class="school-picker-dialog-head"><div><small>CONNECTED SCHOOLS</small><h2 id="header-school-dialog-title">연동 학교 목록</h2></div><strong data-header-school-search-count>0개 학교</strong></header>
+            <header class="school-picker-dialog-head"><div><small>SCHOOL SEARCH</small><h2 id="header-school-dialog-title">학교 검색</h2></div><strong data-header-school-search-count hidden></strong></header>
             <div class="school-picker-current" data-school-current><div class="school-picker-current-copy"><strong data-school-current-name>미선택</strong><small data-school-current-meta>현재 연동 학교</small></div><button class="school-disconnect-button" type="button" data-school-disconnect hidden>연동 해제</button></div>
             <label class="header-school-search school-picker-search"><svg class="icon" aria-hidden="true"><use href="icons.svg#search"></use></svg><input type="search" placeholder="지역명 또는 학교명 검색" autocomplete="off" data-header-school-search></label>
             <div data-school-options hidden></div>
@@ -106,7 +106,7 @@
   <script src="supabase-config.js?v=20260905-2"></script>
   <script src="school-data.js?v=20260908-1"></script>
   <script src="app-data.js?v=20260906-1"></script>
-  <script src="app.js?v=20260909-2"></script>
+  <script src="app.js?v=20260909-10"></script>
   <script src="chatbot-engine.js?v=20260905-10"></script>
   <script src="chatbot.js?v=20260907-3"></script>
 </body>

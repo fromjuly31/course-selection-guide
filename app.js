@@ -138,6 +138,9 @@
     simulationGradeStep: 1,
     simulationMaxGradeStep: 1,
     simulationResultUnlocked: false,
+    simulationValidationPickerOpen: false,
+    simulationValidationDepartmentId: "",
+    simulationValidationSearch: "",
     simulationHistoryOpen: true,
     simulationHistoryCategory: "전체",
     simulationHistorySearch: "",
@@ -833,8 +836,11 @@
     });
     picker.classList.toggle("has-selection", Boolean(selected));
     if (search && search.value !== state.headerSchoolSearch) search.value = state.headerSchoolSearch;
-    if (count) count.textContent = `${keyword ? `${schools.length.toLocaleString("ko-KR")}/` : ""}${state.schools.length.toLocaleString("ko-KR")}개 학교`;
-    options.hidden = !keyword;
+    if (count) {
+      count.hidden = !keyword;
+      count.textContent = keyword ? `${schools.length.toLocaleString("ko-KR")}/${state.schools.length.toLocaleString("ko-KR")}개 학교` : "";
+    }
+    options.hidden = false;
     options.innerHTML = !keyword
       ? ""
       : schools.length
@@ -2330,6 +2336,9 @@
     state.simulationGradeStep = 1;
     state.simulationMaxGradeStep = 1;
     state.simulationResultUnlocked = false;
+    state.simulationValidationPickerOpen = false;
+    state.simulationValidationDepartmentId = "";
+    state.simulationValidationSearch = "";
   }
 
   function completedCourseSubjects() {
@@ -2516,28 +2525,140 @@
     { key: "elective", label: "기타 선택", className: "is-elective" }
   ]);
 
-  function simulationCourseGroupMarkup(entries) {
-    return groupedRecommendationSubjects(entries).map((group) => `<section class="simulation-final-course-group"><header><span>${escapeHtml(group.category)}</span><em>${group.entries.length}</em></header><ul>${group.entries.map((entry) => `<li><small>${entry.source === "completed" ? "이수" : `${entry.semester}학기`}</small>${entry.row ? `<button type="button" data-simulation-course="${escapeHtml(entry.name)}" aria-haspopup="dialog" aria-label="${escapeHtml(entry.name)} 과목 안내 열기">${escapeHtml(entry.name)}</button>` : `<span>${escapeHtml(entry.name)}</span><em>기타</em>`}</li>`).join("")}</ul></section>`).join("");
+  function simulationValidationCourseKeys(value) {
+    const name = compactText(value);
+    const keys = new Set([curriculumCourseAliasKey(name)]);
+    recommendationCourseReferences(name).forEach((reference) => keys.add(curriculumCourseAliasKey(reference.name)));
+    keys.delete("");
+    return [...keys];
   }
 
-  function simulationFinalGradeMarkup(gradePlan) {
+  function simulationValidationSubjectName(subject) {
+    return typeof subject === "string" ? subject : subject?.name;
+  }
+
+  function simulationDepartmentCourseSets() {
+    const department = departmentById(state.simulationValidationDepartmentId);
+    if (!department) return null;
+    return {
+      department,
+      related: new Set((department.relatedSubjects || []).flatMap((subject) => simulationValidationCourseKeys(simulationValidationSubjectName(subject)))),
+      reflected: new Set((department.reflectedSubjects || []).flatMap((subject) => simulationValidationCourseKeys(simulationValidationSubjectName(subject))))
+    };
+  }
+
+  function simulationCourseGroupMarkup(entries, options = {}) {
+    const validation = options.includeValidation === false ? null : simulationDepartmentCourseSets();
+    return groupedRecommendationSubjects(entries).map((group) => `<section class="simulation-final-course-group"><header><span>${escapeHtml(group.category)}</span><em>${group.entries.length}</em></header><ul>${group.entries.map((entry) => {
+      const key = curriculumCourseAliasKey(entry.name);
+      const isRelated = Boolean(validation?.related.has(key));
+      const isReflected = Boolean(validation?.reflected.has(key));
+      const validationClasses = [isRelated ? "is-department-related" : "", isReflected ? "is-department-reflected" : ""].filter(Boolean).join(" ");
+      const validationLabel = [isRelated ? "관련 과목" : "", isReflected ? "반영 과목" : ""].filter(Boolean).join(" · ");
+      return `<li class="${validationClasses}"${validationLabel ? ` title="${escapeHtml(validation.department.name)} ${validationLabel}"` : ""}><small>${entry.source === "completed" ? "이수" : `${entry.semester}학기`}</small>${entry.row ? `<button type="button" data-simulation-course="${escapeHtml(entry.name)}" aria-haspopup="dialog" aria-label="${escapeHtml(entry.name)} 과목 안내 열기">${escapeHtml(entry.name)}</button>` : `<span>${escapeHtml(entry.name)}</span><em>기타</em>`}</li>`;
+    }).join("")}</ul></section>`).join("");
+  }
+
+  function simulationFinalGradeMarkup(gradePlan, options = {}) {
     const typeSections = CURRICULUM_RESULT_TYPES.map((type) => {
       const entries = gradePlan.entries.filter((entry) => entry.type === type.key);
       if (!entries.length) return "";
-      return `<section class="simulation-final-type ${type.className}"><header><strong>${escapeHtml(type.label)}</strong><span>${entries.length}과목</span></header><div>${simulationCourseGroupMarkup(entries)}</div></section>`;
+      return `<section class="simulation-final-type ${type.className}"><header><strong>${escapeHtml(type.label)}</strong><span>${entries.length}과목</span></header><div>${simulationCourseGroupMarkup(entries, options)}</div></section>`;
     }).join("");
     return `<article class="simulation-final-grade ${gradePlan.completed ? "is-completed" : ""}"><header><span>${gradePlan.grade}</span><div><small>${gradePlan.completed ? "COMPLETED COURSES" : `GRADE ${String(gradePlan.grade).padStart(2, "0")}`}</small><h2>${gradePlan.completed ? "수강 완료 과목" : `${gradePlan.grade}학년 수강 과목`}</h2></div><em>${gradePlan.entries.length}과목</em></header><div class="simulation-final-type-list">${typeSections || '<p class="simulation-final-empty">등록된 과목이 없습니다.</p>'}</div></article>`;
   }
 
-  function simulationFinalContentMarkup() {
+  function simulationFinalContentMarkup(options = {}) {
     const plan = curriculumCoursePlan();
     const progress = curriculumSelectionProgress();
     const fixedCount = plan.reduce((sum, grade) => sum + grade.entries.filter((entry) => entry.type === "fixed").length, 0);
     const total = plan.reduce((sum, grade) => sum + grade.entries.length, 0);
     return `<section class="simulation-final-document">
       <header class="simulation-final-summary"><div><p>MY COURSE PLAN</p><h1>${escapeHtml(state.selectedSchool?.name || "선택 학교")} 수강 과목표</h1><span>${escapeHtml(state.selectedAdmissionYear || state.curriculum?.admissionYear || "-")}학년도 입학생 기준</span></div><dl><div><dt>전체 수강</dt><dd>${total}</dd></div><div><dt>공통·학교 지정</dt><dd>${fixedCount}</dd></div><div><dt>선택 완료</dt><dd>${progress.selectedCount}</dd></div></dl></header>
-      <div class="simulation-final-grade-grid">${plan.map(simulationFinalGradeMarkup).join("")}</div>
+      <div class="simulation-final-grade-grid">${plan.map((gradePlan) => simulationFinalGradeMarkup(gradePlan, options)).join("")}</div>
       <footer><span>${icon("check")} 학생이 고른 수강 완료 과목과 학교 편제표의 미래 수강 과목을 합산했습니다.</span><small>선택 과목 안내 플랫폼</small></footer>
+    </section>`;
+  }
+
+  function simulationValidationPickerResults(search = state.simulationValidationSearch) {
+    const query = compactText(search).toLocaleLowerCase("ko");
+    if (!query) return { count: 0, markup: "", hasSearch: false };
+    let count = 0;
+    const groups = state.departmentDataset.fields.map((field) => {
+      const departments = departmentsInField(field.name)
+        .filter((department) => !query || `${department.field} ${department.name}`.toLocaleLowerCase("ko").includes(query))
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      if (!departments.length) return "";
+      count += departments.length;
+      const visual = fieldVisual(field.name);
+      return `<section class="simulation-validation-department-group" style="--field-accent:${visual.accent}; --field-soft:${visual.soft}">
+        <header><span>${icon(visual.icon)}</span><strong>${escapeHtml(field.name)} 분야</strong><em>${departments.length}</em></header>
+        <div>${departments.map((department) => `<button type="button" data-simulation-validation-department="${escapeHtml(department.id)}"><span><strong>${escapeHtml(department.name)}</strong><small>관련 ${(department.relatedSubjects || []).length} · 반영 ${(department.reflectedSubjects || []).length}</small></span>${icon("arrow")}</button>`).join("")}</div>
+      </section>`;
+    }).join("");
+    return {
+      count,
+      hasSearch: true,
+      markup: groups || '<p class="simulation-validation-picker-empty">검색 결과와 일치하는 학과가 없습니다.</p>'
+    };
+  }
+
+  function simulationValidationPickerMarkup() {
+    if (!state.simulationValidationPickerOpen || state.simulationValidationDepartmentId) return "";
+    const results = simulationValidationPickerResults();
+    return `<section class="simulation-validation-picker" id="simulation-validation-picker" tabindex="-1" aria-labelledby="simulation-validation-picker-title">
+      <div class="simulation-validation-picker-controls">
+        <header class="simulation-validation-picker-head"><span>${icon("search")}</span><div><small>DEPARTMENT CHECK</small><h2 id="simulation-validation-picker-title">검증할 학과를 선택하세요</h2><p>분야별 학과 목록에서 선택하면 현재 수강표와 관련·반영 과목을 비교합니다.</p></div></header>
+        <label class="simulation-validation-search"><span class="sr-only">학과 검색</span>${icon("search")}<input type="search" value="${escapeHtml(state.simulationValidationSearch)}" placeholder="학과명 또는 분야 검색" autocomplete="off" data-simulation-validation-search></label>
+      </div>
+      <div class="simulation-validation-picker-results" data-simulation-validation-results-panel aria-live="polite"${results.hasSearch ? "" : " hidden"}>
+        <p class="simulation-validation-picker-count" data-simulation-validation-picker-count>검색 결과 ${results.count.toLocaleString("ko-KR")}개 학과</p>
+        <div class="simulation-validation-department-groups" data-simulation-validation-department-list>${results.markup}</div>
+      </div>
+    </section>`;
+  }
+
+  function simulationValidationSubjectListMarkup(subjects, selectedKeys, kind, reflectedKeys = new Set()) {
+    const normalized = (subjects || []).map((subject) => typeof subject === "string" ? { name: subject, universities: [] } : subject)
+      .filter((subject) => compactText(subject.name));
+    if (!normalized.length) return '<p class="simulation-validation-empty">등록된 과목이 없습니다.</p>';
+    const groups = groupedRecommendationSubjects(sortMajorSubjects(normalized));
+    return `<div class="simulation-validation-subject-groups">${groups.map((group) => {
+      const [accent, soft] = courseGroupPalette(group.category);
+      return `<section class="simulation-validation-course-group" style="--course-group-accent:${accent}; --course-group-soft:${soft}">
+        <header><span>${icon(courseGroupIcon(group.category))}</span><strong>${escapeHtml(group.category)}</strong><em>${group.entries.length}</em></header>
+        <ul>${group.entries.map((subject) => {
+          const courseKeys = simulationValidationCourseKeys(subject.name);
+          const selected = courseKeys.some((key) => selectedKeys.has(key));
+          const reflected = kind === "reflected" || courseKeys.some((key) => reflectedKeys.has(key));
+          const universityCount = kind === "reflected" && Array.isArray(subject.universities) ? subject.universities.length : 0;
+          return `<li class="${selected ? "is-selected" : "is-missing"} ${reflected ? "is-reflected" : ""}"><button class="simulation-validation-course-open" type="button" data-simulation-course="${escapeHtml(subject.name)}" aria-haspopup="dialog" aria-label="${escapeHtml(subject.name)} 과목 안내 열기"><span class="simulation-validation-course-copy"><span class="simulation-validation-course-name"><strong>${escapeHtml(subject.name)}</strong>${reflected ? reflectionStarMarkup() : ""}</span></span><span class="simulation-validation-course-badges">${universityCount ? `<small class="simulation-validation-university-badge">${universityCount.toLocaleString("ko-KR")}개 대학</small>` : ""}<em>${selected ? `${icon("check")} 선택함` : "미선택"}</em></span></button></li>`;
+        }).join("")}</ul>
+      </section>`;
+    }).join("")}</div>`;
+  }
+
+  function simulationDepartmentValidationMarkup(options = {}) {
+    const validation = simulationDepartmentCourseSets();
+    if (!validation) return "";
+    const printCopy = Boolean(options.print);
+    const resultId = printCopy ? "simulation-validation-print-results" : "simulation-validation-results";
+    const titleId = printCopy ? "simulation-validation-print-title" : "simulation-validation-title";
+    const selectedKeys = new Set(curriculumCoursePlan().flatMap((grade) => grade.entries).map((entry) => curriculumCourseAliasKey(entry.name)).filter(Boolean));
+    const relatedSubjects = validation.department.relatedSubjects || [];
+    const reflectedSubjects = validation.department.reflectedSubjects || [];
+    const isSelected = (subject) => simulationValidationCourseKeys(simulationValidationSubjectName(subject)).some((key) => selectedKeys.has(key));
+    const relatedSelected = relatedSubjects.filter(isSelected).length;
+    const reflectedSelected = reflectedSubjects.filter(isSelected).length;
+    return `<section class="simulation-department-validation${printCopy ? " is-print-copy" : ""}" id="${resultId}"${printCopy ? "" : " data-simulation-validation-results tabindex=\"-1\""} aria-labelledby="${titleId}">
+      <header><div><small>${escapeHtml(validation.department.field)} FIELD · DEPARTMENT CHECK</small><h2 id="${titleId}">${escapeHtml(validation.department.name)} 학과 검증</h2><p>${printCopy ? "수강 과목표를 기준으로 관련·반영 과목의 선택 여부를 확인합니다." : "위 수강표와 아래 전체 목록에서 선택 여부를 함께 확인할 수 있습니다."}</p></div></header>
+      <div class="simulation-validation-summary"><div class="is-related"><span>관련 과목 선택</span><strong>${relatedSelected}<small> / ${relatedSubjects.length}</small></strong></div><div class="is-reflected"><span>반영 과목 선택</span><strong>${reflectedSelected}<small> / ${reflectedSubjects.length}</small></strong></div></div>
+      <div class="simulation-validation-lists">
+        <section class="is-related"><header><div class="simulation-validation-section-heading"><span>${icon("book")}</span><div><small>RELATED COURSES</small><h3>관련 과목</h3></div></div><em>${relatedSubjects.length}</em></header>${reflectedSubjects.length ? reflectionMeaningNoteMarkup() : ""}${simulationValidationSubjectListMarkup(relatedSubjects, selectedKeys, "related", validation.reflected)}</section>
+        <section class="is-reflected"><header><div class="simulation-validation-section-heading"><span class="reflection-section-icon">${icon("solid-star")}</span><div><small>ADMISSION REFLECTION</small><h3>반영 과목 <b>중요</b></h3></div></div><em>${reflectedSubjects.length}</em></header>${simulationValidationSubjectListMarkup(reflectedSubjects, selectedKeys, "reflected", validation.reflected)}</section>
+      </div>
+      <p class="simulation-validation-note">${printCopy ? "학과별 관련·반영 과목 정보와 현재 선택 여부를 함께 표시한 결과입니다." : "학과 검증 결과는 수강 과목표 다음 장에 별도로 인쇄·저장됩니다."}</p>
     </section>`;
   }
 
@@ -2555,16 +2676,24 @@
     return `<b>${escapeHtml(name)}</b>${isUnlisted ? '<small class="curriculum-unlisted-badge">기타</small>' : ""}`;
   }
 
+  function curriculumCourseGuideButtonMarkup(course, className = "") {
+    const name = canonicalCourseTypography(course);
+    return `<button class="curriculum-course-guide ${className}" type="button" data-simulation-course="${escapeHtml(name)}" aria-haspopup="dialog" aria-label="${escapeHtml(name)} 과목 안내 열기" title="${escapeHtml(name)} 과목 안내 보기">${icon("search")}</button>`;
+  }
+
   function semesterCurriculumMarkup(gradeData, semesterData, semesterProgress, locked = false) {
     const selections = simulationSelectionMap();
     const standalone = semesterStandaloneCourses(semesterData);
     const commonMarkup = semesterData.common.length
-      ? semesterData.common.map((course) => `<span class="common-course-chip is-fixed-selected" aria-label="${escapeHtml(canonicalCourseTypography(course))} 자동 선택 완료"><span class="fixed-course-check" aria-hidden="true">✓</span>${curriculumCourseDisplayMarkup(course)}</span>`).join("")
+      ? semesterData.common.map((course) => `<span class="common-course-chip is-fixed-selected"><span class="fixed-course-check" aria-hidden="true">✓</span><span class="common-course-name">${curriculumCourseDisplayMarkup(course)}<span class="sr-only"> 자동 선택 완료</span></span>${curriculumCourseGuideButtonMarkup(course, "is-common")}</span>`).join("")
       : '<span class="curriculum-empty-copy">입력된 공통·학교 지정과목이 없습니다.</span>';
     const standaloneKey = curriculumStandaloneKey(gradeData.grade, semesterData.semester);
     const standaloneSelected = selectedSemesterStandalone(selections, gradeData.grade, semesterData);
     const standaloneMarkup = standalone.length
-      ? `<section class="curriculum-option-card is-open"><header><div><small>개설 선택과목</small><h3>자유 선택</h3></div><span><strong>${standaloneSelected.length}</strong>개 선택</span></header><div class="curriculum-course-options">${standalone.map((course) => `<button type="button" class="${standaloneSelected.includes(course) ? "is-selected" : ""}" data-curriculum-choice data-selection-key="${escapeHtml(standaloneKey)}" data-course-name="${escapeHtml(course)}" data-choose="0" aria-pressed="${standaloneSelected.includes(course)}" ${locked ? "disabled" : ""}><span>${standaloneSelected.includes(course) ? "✓" : "+"}</span>${curriculumCourseDisplayMarkup(course)}</button>`).join("")}</div></section>`
+      ? `<section class="curriculum-option-card is-open"><header><div><small>개설 선택과목</small><h3>자유 선택</h3></div><span><strong>${standaloneSelected.length}</strong>개 선택</span></header><div class="curriculum-course-options">${standalone.map((course) => {
+        const isSelected = standaloneSelected.includes(course);
+        return `<span class="curriculum-course-choice ${isSelected ? "is-selected" : ""}"><button type="button" class="curriculum-course-select ${isSelected ? "is-selected" : ""}" data-curriculum-choice data-selection-key="${escapeHtml(standaloneKey)}" data-course-name="${escapeHtml(course)}" data-choose="0" aria-pressed="${isSelected}" ${locked ? "disabled" : ""}><span>${isSelected ? "✓" : "+"}</span>${curriculumCourseDisplayMarkup(course)}</button>${curriculumCourseGuideButtonMarkup(course)}</span>`;
+      }).join("")}</div></section>`
       : "";
     const optionsMarkup = semesterData.options.length
       ? semesterData.options.map((option, index) => {
@@ -2577,7 +2706,7 @@
           <div class="curriculum-course-options">${option.courses.map((course) => {
             const isSelected = selected.includes(course);
             const atLimit = !isSelected && selected.length >= choose;
-            return `<button type="button" class="${isSelected ? "is-selected" : ""} ${atLimit ? "is-limit" : ""}" data-curriculum-choice data-selection-key="${escapeHtml(key)}" data-course-name="${escapeHtml(course)}" data-choose="${choose}" aria-pressed="${isSelected}" aria-disabled="${atLimit || locked}" ${locked ? "disabled" : ""}><span>${isSelected ? "✓" : "+"}</span>${curriculumCourseDisplayMarkup(course)}</button>`;
+            return `<span class="curriculum-course-choice ${isSelected ? "is-selected" : ""} ${atLimit ? "is-limit" : ""}"><button type="button" class="curriculum-course-select ${isSelected ? "is-selected" : ""} ${atLimit ? "is-limit" : ""}" data-curriculum-choice data-selection-key="${escapeHtml(key)}" data-course-name="${escapeHtml(course)}" data-choose="${choose}" aria-pressed="${isSelected}" aria-disabled="${atLimit || locked}" ${locked ? "disabled" : ""}><span>${isSelected ? "✓" : "+"}</span>${curriculumCourseDisplayMarkup(course)}</button>${curriculumCourseGuideButtonMarkup(course)}</span>`;
           }).join("")}</div>
         </section>`;
       }).join("")
@@ -2605,8 +2734,7 @@
     </article>`;
   }
 
-  function simulationSchoolOptionsMarkup(schools, hasSearch = true) {
-    if (!hasSearch) return "";
+  function simulationSchoolOptionsMarkup(schools) {
     return schools.length
       ? schools.map((school, index) => {
         const selected = state.selectedSchool?.id === school.id && Boolean(state.selectedAdmissionYear);
@@ -2618,28 +2746,31 @@
 
   function refreshSimulationSchoolResultsInPlace() {
     const hasSearch = Boolean(normalizedKey(state.simulationSchoolSearch));
-    const schools = hasSearch ? filteredSchools(state.simulationSchoolSearch) : [];
+    const schools = filteredSchools(state.simulationSchoolSearch);
     const options = root.querySelector(".simulation-school-options");
     const count = root.querySelector("[data-simulation-school-count]");
     const clear = root.querySelector("[data-clear-simulation-school-search]");
     if (options) {
-      options.hidden = !hasSearch;
-      options.innerHTML = simulationSchoolOptionsMarkup(schools, hasSearch);
+      options.hidden = false;
+      options.innerHTML = hasSearch ? simulationSchoolOptionsMarkup(schools) : "";
     }
-    if (count) count.textContent = `${hasSearch ? `${schools.length.toLocaleString("ko-KR")}/` : ""}${state.schools.length.toLocaleString("ko-KR")}곳`;
+    if (count) {
+      count.hidden = !hasSearch;
+      count.textContent = hasSearch ? `${schools.length.toLocaleString("ko-KR")}/${state.schools.length.toLocaleString("ko-KR")}곳` : "";
+    }
     if (clear) clear.hidden = !state.simulationSchoolSearch;
   }
 
   function simulationSchoolPickerMarkup() {
     const hasSearch = Boolean(normalizedKey(state.simulationSchoolSearch));
-    const schools = hasSearch ? filteredSchools(state.simulationSchoolSearch) : [];
-    const schoolOptions = simulationSchoolOptionsMarkup(schools, hasSearch);
+    const schools = filteredSchools(state.simulationSchoolSearch);
+    const schoolOptions = hasSearch ? simulationSchoolOptionsMarkup(schools) : "";
     return `<div class="simulation-school-picker">
       <button class="primary-action" type="button" data-open-school-picker aria-expanded="false" aria-controls="simulation-school-menu">${state.selectedSchool && state.selectedAdmissionYear ? "연동 학교 변경" : "학교 선택 열기"}</button>
       <section class="simulation-school-menu" id="simulation-school-menu" data-simulation-school-menu hidden>
-        <header><strong>연동 학교 목록</strong><span data-simulation-school-count>${state.schools.length.toLocaleString("ko-KR")}개 학교</span></header>
+        <header><strong>학교 검색</strong><span data-simulation-school-count${hasSearch ? "" : " hidden"}>${hasSearch ? `${schools.length.toLocaleString("ko-KR")}/${state.schools.length.toLocaleString("ko-KR")}개 학교` : ""}</span></header>
         <label class="simulation-school-search">${icon("search")}<input type="search" value="${escapeHtml(state.simulationSchoolSearch)}" placeholder="지역명 또는 학교명 검색" autocomplete="off" data-simulation-school-search><button type="button" data-clear-simulation-school-search aria-label="학교 검색어 지우기" ${state.simulationSchoolSearch ? "" : "hidden"}>×</button></label>
-        <div class="simulation-school-options" ${hasSearch ? "" : "hidden"}>${schoolOptions}</div>
+        <div class="simulation-school-options">${schoolOptions}</div>
       </section>
     </div>`;
   }
@@ -2719,12 +2850,20 @@
     if (!allowedGrades.some((grade) => grade.grade === Number(state.simulationGradeStep))) state.simulationGradeStep = allowedGrades.at(-1)?.grade || firstGrade;
 
     if (state.simulationResultOpen) {
+      if (state.simulationValidationDepartmentId && !departmentById(state.simulationValidationDepartmentId)) {
+        state.simulationValidationDepartmentId = "";
+        state.simulationValidationPickerOpen = false;
+      }
+      const validationActive = Boolean(state.simulationValidationDepartmentId);
       root.innerHTML = `
         ${renderNotices()}
         ${pageHead("최종 수강 과목", `${state.selectedSchool.name} ${state.curriculum.admissionYear || ""}년 입학생의 수강 완료 과목과 미래 수강 과목을 확인합니다.`, completedCount + commonCount + progress.selectedCount, "전체 과목")}
         ${simulationGradeProgressMarkup(progress)}
         <div class="simulation-final-actions"><button class="recommend-secondary-action" type="button" data-edit-simulation>${icon("arrow")} 과목 선택 수정</button>${printActionMarkup("simulation")}</div>
-        ${simulationFinalContentMarkup()}`;
+        ${simulationFinalContentMarkup()}
+        <div class="simulation-final-bottom-actions"><button class="simulation-validation-action ${validationActive ? "is-active" : ""}" type="button" data-toggle-simulation-validation aria-expanded="${state.simulationValidationPickerOpen || validationActive}" aria-controls="${validationActive ? "simulation-validation-results" : "simulation-validation-picker"}">${icon(validationActive ? "close" : "search")} ${validationActive ? "학과 검증 해제" : "학과 검증"}</button><button class="simulation-complete-action" type="button" data-complete-simulation>완료 ${icon("check")}</button></div>
+        ${simulationValidationPickerMarkup()}
+        ${simulationDepartmentValidationMarkup()}`;
       return;
     }
 
@@ -2742,7 +2881,7 @@
       </section>
       <section class="grade-curriculum-list is-single-grade" aria-live="polite">${gradeCurriculumMarkup(activeGrade)}</section>
       <section class="simulation-selection-summary ${activeProgress.complete ? "is-complete" : ""}">
-        <span>${icon(activeProgress.complete ? "check" : "route")}</span>
+        <span>${icon("checklist")}</span>
         <div><small>${activeGrade.grade}학년 선택 현황</small><h2>${activeProgress.optionCount ? `${activeProgress.optionCount}개 옵션 중 ${activeProgress.completedOptions}개 완료` : "선택 옵션 없음 · 공통 과목 확인 완료"}</h2><p>${activeProgress.optionCount ? `필수 선택 ${activeProgress.selectedChoices}/${activeProgress.requiredChoices} · ${semesterStatus}` : "공통 과목만 확인하면 다음 학년으로 이동할 수 있습니다."}</p></div>
         <div class="simulation-grade-actions"><button class="simulation-grade-back" type="button" data-simulation-prev-grade>${icon("arrow")} ${activeGrade.grade === firstGrade ? "수강 완료 과목" : "이전 학년"}</button>${activeGrade.grade < lastGrade ? `<button class="simulation-final-open" type="button" data-simulation-next-grade ${activeProgress.complete ? "" : "disabled"}>다음 · ${grades.find((grade) => grade.grade > activeGrade.grade)?.grade || lastGrade}학년 ${icon("arrow")}</button>` : `<button class="simulation-final-open" type="button" data-show-simulation-result ${progress.complete ? "" : "disabled"}>최종 수강표 확인 ${icon("arrow")}</button>`}</div>
       </section>`;
@@ -5633,8 +5772,22 @@
   function openCourseGuideByName(courseName) {
     const reference = curriculumCourseReference(courseName) || recommendationCourseReferences(courseName)[0];
     if (!reference) {
-      showToast(`${courseName || "선택한"} 과목의 안내 정보를 찾지 못했습니다.`);
-      return false;
+      const name = canonicalCourseTypography(courseName) || "과목 안내";
+      const parentView = captureDialogParentView(name);
+      state.dialogParentView = parentView;
+      state.dialogRecordIndex = -1;
+      state.dialogDepartmentId = "";
+      state.dialogBookIndex = -1;
+      state.dialogReturnToRecommend = false;
+      detailDialog.classList.remove(...DETAIL_DIALOG_MODE_CLASSES);
+      detailDialog.classList.add("is-course-dialog");
+      detailContent.innerHTML = `
+        <header class="course-dialog-head"><div><p class="dialog-kicker">COURSE GUIDE</p><h2 id="record-dialog-title">${escapeHtml(name)}</h2></div></header>
+        <div class="course-dialog-sections"><section class="course-dialog-section"><h3>과목 안내 정보가 아직 없습니다.</h3><p>학교 편제표에는 등록되어 있지만 과목 안내 데이터베이스에서 일치하는 과목을 찾지 못했습니다.</p></section></div>
+        ${dialogFooterMarkup()}`;
+      if (!detailDialog.open) detailDialog.showModal();
+      detailDialog.scrollTop = 0;
+      return true;
     }
     const parentView = captureDialogParentView(courseName);
     state.dialogParentView = parentView;
@@ -5704,6 +5857,15 @@
     };
   }
 
+  function simulationValidationPrintPageMarkup() {
+    const validation = simulationDepartmentCourseSets();
+    if (!validation) return "";
+    return `<section class="platform-print-simulation-validation-page">
+      <header class="platform-print-simulation-validation-context"><div><small>MY COURSE PLAN · DEPARTMENT CHECK</small><strong>${escapeHtml(state.selectedSchool?.name || "학교")} 학과 검증 결과</strong></div><span>${escapeHtml(state.selectedAdmissionYear || state.curriculum?.admissionYear || "-")}학년도 입학생 기준</span></header>
+      ${simulationDepartmentValidationMarkup({ print: true })}
+    </section>`;
+  }
+
   function ensurePlatformPrintRoot() {
     let printRoot = document.querySelector("[data-platform-print-root]");
     if (!printRoot) {
@@ -5717,9 +5879,15 @@
 
   function platformPrintDocumentMarkup(documentData) {
     const isSimulation = documentData.kind === "simulation";
-    const brand = isSimulation ? "" : `<header class="platform-print-brand"><div><span>${icon("school")}</span><strong>선택 과목 안내 플랫폼</strong></div><div><b>${escapeHtml(documentData.title)}</b><small>${escapeHtml(documentData.subtitle || "")}</small></div></header>`;
-    const footer = isSimulation ? "" : `<footer class="platform-print-footer"><span>선택 과목 안내 플랫폼</span><small>${new Intl.DateTimeFormat("ko-KR", { dateStyle: "long" }).format(new Date())}</small></footer>`;
-    return inlinePrintIconUses(`<article class="platform-print-document ${isSimulation ? "is-simulation-print" : ""}">${brand}${documentData.body}${footer}</article>`);
+    const pages = Array.isArray(documentData.pages) && documentData.pages.length
+      ? documentData.pages
+      : [{ body: documentData.body }];
+    return pages.map((page, index) => {
+      const brand = isSimulation ? "" : `<header class="platform-print-brand"><div><span>${icon("school")}</span><strong>선택 과목 안내 플랫폼</strong></div><div><b>${escapeHtml(documentData.title)}</b><small>${escapeHtml(documentData.subtitle || "")}</small></div></header>`;
+      const footer = isSimulation ? "" : `<footer class="platform-print-footer"><span>선택 과목 안내 플랫폼</span><small>${new Intl.DateTimeFormat("ko-KR", { dateStyle: "long" }).format(new Date())}</small></footer>`;
+      const pageClass = page.className ? ` ${page.className}` : "";
+      return inlinePrintIconUses(`<article class="platform-print-document ${isSimulation ? "is-simulation-print" : ""}${pageClass}" data-platform-print-page="${index + 1}">${brand}${page.body}${footer}</article>`);
+    }).join("");
   }
 
   function fitDepartmentCareerToPrintArea(printDocument) {
@@ -5797,55 +5965,71 @@
     };
   }
 
-  async function renderPlatformPrintCanvas(documentData) {
+  async function renderPlatformPrintCanvases(documentData) {
     const printRoot = ensurePlatformPrintRoot();
     printRoot.innerHTML = platformPrintDocumentMarkup(documentData);
+    const sources = [...printRoot.querySelectorAll(".platform-print-document")];
+    printRoot.classList.toggle("has-multiple-pages", sources.length > 1);
     document.body.classList.add("is-platform-image-capturing");
     try {
       if (document.fonts?.ready) {
         await Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 800))]);
       }
       await new Promise((resolve) => setTimeout(resolve, 60));
-      const source = printRoot.querySelector(".platform-print-document");
-      fitDepartmentCareerToPrintArea(source);
-      if (documentData.kind === "simulation") {
-        const sourceWidth = Math.max(1, source.getBoundingClientRect().width);
-        const printableRatio = (PLATFORM_EXPORT_WIDTH - PLATFORM_EXPORT_SAFE_PADDING * 2)
-          / (PLATFORM_EXPORT_HEIGHT - PLATFORM_EXPORT_SAFE_PADDING * 2);
-        const fittedHeight = Math.ceil(sourceWidth / printableRatio);
-        if (source.scrollHeight < fittedHeight) {
-          source.classList.add("is-page-height-fitted");
-          source.style.height = `${fittedHeight}px`;
+      const outputs = [];
+      for (const source of sources) {
+        fitDepartmentCareerToPrintArea(source);
+        if (documentData.kind === "simulation") {
+          const sourceWidth = Math.max(1, source.getBoundingClientRect().width);
+          const printableRatio = (PLATFORM_EXPORT_WIDTH - PLATFORM_EXPORT_SAFE_PADDING * 2)
+            / (PLATFORM_EXPORT_HEIGHT - PLATFORM_EXPORT_SAFE_PADDING * 2);
+          const fittedHeight = Math.ceil(sourceWidth / printableRatio);
+          const isValidationPage = source.classList.contains("is-simulation-validation-print");
+          if (isValidationPage) {
+            source.classList.add("is-page-height-fitted");
+            source.style.height = `${Math.max(fittedHeight, source.scrollHeight + 24)}px`;
+          } else if (source.scrollHeight < fittedHeight) {
+            source.classList.add("is-page-height-fitted");
+            source.style.height = `${fittedHeight}px`;
+          }
         }
+        const capture = await window.html2canvas(source, {
+          backgroundColor: "#ffffff",
+          scale: 1.25,
+          useCORS: true,
+          allowTaint: false,
+          logging: false,
+          imageTimeout: 8000
+        });
+        const output = document.createElement("canvas");
+        output.width = PLATFORM_EXPORT_WIDTH;
+        output.height = PLATFORM_EXPORT_HEIGHT;
+        const context = output.getContext("2d");
+        if (!context || !capture.width || !capture.height) throw new Error("출력 화면을 구성하지 못했습니다.");
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, output.width, output.height);
+        const placement = platformExportPlacement(capture.width, capture.height, output.width, output.height);
+        context.drawImage(capture, placement.drawX, placement.drawY, placement.drawWidth, placement.drawHeight);
+        outputs.push(output);
       }
-      const capture = await window.html2canvas(source, {
-        backgroundColor: "#ffffff",
-        scale: 1.25,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        imageTimeout: 8000
-      });
-      const output = document.createElement("canvas");
-      output.width = PLATFORM_EXPORT_WIDTH;
-      output.height = PLATFORM_EXPORT_HEIGHT;
-      const context = output.getContext("2d");
-      if (!context || !capture.width || !capture.height) throw new Error("출력 화면을 구성하지 못했습니다.");
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, output.width, output.height);
-      const placement = platformExportPlacement(capture.width, capture.height, output.width, output.height);
-      context.drawImage(capture, placement.drawX, placement.drawY, placement.drawWidth, placement.drawHeight);
-      return output;
+      return outputs;
     } finally {
       document.body.classList.remove("is-platform-image-capturing");
       printRoot.replaceChildren();
+      printRoot.classList.remove("has-multiple-pages");
     }
   }
 
-  function singlePagePdfBlob(jpegBytes, imageWidth, imageHeight) {
+  async function renderPlatformPrintCanvas(documentData) {
+    return (await renderPlatformPrintCanvases(documentData))[0];
+  }
+
+  function multiPagePdfBlob(pages) {
     const encoder = new TextEncoder();
     const chunks = [];
-    const offsets = Array(6).fill(0);
+    const pageList = pages.length ? pages : [{ bytes: new Uint8Array(), width: 1, height: 1 }];
+    const objectCount = 2 + pageList.length * 3;
+    const offsets = Array(objectCount + 1).fill(0);
     let byteLength = 0;
     const push = (value) => {
       const bytes = typeof value === "string" ? encoder.encode(value) : value;
@@ -5858,17 +6042,28 @@
     };
     push("%PDF-1.4\n%1234\n");
     addObject(1, "<< /Type /Catalog /Pages 2 0 R >>");
-    addObject(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-    addObject(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 841.89 595.28] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>");
-    offsets[4] = byteLength;
-    push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imageWidth} /Height ${imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Interpolate true /Length ${jpegBytes.length} >>\nstream\n`);
-    push(jpegBytes);
-    push("\nendstream\nendobj\n");
-    const pageCommands = "q\n841.89 0 0 595.28 0 0 cm\n/Im0 Do\nQ";
-    addObject(5, `<< /Length ${encoder.encode(pageCommands).length} >>\nstream\n${pageCommands}\nendstream`);
+    const pageObjectNumbers = pageList.map((_, index) => 3 + index * 3);
+    addObject(2, `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pageList.length} >>`);
+    pageList.forEach((page, index) => {
+      const pageObject = pageObjectNumbers[index];
+      const imageObject = pageObject + 1;
+      const contentObject = pageObject + 2;
+      const imageName = `Im${index}`;
+      addObject(pageObject, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 841.89 595.28] /Resources << /XObject << /${imageName} ${imageObject} 0 R >> >> /Contents ${contentObject} 0 R >>`);
+      offsets[imageObject] = byteLength;
+      push(`${imageObject} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${page.width} /Height ${page.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Interpolate true /Length ${page.bytes.length} >>\nstream\n`);
+      push(page.bytes);
+      push("\nendstream\nendobj\n");
+      const pageCommands = `q\n841.89 0 0 595.28 0 0 cm\n/${imageName} Do\nQ`;
+      addObject(contentObject, `<< /Length ${encoder.encode(pageCommands).length} >>\nstream\n${pageCommands}\nendstream`);
+    });
     const xrefOffset = byteLength;
-    push(`xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("")}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+    push(`xref\n0 ${objectCount + 1}\n0000000000 65535 f \n${offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("")}trailer\n<< /Size ${objectCount + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
     return new Blob(chunks, { type: "application/pdf" });
+  }
+
+  function singlePagePdfBlob(jpegBytes, imageWidth, imageHeight) {
+    return multiPagePdfBlob([{ bytes: jpegBytes, width: imageWidth, height: imageHeight }]);
   }
 
   async function downloadPlatformPrintImage(documentData) {
@@ -5887,11 +6082,11 @@
     platformExportBusy = true;
     showToast("현재 화면을 PNG 이미지로 만들고 있습니다.", 5000);
     try {
-      const output = await renderPlatformPrintCanvas(documentData);
-      const blob = await new Promise((resolve) => output.toBlob(resolve, "image/png"));
-      if (!blob) throw new Error("PNG 변환에 실패했습니다.");
-      downloadPlatformBlob(blob, platformExportFileName(documentData.title, "png"));
-      showToast("PNG 이미지 파일을 저장했습니다.");
+      const outputs = await renderPlatformPrintCanvases(documentData);
+      const blobs = await Promise.all(outputs.map((output) => new Promise((resolve) => output.toBlob(resolve, "image/png"))));
+      if (blobs.some((blob) => !blob)) throw new Error("PNG 변환에 실패했습니다.");
+      blobs.forEach((blob, index) => downloadPlatformBlob(blob, platformExportFileName(`${documentData.title}${blobs.length > 1 ? `-${index + 1}페이지` : ""}`, "png")));
+      showToast(blobs.length > 1 ? `${blobs.length}장의 PNG 이미지 파일을 저장했습니다.` : "PNG 이미지 파일을 저장했습니다.");
     } catch (error) {
       console.error("모바일 이미지 저장 실패:", error);
       showToast("이미지 파일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.", 4500);
@@ -5914,14 +6109,15 @@
       return;
     }
     platformExportBusy = true;
-    showToast("한 페이지 PDF 파일을 만들고 있습니다.", 5000);
+    showToast("PDF 파일을 만들고 있습니다.", 5000);
     try {
-      const output = await renderPlatformPrintCanvas(documentData);
-      const jpegBlob = await new Promise((resolve) => output.toBlob(resolve, "image/jpeg", 0.94));
-      if (!jpegBlob) throw new Error("PDF용 이미지 변환에 실패했습니다.");
-      const pdfBlob = singlePagePdfBlob(new Uint8Array(await jpegBlob.arrayBuffer()), output.width, output.height);
+      const outputs = await renderPlatformPrintCanvases(documentData);
+      const jpegBlobs = await Promise.all(outputs.map((output) => new Promise((resolve) => output.toBlob(resolve, "image/jpeg", 0.94))));
+      if (jpegBlobs.some((blob) => !blob)) throw new Error("PDF용 이미지 변환에 실패했습니다.");
+      const pages = await Promise.all(jpegBlobs.map(async (blob, index) => ({ bytes: new Uint8Array(await blob.arrayBuffer()), width: outputs[index].width, height: outputs[index].height })));
+      const pdfBlob = multiPagePdfBlob(pages);
       downloadPlatformBlob(pdfBlob, platformExportFileName(documentData.title, "pdf"));
-      showToast("PDF 파일을 저장했습니다.");
+      showToast(pages.length > 1 ? `${pages.length}페이지 PDF 파일을 저장했습니다.` : "PDF 파일을 저장했습니다.");
     } catch (error) {
       console.error("PDF 저장 실패:", error);
       showToast("PDF 파일을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.", 4500);
@@ -5931,48 +6127,54 @@
   }
 
   function fitPlatformPrintToSinglePage(printRoot) {
-    const printDocument = printRoot?.querySelector(".platform-print-document");
-    if (!printDocument) return;
-    fitDepartmentCareerToPrintArea(printDocument);
-    const documentBounds = printDocument.getBoundingClientRect();
-    const isSimulation = printDocument.classList.contains("is-simulation-print");
-    const descendantBottom = [...printDocument.querySelectorAll("*")].reduce((bottom, element) => {
-      const bounds = element.getBoundingClientRect();
-      return Math.max(bottom, bounds.bottom - documentBounds.top);
-    }, 0);
-    const contentWidth = Math.max(1, Math.ceil(Math.max(printDocument.scrollWidth, documentBounds.width)));
-    const measuredHeight = Math.max(printDocument.scrollHeight, documentBounds.height, descendantBottom);
-    const printablePageHeight = Math.ceil(contentWidth * (PLATFORM_PRINTABLE_HEIGHT_MM / PLATFORM_PRINTABLE_WIDTH_MM));
-    const measuredContentHeight = Math.ceil(measuredHeight * 1.015 + 4);
-    const contentHeight = Math.max(1, measuredContentHeight, isSimulation ? printablePageHeight : 0);
+    const printDocuments = [...(printRoot?.querySelectorAll(".platform-print-document") || [])];
+    if (!printDocuments.length) return;
     const svgNamespace = "http://www.w3.org/2000/svg";
     const xhtmlNamespace = "http://www.w3.org/1999/xhtml";
-    const sheet = document.createElementNS(svgNamespace, "svg");
-    sheet.classList.add("platform-print-sheet-svg");
-    sheet.setAttribute("viewBox", `0 0 ${contentWidth} ${contentHeight}`);
-    if (isSimulation) sheet.classList.add("is-simulation-print-sheet");
-    sheet.setAttribute("preserveAspectRatio", "xMidYMin meet");
-    sheet.setAttribute("role", "img");
-    sheet.setAttribute("aria-label", "한 페이지 인쇄 문서");
-    const foreignObject = document.createElementNS(svgNamespace, "foreignObject");
-    foreignObject.setAttribute("width", String(contentWidth));
-    foreignObject.setAttribute("height", String(contentHeight));
-    const canvas = document.createElement("div");
-    canvas.setAttribute("xmlns", xhtmlNamespace);
-    canvas.className = "platform-print-svg-canvas";
-    canvas.style.width = `${contentWidth}px`;
-    canvas.style.height = `${contentHeight}px`;
-    const clone = printDocument.cloneNode(true);
-    clone.classList.add("is-svg-clone");
-    clone.style.width = `${contentWidth}px`;
-    if (isSimulation) {
-      clone.classList.add("is-page-height-fitted");
-      clone.style.height = `${contentHeight}px`;
-    }
-    canvas.append(clone);
-    foreignObject.append(canvas);
-    sheet.append(foreignObject);
-    printRoot.replaceChildren(sheet);
+    const sheets = printDocuments.map((printDocument, index) => {
+      fitDepartmentCareerToPrintArea(printDocument);
+      const documentBounds = printDocument.getBoundingClientRect();
+      const isSimulation = printDocument.classList.contains("is-simulation-print");
+      const descendantBottom = [...printDocument.querySelectorAll("*")].reduce((bottom, element) => {
+        const bounds = element.getBoundingClientRect();
+        return Math.max(bottom, bounds.bottom - documentBounds.top);
+      }, 0);
+      const contentWidth = Math.max(1, Math.ceil(Math.max(printDocument.scrollWidth, documentBounds.width)));
+      const measuredHeight = Math.max(printDocument.scrollHeight, documentBounds.height, descendantBottom);
+      const printablePageHeight = Math.ceil(contentWidth * (PLATFORM_PRINTABLE_HEIGHT_MM / PLATFORM_PRINTABLE_WIDTH_MM));
+      const isValidationPage = printDocument.classList.contains("is-simulation-validation-print");
+      const measuredContentHeight = Math.ceil(measuredHeight * (isValidationPage ? 1.04 : 1.015) + (isValidationPage ? 24 : 4));
+      const contentHeight = Math.max(1, measuredContentHeight, isSimulation ? printablePageHeight : 0);
+      const sheet = document.createElementNS(svgNamespace, "svg");
+      sheet.classList.add("platform-print-sheet-svg");
+      sheet.dataset.platformPrintPage = String(index + 1);
+      sheet.setAttribute("viewBox", `0 0 ${contentWidth} ${contentHeight}`);
+      if (isSimulation) sheet.classList.add("is-simulation-print-sheet");
+      sheet.setAttribute("preserveAspectRatio", "xMidYMin meet");
+      sheet.setAttribute("role", "img");
+      sheet.setAttribute("aria-label", `${index + 1}페이지 인쇄 문서`);
+      const foreignObject = document.createElementNS(svgNamespace, "foreignObject");
+      foreignObject.setAttribute("width", String(contentWidth));
+      foreignObject.setAttribute("height", String(contentHeight));
+      const canvas = document.createElement("div");
+      canvas.setAttribute("xmlns", xhtmlNamespace);
+      canvas.className = "platform-print-svg-canvas";
+      canvas.style.width = `${contentWidth}px`;
+      canvas.style.height = `${contentHeight}px`;
+      const clone = printDocument.cloneNode(true);
+      clone.classList.add("is-svg-clone");
+      clone.style.width = `${contentWidth}px`;
+      if (isSimulation) {
+        clone.classList.add("is-page-height-fitted");
+        clone.style.height = `${contentHeight}px`;
+      }
+      canvas.append(clone);
+      foreignObject.append(canvas);
+      sheet.append(foreignObject);
+      return sheet;
+    });
+    printRoot.classList.toggle("has-multiple-pages", sheets.length > 1);
+    printRoot.replaceChildren(...sheets);
   }
 
   function openPlatformPrint(documentData) {
@@ -5983,6 +6185,7 @@
     const printRoot = ensurePlatformPrintRoot();
     const previousTitle = document.title;
     printRoot.innerHTML = platformPrintDocumentMarkup(documentData);
+    printRoot.classList.toggle("has-multiple-pages", printRoot.querySelectorAll(".platform-print-document").length > 1);
     document.title = `${documentData.title} - 선택 과목 안내 플랫폼`;
     document.body.classList.add("is-platform-printing", "is-platform-print-measuring");
     let finished = false;
@@ -6009,11 +6212,16 @@
     else if (kind === "department") documentData = departmentPrintMarkup(id);
     else if (kind === "recommendation") documentData = recommendationPrintMarkup();
     else if (kind === "simulation") {
+      const body = simulationFinalContentMarkup({ includeValidation: false });
+      const validationPage = simulationValidationPrintPageMarkup();
       documentData = {
         kind: "simulation",
         title: `${state.selectedSchool?.name || "학교"} 수강 과목표`,
         subtitle: `${state.selectedAdmissionYear || state.curriculum?.admissionYear || "-"}학년도 입학생 기준`,
-        body: simulationFinalContentMarkup()
+        body,
+        pages: validationPage
+          ? [{ body }, { body: validationPage, className: "is-simulation-validation-print" }]
+          : [{ body }]
       };
     }
     return documentData;
@@ -6330,6 +6538,66 @@
       state.simulationResultOpen = false;
       renderSimulation();
       focusSimulationStageStart();
+      return;
+    }
+
+    const completeSimulationButton = event.target.closest("[data-complete-simulation]");
+    if (completeSimulationButton) {
+      completeSimulationButton.disabled = true;
+      try {
+        const snapshot = schoolStore?.disconnectSchool ? await schoolStore.disconnectSchool() : {};
+        syncSchoolState(snapshot);
+        resetSimulationAttempt();
+        state.simulationSchoolSearch = "";
+        render();
+        requestAnimationFrame(() => root.querySelector("[data-open-school-picker]")?.focus({ preventScroll: true }));
+        showToast("모의 수강신청을 완료했습니다. 다른 학교를 선택할 수 있습니다.");
+      } catch (error) {
+        completeSimulationButton.disabled = false;
+        showToast(error.message || "모의 수강신청을 종료하지 못했습니다.", 4500);
+      }
+      return;
+    }
+
+    if (event.target.closest("[data-toggle-simulation-validation]")) {
+      if (state.simulationValidationDepartmentId) {
+        state.simulationValidationDepartmentId = "";
+        state.simulationValidationPickerOpen = false;
+        state.simulationValidationSearch = "";
+        renderSimulation();
+        requestAnimationFrame(() => root.querySelector("[data-toggle-simulation-validation]")?.focus({ preventScroll: true }));
+        showToast("학과 검증을 해제했습니다.");
+        return;
+      }
+      state.simulationValidationPickerOpen = !state.simulationValidationPickerOpen;
+      state.simulationValidationSearch = "";
+      renderSimulation();
+      if (state.simulationValidationPickerOpen) {
+        requestAnimationFrame(() => {
+          const picker = root.querySelector("#simulation-validation-picker");
+          picker?.focus({ preventScroll: true });
+          const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+          picker?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+        });
+      }
+      return;
+    }
+
+    const validationDepartmentButton = event.target.closest("[data-simulation-validation-department]");
+    if (validationDepartmentButton) {
+      const department = departmentById(validationDepartmentButton.dataset.simulationValidationDepartment);
+      if (!department) return;
+      state.simulationValidationDepartmentId = department.id;
+      state.simulationValidationPickerOpen = false;
+      state.simulationValidationSearch = "";
+      renderSimulation();
+      requestAnimationFrame(() => {
+        const results = root.querySelector("[data-simulation-validation-results]");
+        results?.focus({ preventScroll: true });
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        results?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      });
+      showToast(`${department.name} 관련·반영 과목을 검증했습니다.`);
       return;
     }
 
@@ -7178,6 +7446,24 @@
   });
 
   root.addEventListener("input", (event) => {
+    if (event.target.matches("[data-simulation-validation-search]")) {
+      state.simulationValidationSearch = event.target.value;
+      const results = simulationValidationPickerResults(event.target.value);
+      const list = root.querySelector("[data-simulation-validation-department-list]");
+      const count = root.querySelector("[data-simulation-validation-picker-count]");
+      const resultsPanel = root.querySelector("[data-simulation-validation-results-panel]");
+      if (list) list.innerHTML = results.markup;
+      if (resultsPanel) resultsPanel.hidden = !results.hasSearch;
+      if (count) {
+        count.textContent = results.hasSearch ? `검색 결과 ${results.count.toLocaleString("ko-KR")}개 학과` : "";
+      }
+      if (results.hasSearch) requestAnimationFrame(() => {
+        const firstResult = resultsPanel?.querySelector(".simulation-validation-department-group, .simulation-validation-picker-empty") || resultsPanel;
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        firstResult?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
+      });
+      return;
+    }
     if (event.target.matches("[data-simulation-school-search]")) {
       state.simulationSchoolSearch = event.target.value;
       refreshSimulationSchoolResultsInPlace();
@@ -7751,8 +8037,13 @@
     }
     const schoolYearOption = event.target.closest(".header-school-picker [data-school-connect-year]");
     if (schoolYearOption && schoolStore) {
-      schoolYearOption.disabled = true;
+      const yearOptions = schoolYearOption.closest("[data-school-year-options]");
+      const yearButtons = [...(yearOptions?.querySelectorAll("[data-school-connect-year]") || [])];
+      yearButtons.forEach((button) => { button.disabled = true; });
+      schoolYearOption.classList.add("is-clicked");
+      schoolYearOption.setAttribute("aria-pressed", "true");
       try {
+        await new Promise((resolve) => setTimeout(resolve, 180));
         const result = await schoolStore.selectSchoolAdmissionYear(state.schoolPickerPendingId, Number(schoolYearOption.dataset.schoolConnectYear));
         syncSchoolState(result);
         syncSimulationSubjects();
@@ -7763,7 +8054,9 @@
         closeHeaderSchoolPicker();
         showToast(`${state.selectedSchool?.name || "학교"} ${state.selectedAdmissionYear}년 입학생 편제표를 연결했습니다.`);
       } catch (error) {
-        schoolYearOption.disabled = false;
+        yearButtons.forEach((button) => { button.disabled = false; });
+        schoolYearOption.classList.remove("is-clicked");
+        schoolYearOption.setAttribute("aria-pressed", "false");
         showToast(error.message || "입학년도 편제표를 불러오지 못했습니다.", 4500);
       }
       return;
@@ -7970,27 +8263,23 @@
   };
 
   let appDataReady = false;
-  if (schoolStore) {
-    schoolStore.init().then(async (snapshot) => {
+  const schoolDataReady = schoolStore
+    ? schoolStore.init().then(async (snapshot) => {
       syncSchoolState(snapshot);
       if (state.accessRole === "teacher") await releaseTeacherCurriculumAccess();
       if (state.accessRole === "admin" && state.tab === "admin") await loadAdminVisitorStatistics();
-      syncSimulationSubjects();
-      if (appDataReady) render();
     }).catch((error) => {
       console.error("학교 데이터 초기화 실패:", error);
       state.notices.push("학교 연동 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
-      if (appDataReady) render();
-    });
-  }
+    })
+    : Promise.resolve();
 
-  try {
-    await Promise.all([loadDatabase(), loadDepartmentDatabase()]);
-    syncSimulationSubjects();
-  } catch (error) {
+  const guideDataReady = Promise.all([loadDatabase(), loadDepartmentDatabase()]).catch((error) => {
     console.error("앱 초기화 실패:", error);
     state.notices = ["데이터베이스를 시작하지 못했습니다. 페이지를 새로고침해 주세요."];
-  }
+  });
+  await Promise.all([schoolDataReady, guideDataReady]);
+  syncSimulationSubjects();
   appDataReady = true;
   render();
   const initialDepartmentDetail = pageParams.get("detail");

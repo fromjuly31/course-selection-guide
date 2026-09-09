@@ -2648,6 +2648,22 @@ body.is-platform-image-capturing .platform-print-root {
     padding: 0 !important;
     overflow: hidden !important;
   }
+
+  body.is-platform-printing .platform-print-root.has-multiple-pages {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  body.is-platform-printing .platform-print-root.has-multiple-pages .platform-print-sheet-svg {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  body.is-platform-printing .platform-print-root.has-multiple-pages .platform-print-sheet-svg:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
 }
 
 /* 학교 편제표 권한 확인과 관리자 관리 도구 */
@@ -3698,6 +3714,174 @@ body.is-platform-image-capturing .platform-print-root {
     margin-top: 1.2mm;
     padding-top: 1.2mm;
     font-size: 6.5pt;
+  }
+
+  .platform-print-simulation-validation-page {
+    min-height: 100%;
+    color: #17312c;
+  }
+
+  .platform-print-simulation-validation-context {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 3mm;
+    margin-bottom: 1.5mm;
+    padding: 2mm;
+    border-radius: 2mm;
+    color: #fff;
+    background: #123f37;
+  }
+
+  .platform-print-simulation-validation-context > div {
+    display: grid;
+    gap: 0.8mm;
+  }
+
+  .platform-print-simulation-validation-context small {
+    color: #8ce0c5;
+    font: 800 6.5pt Consolas, monospace;
+    letter-spacing: 0.1em;
+  }
+
+  .platform-print-simulation-validation-context strong {
+    font-size: 13.5pt;
+  }
+
+  .platform-print-simulation-validation-context > span {
+    flex: 0 0 auto;
+    font-size: 7pt;
+    font-weight: 750;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-department-validation {
+    margin: 0;
+    padding: 0.6mm;
+    overflow: visible;
+    border-radius: 2mm;
+    box-shadow: none;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-department-validation > header h2 {
+    font-size: 13pt;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-department-validation > header p {
+    font-size: 6.5pt;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-summary {
+    gap: 1.5mm;
+    margin-top: 1.5mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-summary > div {
+    padding: 1.5mm 2mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-lists {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+    gap: 1.8mm;
+    margin-top: 1.8mm;
+    overflow: visible;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-lists > section {
+    overflow: visible;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-lists > section > header {
+    padding: 1.5mm 2mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-section-heading > span {
+    width: 6mm;
+    height: 6mm;
+    border-radius: 1.5mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-section-heading h3 {
+    font-size: 9pt;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-subject-groups {
+    gap: 1.2mm;
+    padding: 1mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-group > header {
+    min-height: 5mm;
+    padding: 0.6mm 1.2mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-group > header > span {
+    width: 4.5mm;
+    height: 4.5mm;
+    border-radius: 1mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-group > header .icon {
+    width: 2.8mm;
+    height: 2.8mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-group > header strong,
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-group > header em {
+    font-size: 6.5pt;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-lists > .is-related .simulation-validation-course-group > ul {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.6mm;
+    padding: 0.6mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-lists > .is-reflected .simulation-validation-course-group > ul {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6mm;
+    padding: 0.6mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-open {
+    min-height: 4.6mm;
+    align-items: center;
+    gap: 0.55mm;
+    padding: 0.4mm 0.7mm;
+    cursor: default;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-copy {
+    display: flex;
+    min-height: 3.5mm;
+    align-self: stretch;
+    align-items: center;
+    padding-left: 0.45mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-name {
+    min-width: 0;
+    align-items: center;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-copy strong {
+    font-size: 5.8pt;
+    line-height: 1;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-badges {
+    gap: 0.3mm;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-badges > small,
+  .platform-print-root .is-simulation-validation-print .simulation-validation-course-badges > em {
+    padding: 0.35mm 0.55mm;
+    font-size: 4.5pt;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-validation-note {
+    margin-top: 1mm;
+    font-size: 6pt;
   }
 
   .platform-print-detail {
@@ -8274,13 +8458,20 @@ body.is-platform-image-capturing .platform-print-root {
 
 .curriculum-unlisted-badge {
   display: inline-flex;
-  padding: 2px 5px;
+  min-height: 18px;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  margin-left: 7px;
+  padding: 3px 7px;
   border-radius: 999px;
   color: #765313 !important;
   background: #fff1bd;
-  font-size: 7px !important;
+  font-family: inherit;
+  font-size: 9px !important;
   font-weight: 850 !important;
-  line-height: 1.2;
+  line-height: 1;
+  vertical-align: middle;
 }
 
 .curriculum-course-options button.is-selected .curriculum-unlisted-badge {
@@ -20918,5 +21109,929 @@ body:has(dialog[open]) {
 
   .visitor-dashboard-state > button {
     grid-column: 1 / -1;
+  }
+}
+
+/* 모의 수강신청 과목 카드의 우측 과목 안내 아이콘 */
+.curriculum-course-choice {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.semester-curriculum-section .curriculum-course-options .curriculum-course-select {
+  width: 100%;
+  min-width: 0;
+  padding-right: 46px;
+}
+
+.semester-curriculum-section .curriculum-course-options .curriculum-course-guide {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  place-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #08745b;
+  background: transparent;
+  text-align: center;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.curriculum-course-options .curriculum-course-guide:hover,
+.curriculum-course-options .curriculum-course-guide:focus-visible {
+  color: #065e4a;
+  background: rgba(8, 116, 91, 0.1);
+  outline: none;
+}
+
+.curriculum-course-options .curriculum-course-guide .icon {
+  width: 16px;
+  height: 16px;
+  color: currentColor;
+}
+
+.curriculum-course-choice.is-selected .curriculum-course-guide {
+  color: #fff;
+}
+
+.curriculum-course-choice.is-selected .curriculum-course-guide:hover,
+.curriculum-course-choice.is-selected .curriculum-course-guide:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.common-course-chip.is-fixed-selected {
+  position: relative;
+  padding-right: 39px;
+}
+
+.common-course-name {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.common-course-name .curriculum-unlisted-badge {
+  margin-left: 7px;
+}
+
+.common-course-chip .curriculum-course-guide {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  right: 5px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: transparent;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.common-course-chip .curriculum-course-guide:hover,
+.common-course-chip .curriculum-course-guide:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+  outline: none;
+}
+
+.common-course-chip .curriculum-course-guide .icon {
+  width: 15px;
+  height: 15px;
+  color: currentColor;
+}
+
+.semester-curriculum-section.is-locked .curriculum-course-options .curriculum-course-guide {
+  opacity: 1;
+  cursor: pointer;
+}
+
+.semester-curriculum-section .curriculum-option-card header > span {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  padding: 8px 13px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.semester-curriculum-section .curriculum-option-card header > span strong {
+  margin-right: 3px;
+  font-family: inherit;
+  font-size: 17px;
+  line-height: 1;
+}
+
+/* 최종 결과 화면의 학과 검증 */
+.simulation-final-course-group li.is-department-related {
+  border-color: #1976d2;
+  border-width: 2px;
+  background: #f2f8ff;
+}
+
+.simulation-final-course-group li.is-department-reflected {
+  border-color: #d32f2f;
+  border-width: 2px;
+  background: #fff5f5;
+}
+
+.simulation-final-course-group li.is-department-related.is-department-reflected {
+  border-color: #d32f2f;
+  outline: 2px solid #1976d2;
+  outline-offset: 1px;
+  background: linear-gradient(135deg, #f2f8ff 0 50%, #fff5f5 50%);
+}
+
+.simulation-final-bottom-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.simulation-validation-action,
+.simulation-complete-action {
+  display: inline-flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 20px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.simulation-validation-action {
+  border: 1px solid #a9c9e6;
+  color: #145da0;
+  background: #f2f8ff;
+}
+
+.simulation-validation-action:hover,
+.simulation-validation-action:focus-visible {
+  border-color: #1976d2;
+  background: #e5f2ff;
+  outline: none;
+}
+
+.simulation-validation-action.is-active {
+  border-color: #e0aaaa;
+  color: #a52626;
+  background: #fff4f4;
+}
+
+.simulation-complete-action {
+  border: 1px solid #08745b;
+  color: #fff;
+  background: #08745b;
+}
+
+.simulation-complete-action:hover,
+.simulation-complete-action:focus-visible {
+  color: #fff;
+  background: #065e4a;
+  outline: none;
+}
+
+.simulation-validation-action .icon,
+.simulation-complete-action .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.simulation-validation-picker {
+  margin-top: 14px;
+  scroll-margin-top: 96px;
+  outline: none;
+}
+
+.simulation-validation-picker-controls {
+  min-height: 170px;
+  padding: 24px;
+  border: 1px solid #c9ddeb;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f5faff 0, #fff 190px);
+  box-shadow: 0 16px 38px rgba(34, 82, 117, 0.09);
+}
+
+.simulation-validation-picker:focus .simulation-validation-picker-controls,
+.simulation-validation-picker:focus-within .simulation-validation-picker-controls {
+  border-color: #7eb8df;
+  box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.1), 0 16px 38px rgba(34, 82, 117, 0.09);
+}
+
+.simulation-validation-picker-results {
+  margin-top: 12px;
+}
+
+.simulation-validation-picker-results[hidden] {
+  display: none;
+}
+
+.simulation-validation-picker-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 15px;
+}
+
+.simulation-validation-picker-head > span {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 16px;
+  color: #1769aa;
+  background: #e1effb;
+}
+
+.simulation-validation-picker-head .icon {
+  width: 21px;
+  height: 21px;
+}
+
+.simulation-validation-picker-head small,
+.simulation-validation-picker-head h2,
+.simulation-validation-picker-head p {
+  margin: 0;
+}
+
+.simulation-validation-picker-head small {
+  color: #1769aa;
+  font: 800 10px Consolas, monospace;
+  letter-spacing: 0.12em;
+}
+
+.simulation-validation-picker-head h2 {
+  margin-top: 3px;
+  font-size: 22px;
+}
+
+.simulation-validation-picker-head p {
+  margin-top: 5px;
+  color: #647b87;
+  font-size: 13px;
+}
+
+.simulation-validation-search {
+  position: relative;
+  display: block;
+  margin-top: 20px;
+}
+
+.simulation-validation-search > .icon {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  width: 19px;
+  height: 19px;
+  color: #58809a;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.simulation-validation-search input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 16px 0 46px;
+  border: 1px solid #a9c9df;
+  border-radius: 14px;
+  outline: none;
+  color: #213e49;
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.simulation-validation-search input:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.11);
+}
+
+.simulation-validation-picker-count {
+  margin: 10px 2px 8px;
+  color: #607985;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+}
+
+.simulation-validation-department-groups {
+  display: grid;
+  gap: 12px;
+  grid-auto-rows: max-content;
+  align-content: start;
+  overflow: visible;
+  padding: 2px;
+}
+
+.simulation-validation-department-group {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--field-accent) 24%, #dbe6e3);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.simulation-validation-department-group > header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  color: var(--field-accent);
+  background: var(--field-soft);
+}
+
+.simulation-validation-department-group > header > span {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.simulation-validation-department-group > header .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.simulation-validation-department-group > header strong {
+  font-size: 14px;
+}
+
+.simulation-validation-department-group > header em {
+  margin-left: auto;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.simulation-validation-department-group > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+}
+
+.simulation-validation-department-group button {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 11px;
+  border: 1px solid #dce7e3;
+  border-radius: 12px;
+  color: #294840;
+  background: #fbfdfc;
+  text-align: left;
+  cursor: pointer;
+}
+
+.simulation-validation-department-group button:hover,
+.simulation-validation-department-group button:focus-visible {
+  border-color: var(--field-accent);
+  color: var(--field-accent);
+  background: var(--field-soft);
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--field-accent);
+}
+
+.simulation-validation-department-group button > span {
+  min-width: 0;
+}
+
+.simulation-validation-department-group button strong,
+.simulation-validation-department-group button small {
+  display: block;
+}
+
+.simulation-validation-department-group button strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simulation-validation-department-group button small {
+  margin-top: 4px;
+  color: #70827d;
+  font-size: 10px;
+}
+
+.simulation-validation-department-group button > .icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  transition: transform 160ms ease;
+}
+
+.simulation-validation-department-group button:hover > .icon,
+.simulation-validation-department-group button:focus-visible > .icon {
+  transform: translateX(2px);
+}
+
+.simulation-validation-picker-empty {
+  margin: 0;
+  padding: 34px 18px;
+  border: 1px dashed #bdd0d9;
+  border-radius: 14px;
+  color: #70838b;
+  background: #f9fbfc;
+  font-size: 13px;
+  text-align: center;
+}
+
+.simulation-department-validation {
+  margin-top: 14px;
+  padding: 24px;
+  scroll-margin-top: 96px;
+  border: 1px solid #d7e4e1;
+  border-radius: 23px;
+  outline: none;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(19, 55, 47, 0.07);
+}
+
+.simulation-department-validation:focus {
+  box-shadow: 0 0 0 4px rgba(8, 116, 91, 0.1), 0 18px 42px rgba(19, 55, 47, 0.07);
+}
+
+.simulation-department-validation > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.simulation-department-validation > header small,
+.simulation-department-validation > header h2,
+.simulation-department-validation > header p {
+  margin: 0;
+}
+
+.simulation-department-validation > header small {
+  color: #08745b;
+  font: 800 10px Consolas, monospace;
+  letter-spacing: 0.12em;
+}
+
+.simulation-department-validation > header h2 {
+  margin-top: 4px;
+  font-size: 26px;
+  letter-spacing: -0.045em;
+}
+
+.simulation-department-validation > header p {
+  margin-top: 7px;
+  color: #687b76;
+  font-size: 13px;
+}
+
+.simulation-validation-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.simulation-validation-summary > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-left: 4px solid;
+  border-radius: 13px;
+}
+
+.simulation-validation-summary > .is-related {
+  border-color: #1976d2;
+  color: #145da0;
+  background: #f2f8ff;
+}
+
+.simulation-validation-summary > .is-reflected {
+  border-color: #d32f2f;
+  color: #a52626;
+  background: #fff5f5;
+}
+
+.simulation-validation-summary span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.simulation-validation-summary strong {
+  font-size: 21px;
+}
+
+.simulation-validation-summary strong small {
+  font-size: 12px;
+}
+
+.simulation-validation-lists {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.simulation-validation-lists > section {
+  overflow: hidden;
+  border: 1px solid #dfe8e5;
+  border-radius: 17px;
+  background: #fbfdfc;
+}
+
+.simulation-validation-lists > section > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2eae7;
+}
+
+.simulation-validation-lists > .is-related > header {
+  color: #145da0;
+  background: #eef6fd;
+}
+
+.simulation-validation-lists > .is-reflected > header {
+  color: #a52626;
+  background: #fff0f0;
+}
+
+.simulation-validation-section-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+}
+
+.simulation-validation-section-heading > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  color: #1976d2;
+  background: #fff;
+}
+
+.simulation-validation-section-heading > span.reflection-section-icon {
+  color: #c98b21;
+  background: #fff3d7;
+}
+
+.simulation-validation-section-heading > span .icon {
+  width: 17px;
+  height: 17px;
+}
+
+.simulation-validation-section-heading h3 b {
+  margin-left: 5px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: #fff;
+  background: #d36e2a;
+  font-size: 8px;
+  vertical-align: 2px;
+}
+
+.simulation-validation-lists > .is-related > .reflection-meaning-note {
+  margin: 0 16px;
+  padding: 11px 0 0;
+}
+
+.simulation-validation-lists header small,
+.simulation-validation-lists header h3,
+.simulation-validation-lists header em {
+  margin: 0;
+}
+
+.simulation-validation-lists header small {
+  font: 800 9px Consolas, monospace;
+  letter-spacing: 0.1em;
+}
+
+.simulation-validation-lists header h3 {
+  margin-top: 2px;
+  font-size: 18px;
+}
+
+.simulation-validation-lists header em {
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.simulation-validation-subject-groups {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.simulation-validation-course-group {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--course-group-accent) 22%, #dfe8e5);
+  border-radius: 13px;
+  background: #fff;
+}
+
+.simulation-validation-course-group > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--course-group-accent);
+  background: var(--course-group-soft);
+}
+
+.simulation-validation-course-group > header > span {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.simulation-validation-course-group > header .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.simulation-validation-course-group > header strong {
+  font-size: 13px;
+}
+
+.simulation-validation-course-group > header em {
+  margin-left: auto;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.simulation-validation-course-group > ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+  padding: 10px;
+  list-style: none;
+}
+
+.simulation-validation-lists li {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #e0e8e5;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.simulation-validation-course-open {
+  display: flex;
+  width: 100%;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.simulation-validation-course-open:hover,
+.simulation-validation-course-open:focus-visible {
+  background: rgba(8, 116, 91, 0.045);
+  outline: none;
+}
+
+.simulation-validation-course-open:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(8, 116, 91, 0.35);
+}
+
+.simulation-validation-course-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.simulation-validation-course-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.simulation-validation-course-copy strong {
+  display: block;
+}
+
+.simulation-validation-course-copy strong {
+  overflow: hidden;
+  color: #293f3a;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.simulation-validation-course-name .reflection-star {
+  width: 17px;
+  height: 17px;
+}
+
+.simulation-validation-course-name .reflection-star .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.simulation-validation-course-badges {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.simulation-validation-course-badges > small,
+.simulation-validation-course-badges > em {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.simulation-validation-course-badges > small {
+  color: #a52626;
+  background: #ffe3e3;
+}
+
+.simulation-validation-course-badges > em {
+  color: #976020;
+  background: #fff2dd;
+}
+
+.simulation-validation-lists li.is-selected {
+  border-color: #62ad94;
+  background: #cfeadd;
+  box-shadow: inset 0 0 0 1px rgba(8, 116, 91, 0.13);
+}
+
+.simulation-validation-lists li.is-selected .simulation-validation-course-badges > em {
+  color: #055a47;
+  background: #acd9c8;
+}
+
+.simulation-validation-lists li.is-selected .simulation-validation-course-badges > em .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.simulation-validation-empty {
+  margin: 0;
+  padding: 20px;
+  color: #788984;
+  font-size: 12px;
+  text-align: center;
+}
+
+.simulation-validation-note {
+  margin: 14px 0 0;
+  color: #71817d;
+  font-size: 12px;
+  text-align: right;
+}
+
+@media (max-width: 980px) {
+  .simulation-validation-course-group > ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .curriculum-course-choice {
+    max-width: 100%;
+  }
+
+  .curriculum-course-options .curriculum-course-select b {
+    overflow-wrap: anywhere;
+  }
+
+  .simulation-final-bottom-actions > * {
+    flex: 1 1 0;
+  }
+
+  .simulation-validation-department-group > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .simulation-department-validation {
+    padding: 17px;
+    scroll-margin-top: 82px;
+    border-radius: 19px;
+  }
+
+  .simulation-department-validation > header {
+    display: grid;
+  }
+}
+
+@media (max-width: 520px) {
+  .simulation-validation-course-group > ul {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .simulation-validation-action,
+  .simulation-complete-action {
+    min-height: 48px;
+    padding: 0 12px;
+    font-size: 14px;
+  }
+
+  .simulation-validation-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .simulation-validation-picker-controls {
+    min-height: 0;
+    padding: 17px;
+    border-radius: 18px;
+  }
+
+  .simulation-validation-picker-head {
+    align-items: flex-start;
+  }
+
+  .simulation-validation-picker-head > span {
+    width: 44px;
+    height: 44px;
+  }
+
+  .simulation-validation-picker-head h2 {
+    font-size: 19px;
+  }
+
+  .simulation-validation-department-group > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media print {
+  .simulation-validation-picker,
+  .simulation-department-validation,
+  .simulation-final-bottom-actions {
+    display: none !important;
+  }
+
+  .platform-print-root .is-simulation-validation-print .simulation-department-validation {
+    display: block !important;
+  }
+
+  .simulation-final-course-group li.is-department-related,
+  .simulation-final-course-group li.is-department-reflected,
+  .simulation-final-course-group li.is-department-related.is-department-reflected {
+    border-color: #e2e9e6 !important;
+    border-width: 1px !important;
+    outline: 0 !important;
+    background: #fff !important;
   }
 }

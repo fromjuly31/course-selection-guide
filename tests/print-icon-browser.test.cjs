@@ -154,13 +154,54 @@ async function main() {
         recommendation: inspect("recommendation"),
         department: inspect("department", department.id)
       };
+      const validationDepartment = departments.find((item) => item.reflectedSubjects?.length && item.relatedSubjects?.length >= 15)
+        || departments.find((item) => item.reflectedSubjects?.length)
+        || departments[0];
+      const previousSchool = state.selectedSchool;
+      const previousAdmissionYear = state.selectedAdmissionYear;
+      const previousCurriculum = state.curriculum;
+      const previousValidationDepartmentId = state.simulationValidationDepartmentId;
+      const blank = api.createBlankCurriculumImport();
+      state.selectedSchool = { id: "print-validation-school", name: "검증고등학교", region: "강원특별자치도", admissionYears: [2025] };
+      state.selectedAdmissionYear = 2025;
+      state.curriculum = blank.curricula.find((curriculum) => curriculum.admissionYear === 2025);
+      state.simulationValidationDepartmentId = validationDepartment.id;
+      const multiPageData = api.platformDocumentData("simulation");
+      printRoot.innerHTML = api.platformPrintDocumentMarkup(multiPageData);
+      const validationSource = printRoot.querySelector(".is-simulation-validation-print");
+      const validationBounds = validationSource.getBoundingClientRect();
+      const validationBottom = [...validationSource.querySelectorAll("*")].reduce((bottom, element) => Math.max(bottom, element.getBoundingClientRect().bottom - validationBounds.top), 0);
+      const relatedGrid = validationSource.querySelector(".simulation-validation-lists > .is-related .simulation-validation-course-group > ul");
+      const reflectedGrid = validationSource.querySelector(".simulation-validation-lists > .is-reflected .simulation-validation-course-group > ul");
+      const sampleCourseButton = relatedGrid?.querySelector(".simulation-validation-course-open");
+      const sampleCourseCopy = sampleCourseButton?.querySelector(".simulation-validation-course-copy");
+      const courseButtonBounds = sampleCourseButton?.getBoundingClientRect();
+      const courseCopyBounds = sampleCourseCopy?.getBoundingClientRect();
+      result.multiPage = {
+        sourceCount: printRoot.querySelectorAll(".platform-print-document").length,
+        relatedColumnCount: relatedGrid ? getComputedStyle(relatedGrid).gridTemplateColumns.split(" ").length : 0,
+        reflectedColumnCount: reflectedGrid ? getComputedStyle(reflectedGrid).gridTemplateColumns.split(" ").length : 0,
+        courseCopyPaddingLeft: sampleCourseCopy ? Number.parseFloat(getComputedStyle(sampleCourseCopy).paddingLeft) : 0,
+        courseCopyVerticallyCentered: courseButtonBounds && courseCopyBounds ? Math.abs((courseButtonBounds.top + courseButtonBounds.bottom) / 2 - (courseCopyBounds.top + courseCopyBounds.bottom) / 2) <= 1 : false,
+        validationBottom
+      };
+      api.fitPlatformPrintToSinglePage(printRoot);
+      const printSheets = [...printRoot.querySelectorAll(".platform-print-sheet-svg")];
+      result.multiPage.sheetCount = printSheets.length;
+      result.multiPage.pageNumbers = printSheets.map((sheet) => sheet.dataset.platformPrintPage);
+      result.multiPage.hasMultiplePagesClass = printRoot.classList.contains("has-multiple-pages");
+      result.multiPage.validationViewBoxHeight = Number(printSheets[1]?.getAttribute("viewBox")?.split(" ")[3] || 0);
+      state.selectedSchool = previousSchool;
+      state.selectedAdmissionYear = previousAdmissionYear;
+      state.curriculum = previousCurriculum;
+      state.simulationValidationDepartmentId = previousValidationDepartmentId;
       department.guide.careers = originalCareers;
       document.body.classList.remove("is-platform-print-measuring");
       printRoot.remove();
       return result;
     })()`);
 
-    for (const [kind, result] of Object.entries(metrics)) {
+    for (const [kind, result] of [["recommendation", metrics.recommendation], ["department", metrics.department]]) {
       assert.ok(result.iconCount >= 6, `${kind}: 인쇄 아이콘이 충분히 포함되어야 합니다.`);
       assert.equal(result.externalUseCount, 0, `${kind}: 외부 SVG 참조가 남아서는 안 됩니다.`);
       assert.equal(result.sheetExternalUseCount, 0, `${kind}: 한 장 변환 후 외부 SVG 참조가 남아서는 안 됩니다.`);
@@ -186,6 +227,15 @@ async function main() {
     assert.ok(metrics.department.careers.lineLimit > 4, "인쇄 카드의 실제 여유 높이를 네 줄보다 넉넉하게 사용해야 합니다.");
     assert.equal(metrics.department.careers.lineClamp, String(metrics.department.careers.lineLimit));
     assert.ok(metrics.department.careers.scrollHeight > metrics.department.careers.clientHeight, "실제 카드 높이를 넘는 진출 분야만 말줄임표로 제한되어야 합니다.");
+    assert.equal(metrics.multiPage.sourceCount, 2);
+    assert.equal(metrics.multiPage.sheetCount, 2);
+    assert.deepEqual(metrics.multiPage.pageNumbers, ["1", "2"]);
+    assert.equal(metrics.multiPage.hasMultiplePagesClass, true);
+    assert.equal(metrics.multiPage.relatedColumnCount, 4);
+    assert.equal(metrics.multiPage.reflectedColumnCount, 3);
+    assert.ok(metrics.multiPage.courseCopyPaddingLeft > 0, JSON.stringify(metrics.multiPage));
+    assert.equal(metrics.multiPage.courseCopyVerticallyCentered, true, JSON.stringify(metrics.multiPage));
+    assert.ok(metrics.multiPage.validationViewBoxHeight > metrics.multiPage.validationBottom, JSON.stringify(metrics.multiPage));
     if (process.argv.includes("--capture-preview")) {
       const showPrintPreview = async (kind) => evaluate(`(() => {
         document.querySelectorAll('dialog[open]').forEach((dialog) => dialog.close());

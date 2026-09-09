@@ -271,6 +271,8 @@ async function main() {
   assert.match(schoolStoreSource, /if \(!isInternalNavigation\) \{[\s\S]*?selectedSchool = null;[\s\S]*?return;/);
   assert.match(landingSource, /schoolStore\?\.prepareInternalNavigation\?\.\(\);/);
   assert.match(landingSource, /window\.CourseChatbot\?\.prepareInternalNavigation\?\.\(\);\s*location\.assign/);
+  assert.match(landingSource, /yearButton\.classList\.add\("is-clicked"\)/);
+  assert.match(landingSource, /setTimeout\(resolve, 180\)[\s\S]*?selectSchoolAdmissionYear/);
   assert.match(chatbotSource, /const SUPPORT_INTERNAL_NAVIGATION_KEY = "course-guide:support-internal-navigation:v1"/);
   assert.match(chatbotSource, /const isInternalNavigation = !isReload && storage\.getItem\(SUPPORT_INTERNAL_NAVIGATION_KEY\) === "1"/);
   assert.match(chatbotSource, /function prepareInternalNavigation\(\)/);
@@ -285,7 +287,8 @@ async function main() {
   assert.match(recommendResultEntrySource, /aria-haspopup="dialog"/);
   assert.doesNotMatch(recommendResultEntrySource, /section\.html\?tab=subjects/);
   assert.match(appSource, /const recommendCourse = event\.target\.closest\("\[data-recommend-course\]"\)/);
-  assert.match(appSource, /await Promise\.all\(\[loadDatabase\(\), loadDepartmentDatabase\(\)\]\)/);
+  assert.match(appSource, /const guideDataReady = Promise\.all\(\[loadDatabase\(\), loadDepartmentDatabase\(\)\]\)/);
+  assert.match(appSource, /await Promise\.all\(\[schoolDataReady, guideDataReady\]\)/);
   assert.match(appSource, /const allSelectionsComplete = historyComplete && progress\.complete/);
   assert.match(appSource, /const accessible = allSelectionsComplete \|\| gradeProgress\.grade <= state\.simulationMaxGradeStep \|\| state\.simulationResultUnlocked/);
   assert.match(appSource, /state\.simulationMaxGradeStep = Math\.max\(firstGrade, state\.simulationMaxGradeStep\)/);
@@ -295,7 +298,7 @@ async function main() {
   assert.match(appSource, /window\.addEventListener\("pagehide"/);
   assert.match(appSource, /window\.addEventListener\("pageshow"/);
   assert.match(appSource, /const descendantBottom = \[\.\.\.printDocument\.querySelectorAll\("\*"\)\]/);
-  assert.match(appSource, /measuredHeight \* 1\.015 \+ 4/);
+  assert.match(appSource, /measuredHeight \* \(isValidationPage \? 1\.04 : 1\.015\) \+ \(isValidationPage \? 24 : 4\)/);
   assert.match(appSource, /PLATFORM_PRINTABLE_HEIGHT_MM \/ PLATFORM_PRINTABLE_WIDTH_MM/);
   assert.match(appDataSource, /INDEXED_DB_OPEN_TIMEOUT = 2500/);
   assert.match(appDataSource, /fetchWithTimeout/);
@@ -389,6 +392,18 @@ async function main() {
   assert.match(appCss, /@media \(min-width: 1024px\)[\s\S]*?\.sheet-dialog\.is-major-dialog \.major-subject-list[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(appCss, /\.major-book-university-cell[\s\S]*?grid-column: 1 \/ -1/);
   assert.match(appCss, /\.sheet-dialog\.is-major-dialog[\s\S]*?top: max\(14px, env\(safe-area-inset-top\)\)/);
+  assert.match(appCss, /\.simulation-validation-department-groups[\s\S]*?grid-auto-rows: max-content;[\s\S]*?overflow: visible;/);
+  assert.match(appCss, /\.simulation-validation-lists li\.is-selected[\s\S]*?background: #cfeadd;/);
+  assert.match(appCss, /\.platform-print-root\.has-multiple-pages[\s\S]*?page-break-after: always/);
+  assert.match(appCss, /\.simulation-validation-course-group > ul[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(appCss, /@media \(max-width: 980px\)[\s\S]*?\.simulation-validation-course-group > ul[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(appCss, /@media \(max-width: 520px\)[\s\S]*?\.simulation-validation-course-group > ul[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(appCss, /\.is-simulation-validation-print \.simulation-validation-lists[\s\S]*?grid-template-columns: minmax\(0, 3fr\) minmax\(0, 2fr\)/);
+  assert.match(appCss, /\.is-simulation-validation-print \.simulation-validation-lists > \.is-related \.simulation-validation-course-group > ul[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(appCss, /\.is-simulation-validation-print \.simulation-validation-lists > \.is-reflected \.simulation-validation-course-group > ul[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(appCss, /\.is-simulation-validation-print \.simulation-validation-course-copy[\s\S]*?align-items: center;[\s\S]*?padding-left: 0\.45mm/);
+  assert.match(appSource, /schoolYearOption\.classList\.add\("is-clicked"\)[\s\S]*?setTimeout\(resolve, 180\)[\s\S]*?selectSchoolAdmissionYear/);
+  assert.match(appSource, /picker\?\.focus\(\{ preventScroll: true \}\)[\s\S]*?picker\?\.scrollIntoView/);
   assert.doesNotMatch(appSource, /section\.html\?tab=subjects&q=\$\{encodeURIComponent\(entry\.name\)\}/);
   assert.match(sectionHtml, /data-header-school-search/);
   assert.match(sectionHtml, /<dialog class="header-school-menu school-picker-dialog"/);
@@ -396,8 +411,8 @@ async function main() {
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
   assert.match(sectionHtml, /school-data\.js\?v=20260908-1/);
   assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
-  assert.match(sectionHtml, /app\.css\?v=20260909-3/);
-  assert.match(sectionHtml, /app\.js\?v=20260909-2/);
+  assert.match(sectionHtml, /app\.css\?v=20260909-14/);
+  assert.match(sectionHtml, /app\.js\?v=20260909-10/);
   assert.match(sectionHtml, /chatbot\.js\?v=20260907-3/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);
@@ -613,7 +628,9 @@ async function main() {
   state.tab = "simulation";
   state.simulationSchoolSearch = "";
   window.DatabaseApp.renderSimulation();
-  assert.match(root.innerHTML, /class="simulation-school-options" hidden/);
+  assert.match(root.innerHTML, /class="simulation-school-options"/);
+  assert.doesNotMatch(root.innerHTML, /class="simulation-school-options" hidden/);
+  assert.doesNotMatch(root.innerHTML, /data-simulation-school-id/);
   assert.doesNotMatch(root.innerHTML, /가람고등학교|나래고등학교|하늘고등학교/);
 
   state.simulationSchoolSearch = "서울";
@@ -1034,6 +1051,60 @@ async function main() {
   assert.match(root.innerHTML, /COMPLETED COURSES/);
   assert.match(root.innerHTML, /<h2>수강 완료 과목<\/h2>/);
   assert.doesNotMatch(root.innerHTML, /현재까지 들은 과목/);
+  assert.match(root.innerHTML, /data-complete-simulation/);
+  assert.doesNotMatch(root.innerHTML, /class="simulation-complete-action" href="index\.html"/);
+
+  const previousValidationDataset = state.departmentDataset;
+  const selectedValidationCourse = "공통 과목";
+  state.departmentDataset = {
+    meta: {},
+    fields: [{ name: "자연", departmentCount: 1, commonSubjects: [] }],
+    departments: [{
+      id: "department-validation-test",
+      field: "자연",
+      name: "검증 테스트학과",
+      guide: {},
+      relatedSubjects: [selectedValidationCourse, "검증 미선택 과목"],
+      reflectedSubjects: [{ name: selectedValidationCourse, universities: ["테스트대학교"] }]
+    }]
+  };
+  state.simulationValidationPickerOpen = true;
+  window.DatabaseApp.renderSimulation();
+  assert.match(root.innerHTML, /data-simulation-validation-search/);
+  assert.doesNotMatch(root.innerHTML, /class="simulation-validation-department-group"/);
+  assert.match(root.innerHTML, /data-simulation-validation-results-panel aria-live="polite" hidden/);
+  state.simulationValidationSearch = "검증";
+  window.DatabaseApp.renderSimulation();
+  assert.match(root.innerHTML, /class="simulation-validation-department-group"/);
+  assert.match(root.innerHTML, /data-simulation-validation-department="department-validation-test"/);
+  assert.doesNotMatch(root.innerHTML, /<select[^>]+data-simulation-validation-department/);
+  await root.dispatchTestEvent("click", {
+    target: {
+      dataset: { simulationValidationDepartment: "department-validation-test" },
+      closest(selector) { return selector === "[data-simulation-validation-department]" ? this : null; },
+      matches() { return false; }
+    }
+  });
+  assert.equal(state.simulationValidationDepartmentId, "department-validation-test");
+  assert.match(root.innerHTML, /simulation-validation-course-group/);
+  assert.match(root.innerHTML, /class="simulation-validation-section-heading"/);
+  assert.match(root.innerHTML, /반영 과목 <b>중요<\/b>/);
+  assert.match(root.innerHTML, /class="simulation-validation-course-open"[^>]+data-simulation-course/);
+  assert.doesNotMatch(root.innerHTML, /simulation-validation-legend/);
+  assert.match(root.innerHTML, /class="simulation-validation-university-badge">1개 대학<\/small><em>/);
+  assert.doesNotMatch(root.innerHTML, /1개 대학 반영/);
+  assert.match(root.innerHTML, /class="is-selected\s/);
+  assert.match(root.innerHTML, /class="is-missing\s/);
+  const validationPrintData = window.DatabaseApp.platformDocumentData("simulation");
+  const validationPrintMarkup = window.DatabaseApp.platformPrintDocumentMarkup(validationPrintData);
+  assert.equal(validationPrintData.pages.length, 2);
+  assert.equal((validationPrintMarkup.match(/data-platform-print-page=/g) || []).length, 2);
+  assert.match(validationPrintMarkup, /is-simulation-validation-print/);
+  assert.match(validationPrintMarkup, /검증 테스트학과 학과 검증/);
+  state.simulationValidationDepartmentId = "";
+  state.simulationValidationPickerOpen = false;
+  state.departmentDataset = previousValidationDataset;
+  assert.equal(window.DatabaseApp.platformDocumentData("simulation").pages.length, 1);
 
   state.tab = "simulation";
   state.simulationResultUnlocked = true;
@@ -1143,6 +1214,23 @@ async function main() {
   assert.equal(state.dialogDepartmentId, "department-math");
   assert.equal(window.DatabaseApp.closeDetailDialog(), true);
   assert.equal(detailDialog.open, false);
+
+  state.simulationResultUnlocked = true;
+  state.simulationResultOpen = true;
+  state.simulationHistoryOpen = false;
+  window.DatabaseApp.renderSimulation();
+  await root.dispatchTestEvent("click", {
+    target: {
+      disabled: false,
+      closest(selector) { return selector === "[data-complete-simulation]" ? this : null; },
+      matches() { return false; }
+    }
+  });
+  assert.equal(state.tab, "simulation");
+  assert.equal(state.selectedSchool, null);
+  assert.equal(state.curriculum, null);
+  assert.equal(state.simulationResultOpen, false);
+  assert.match(root.innerHTML, /학교 선택 열기/);
 
   console.log("curriculum parser tests passed");
 }

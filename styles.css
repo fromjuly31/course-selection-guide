@@ -306,10 +306,14 @@ dialog.school-picker-dialog::backdrop {
 
 dialog.school-picker-dialog [data-school-options] {
   display: grid;
+  height: clamp(220px, 38dvh, 380px);
   gap: 7px;
-  max-height: min(380px, calc(100dvh - 300px));
+  max-height: none;
+  align-content: start;
   overflow-y: auto;
   padding-right: 3px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 dialog.school-picker-dialog [data-school-id] {
@@ -407,13 +411,16 @@ dialog.school-picker-dialog [data-school-id] strong {
 }
 
 .school-year-choice [data-school-year-options] button {
+  position: relative;
   min-height: 56px;
+  overflow: hidden;
   border: 1px solid rgba(114, 224, 189, 0.22);
   border-radius: 15px;
   color: white;
   background: rgba(114, 224, 189, 0.1);
   font-size: 15px;
   font-weight: 850;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, opacity 160ms ease;
   cursor: pointer;
 }
 
@@ -422,6 +429,31 @@ dialog.school-picker-dialog [data-school-id] strong {
   border-color: #72e0bd;
   outline: none;
   background: rgba(114, 224, 189, 0.18);
+}
+
+.school-year-choice [data-school-year-options] button:disabled:not(.is-clicked) {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.school-year-choice [data-school-year-options] button.is-clicked {
+  border-color: #72e0bd;
+  background: rgba(114, 224, 189, 0.3);
+  box-shadow: 0 0 0 3px rgba(114, 224, 189, 0.14) inset;
+  animation: school-year-click 180ms ease-out both;
+  cursor: default;
+}
+
+@keyframes school-year-click {
+  0% { transform: scale(1); }
+  45% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .school-year-choice [data-school-year-options] button.is-clicked {
+    animation: none;
+  }
 }
 
 .school-year-choice [data-school-year-options] em {
@@ -442,7 +474,8 @@ dialog.school-picker-dialog [data-school-id] strong {
   }
 
   dialog.school-picker-dialog [data-school-options] {
-    max-height: calc(100dvh - 284px);
+    height: clamp(210px, 38dvh, calc(100dvh - 284px));
+    max-height: none;
   }
 }
 

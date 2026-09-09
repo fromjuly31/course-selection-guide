@@ -194,9 +194,12 @@
     const filtered = keyword
       ? schools.filter((school) => `${school.region || ""}${school.name || ""}`.replace(/\s+/g, "").toLocaleLowerCase("ko-KR").includes(keyword))
       : [];
-    if (count) count.textContent = `${keyword ? `${filtered.length.toLocaleString("ko-KR")}/` : ""}${snapshot.schools.length.toLocaleString("ko-KR")}개 학교`;
+    if (count) {
+      count.hidden = !keyword;
+      count.textContent = keyword ? `${filtered.length.toLocaleString("ko-KR")}/${snapshot.schools.length.toLocaleString("ko-KR")}개 학교` : "";
+    }
     options.replaceChildren();
-    options.hidden = !keyword;
+    options.hidden = false;
     if (!keyword) return;
     if (!filtered.length) {
       const empty = document.createElement("span");
@@ -257,13 +260,19 @@
     }
     const yearButton = event.target.closest("[data-school-connect-year]");
     if (!yearButton || !pendingSchoolId || !schoolStore) return;
-    yearButton.disabled = true;
+    const yearButtons = [...(yearOptions?.querySelectorAll("[data-school-connect-year]") || [])];
+    yearButtons.forEach((button) => { button.disabled = true; });
+    yearButton.classList.add("is-clicked");
+    yearButton.setAttribute("aria-pressed", "true");
     try {
+      await new Promise((resolve) => setTimeout(resolve, 180));
       const snapshot = await schoolStore.selectSchoolAdmissionYear(pendingSchoolId, Number(yearButton.dataset.schoolConnectYear));
       renderSchoolPicker(snapshot);
       closeSchoolMenu();
     } catch (error) {
-      yearButton.disabled = false;
+      yearButtons.forEach((button) => { button.disabled = false; });
+      yearButton.classList.remove("is-clicked");
+      yearButton.setAttribute("aria-pressed", "false");
       yearView?.querySelector("p")?.replaceChildren(document.createTextNode(error.message || "편제표를 불러오지 못했습니다."));
     }
   });
