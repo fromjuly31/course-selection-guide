@@ -3066,6 +3066,18 @@ body.is-platform-image-capturing .platform-print-root {
   transform: translateY(-1px);
 }
 
+.curriculum-upload-year-choice.is-linked {
+  border-color: #a5cfc1;
+  color: #214c40;
+  background: #f7fcfa;
+  box-shadow: inset 0 0 0 1px rgba(8, 116, 91, 0.05), 0 5px 16px rgba(24, 84, 68, 0.045);
+}
+
+.curriculum-upload-year-choice.is-linked:hover {
+  border-color: #72b49f;
+  background: #f2faf7;
+}
+
 .curriculum-upload-year-choice:focus-visible {
   outline: 3px solid rgba(8, 116, 91, 0.17);
   outline-offset: 2px;
@@ -3086,6 +3098,16 @@ body.is-platform-image-capturing .platform-print-root {
 .curriculum-upload-year-choice-icon .icon {
   width: 20px;
   height: 20px;
+}
+
+.curriculum-upload-year-choice.is-linked .curriculum-upload-year-choice-icon {
+  color: #fff;
+  background: var(--primary);
+  box-shadow: 0 5px 12px rgba(8, 116, 91, 0.16);
+}
+
+.curriculum-upload-year-choice.is-linked .curriculum-upload-year-choice-icon .icon {
+  stroke-width: 2.8;
 }
 
 .curriculum-upload-year-choice-copy {
@@ -3115,6 +3137,14 @@ body.is-platform-image-capturing .platform-print-root {
   font-weight: 850;
 }
 
+.curriculum-upload-year-choice small.is-linked {
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--primary);
+  box-shadow: 0 3px 8px rgba(8, 116, 91, 0.12);
+}
+
 .curriculum-upload-year-choice-arrow {
   display: inline-flex;
   color: #8ba099;
@@ -3132,9 +3162,18 @@ body.is-platform-image-capturing .platform-print-root {
   box-shadow: inset 0 0 0 1px var(--primary), 0 8px 22px rgba(8, 116, 91, 0.08);
 }
 
+.curriculum-upload-year-choice.is-selected.is-linked {
+  background: #edf8f4;
+  box-shadow: inset 0 0 0 1px var(--primary), 0 9px 24px rgba(8, 116, 91, 0.11);
+}
+
 .curriculum-upload-year-choice.is-selected .curriculum-upload-year-choice-icon {
   color: #fff;
   background: var(--primary);
+}
+
+.curriculum-upload-year-choice.is-selected.is-linked .curriculum-upload-year-choice-icon {
+  box-shadow: 0 0 0 3px rgba(8, 116, 91, 0.11);
 }
 
 .curriculum-upload-year-choice.is-selected .curriculum-upload-year-choice-arrow {

@@ -352,6 +352,10 @@ async function main() {
   assert.match(appCss, /\.recommend-wizard\[data-recommend-step="5"\] \.recommend-final-groups[\s\S]*?gap: 16px/);
   assert.match(appCss, /\.school-upload-card \.curriculum-format-notice li[\s\S]*?font-size: 13px/);
   assert.match(appCss, /\.curriculum-copy-tools \.curriculum-reset-button[\s\S]*?background: #b84c55/);
+  assert.match(appCss, /\.curriculum-upload-year-choice\.is-linked[\s\S]*?border-color: #a5cfc1;[\s\S]*?background: #f7fcfa/);
+  assert.match(appCss, /\.curriculum-upload-year-choice\.is-linked \.curriculum-upload-year-choice-icon[\s\S]*?color: #fff;[\s\S]*?background: var\(--primary\)/);
+  assert.match(appCss, /\.curriculum-upload-year-choice\.is-linked \.curriculum-upload-year-choice-icon \.icon[\s\S]*?stroke-width: 2\.8/);
+  assert.match(appCss, /\.curriculum-upload-year-choice small\.is-linked[\s\S]*?color: #fff;[\s\S]*?background: var\(--primary\)/);
   assert.match(appCss, /\.curriculum-editor-school-fields[\s\S]*?grid-template-columns: minmax\(180px, 220px\) minmax\(260px, 340px\) minmax\(180px, 1fr\)/);
   assert.match(appCss, /\.connected-schools-card \.school-admission-year-options button[\s\S]*?min-height: 42px/);
   assert.match(appSource, /PLATFORM_EXPORT_SAFE_PADDING = 32/);
@@ -392,7 +396,7 @@ async function main() {
   assert.match(sectionHtml, /data-school-disconnect hidden>연동 해제/);
   assert.match(sectionHtml, /school-data\.js\?v=20260908-1/);
   assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
-  assert.match(sectionHtml, /app\.css\?v=20260908-2/);
+  assert.match(sectionHtml, /app\.css\?v=20260909-3/);
   assert.match(sectionHtml, /app\.js\?v=20260909-2/);
   assert.match(sectionHtml, /chatbot\.js\?v=20260907-3/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
@@ -866,6 +870,7 @@ async function main() {
   assert.equal(state.schoolAuthUploadYear, null);
   assert.match(root.innerHTML, /2025학년도 신입생/);
   assert.match(root.innerHTML, /업로드 완료/);
+  assert.match(root.innerHTML, /class="curriculum-upload-year-choice[^"]*is-linked[^"]*"[^>]*data-upload-year-choice="2025"/);
   assert.match(root.innerHTML, /data-edit-uploaded-curriculum="2025"/);
   assert.doesNotMatch(root.innerHTML, /편제표 등록이 완료되었습니다|다음으로 2026학년도를 선택했습니다/);
   assert.doesNotMatch(root.innerHTML, /curriculum-year-workspace-selector/);

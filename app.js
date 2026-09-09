@@ -5079,7 +5079,7 @@
     const uploadYearNavigation = SUPPORTED_ADMISSION_YEARS.map((admissionYear) => {
       const isSelected = admissionYear === selectedUploadYear;
       const isLinked = linkedUploadYears.has(admissionYear);
-      return `<button class="curriculum-upload-year-choice ${isSelected ? "is-selected" : ""}" type="button" value="${admissionYear}" data-upload-year-select data-upload-year-choice="${admissionYear}" data-upload-year-linked="${isLinked}" aria-pressed="${isSelected}">
+      return `<button class="curriculum-upload-year-choice${isSelected ? " is-selected" : ""}${isLinked ? " is-linked" : ""}" type="button" value="${admissionYear}" data-upload-year-select data-upload-year-choice="${admissionYear}" data-upload-year-linked="${isLinked}" aria-pressed="${isSelected}">
         <span class="curriculum-upload-year-choice-icon">${isLinked ? icon("check") : icon("upload")}</span>
         <span class="curriculum-upload-year-choice-copy"><strong>${admissionYear}학년도 신입생</strong><small class="${isLinked ? "is-linked" : ""}" data-upload-year-status>${isLinked ? "업로드 완료" : "업로드 전"}</small></span>
         <span class="curriculum-upload-year-choice-arrow" aria-hidden="true">${icon("arrow")}</span>
