@@ -1,17 +1,116 @@
-ㅁse></svg><span>과목 추천</span></button>
-    <button class="nav-item" type="button" data-nav-href="section.html?tab=simulation&amp;v=20260905-3"><svg class="icon" aria-hidden="true"><use href="icons.svg#checklist"></use></svg><span>모의 수강신청</span></button>
-    <button class="nav-item" type="button" data-nav-href="section.html?tab=admin&amp;v=20260905-3"><svg class="icon" aria-hidden="true"><use href="icons.svg#settings"></use></svg><span>데이터 연동</span></button>
-  </nav>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071720">
+  <title>선택 과목 안내 플랫폼</title>
+  <meta name="description" content="학교 교육과정에 맞춰 선택과목을 이해하고 진로에 맞는 과목을 설계하는 안내 플랫폼">
+  <link rel="stylesheet" href="styles.css?v=20260909-3">
+  <link rel="stylesheet" href="landing.css?v=20260908-3">
+  <link rel="stylesheet" href="chatbot.css?v=20260907-1">
+</head>
+<body class="landing-page landing-one-screen">
+  <header class="landing-header">
+    <a class="landing-brand" href="index.html" aria-label="선택 과목 안내 플랫폼 메인">
+      <span class="landing-brand-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#school"></use></svg></span>
+      <span><strong>선택 과목 안내 플랫폼</strong></span>
+    </a>
+    <div class="landing-header-actions">
+      <div class="visitor-counter" data-visitor-counter hidden role="status" aria-live="polite">
+        <span class="visitor-live-dot" aria-hidden="true"></span>
+        <span class="visitor-stat"><small>TODAY</small><strong data-visitor-today>0</strong></span>
+        <span class="visitor-divider" aria-hidden="true"></span>
+        <span class="visitor-stat"><small>TOTAL</small><strong data-visitor-total>0</strong></span>
+      </div>
+      <button class="edition-chip" type="button" data-contact-open aria-haspopup="dialog" aria-controls="landing-contact-dialog" aria-label="제작자 및 문의 연락처 열기" title="문의"><svg class="icon" aria-hidden="true"><use href="icons.svg#user"></use></svg><span>Made by 비범쌤(원주여고 김범준)</span></button>
+    </div>
+  </header>
 
-  <script src="supabase-config.js?v=20260905-2"></script>
-  <script src="school-data.js?v=20260906-1"></script>
-  <script src="landing.js?v=20260909-3"></script>
-  <script src="app-data.js?v=20260906-1"></script>
-  <script src="chatbot-engine.js?v=20260905-10"></script>
-  <script src="chatbot.js?v=20260907-3"></script>
-</body>
-</html>
-ㅁse></svg><span>과목 추천</span></button>
+  <dialog class="landing-contact-dialog" id="landing-contact-dialog" data-contact-dialog aria-labelledby="landing-contact-title">
+    <button class="landing-contact-close" type="button" data-contact-close aria-label="문의 창 닫기"><svg class="icon" aria-hidden="true"><use href="icons.svg#close"></use></svg></button>
+    <div class="landing-contact-heading">
+      <span><svg class="icon" aria-hidden="true"><use href="icons.svg#message"></use></svg></span>
+      <div><small>CONTACT</small><h2 id="landing-contact-title">문의</h2></div>
+    </div>
+    <p>선택 과목 안내 플랫폼과 관련한 문의는 아래 연락처로 보내 주세요.</p>
+    <div class="landing-contact-list">
+      <span><i><svg class="icon" aria-hidden="true"><use href="icons.svg#message"></use></svg></i><b>메신저:</b><em>원주여자고등학교 교육과정부 김범준</em></span>
+      <span><i><svg class="icon" aria-hidden="true"><use href="icons.svg?v=20260907-1#mail"></use></svg></i><b>메일:</b><a href="mailto:fromjuly31@gmail.com">fromjuly31@gmail.com</a></span>
+    </div>
+  </dialog>
+
+  <main>
+    <section class="hero-stage" aria-labelledby="main-title">
+      <div class="hero-ambient" aria-hidden="true">
+        <span class="ambient-orb orb-one"></span>
+        <span class="ambient-orb orb-two"></span>
+        <span class="ambient-grid"></span>
+      </div>
+
+      <div class="hero-inner">
+        <div class="landing-hero-copy">
+          <p class="landing-kicker"><span>2022 개정 교육과정</span><span>COURSE GUIDE</span></p>
+          <h1 id="main-title">배움의 선택이<span class="title-line"><em>진로의 방향</em>이 됩니다.</span></h1>
+          <p class="landing-lead">과목을 고르는 일은 앞으로의 배움을 설계하는 일입니다.<br class="desktop-break"> 우리학교 교육과정 안에서 나에게 맞는 선택을 시작해 보세요.</p>
+          <div class="landing-school-picker" data-school-picker>
+            <button class="landing-school-trigger" type="button" data-school-trigger aria-expanded="false">
+              <span class="school-trigger-icon"><svg class="icon" aria-hidden="true"><use href="icons.svg#school"></use></svg></span>
+              <span><strong data-school-picker-label>미선택</strong><small data-school-picker-meta>학교 선택</small></span>
+              <svg class="icon school-trigger-arrow" aria-hidden="true"><use href="icons.svg#arrow"></use></svg>
+            </button>
+            <button class="school-disconnect-button" type="button" data-school-disconnect hidden>연동 해제</button>
+            <dialog class="landing-school-menu school-picker-dialog" data-school-menu aria-labelledby="landing-school-dialog-title">
+              <button class="school-picker-dialog-close" type="button" data-school-menu-close aria-label="학교 목록 닫기">×</button>
+              <section data-school-list-view>
+                <header class="school-picker-dialog-head"><div><small>CONNECTED SCHOOLS</small><h2 id="landing-school-dialog-title">연동 학교 목록</h2></div><strong data-school-list-count>0개 학교</strong></header>
+                <div class="school-picker-current" data-school-current><div class="school-picker-current-copy"><strong data-school-current-name>미선택</strong><small data-school-current-meta>현재 연동 학교</small></div><button class="school-disconnect-button" type="button" data-school-disconnect hidden>연동 해제</button></div>
+                <label class="school-picker-search"><svg class="icon" aria-hidden="true"><use href="icons.svg#search"></use></svg><input type="search" placeholder="지역명 또는 학교명 검색" autocomplete="off" data-school-search></label>
+                <div data-school-options hidden></div>
+              </section>
+              <section class="school-year-choice" data-school-year-view hidden>
+                <button class="school-year-back" type="button" data-school-year-back><svg class="icon" aria-hidden="true"><use href="icons.svg#arrow"></use></svg> 학교 목록</button>
+                <small data-school-year-meta></small>
+                <h2 data-school-year-name>학교명</h2>
+                <p>연동할 입학년도를 선택하세요.</p>
+                <div data-school-year-options></div>
+              </section>
+            </dialog>
+          </div>
+        </div>
+
+        <div class="curriculum-constellation" data-parallax role="img" aria-label="과목들이 진로를 중심으로 연결되는 모습을 표현한 그래픽">
+          <span class="constellation-label">CURRICULUM<br>CONNECTION</span>
+          <span class="constellation-axis axis-x"></span>
+          <span class="constellation-axis axis-y"></span>
+          <span class="constellation-orbit orbit-a"></span>
+          <span class="constellation-orbit orbit-b"></span>
+          <span class="constellation-orbit orbit-c"></span>
+          <span class="constellation-core">
+            <svg class="icon" aria-hidden="true"><use href="icons.svg#compass"></use></svg>
+            <small>MY PATH</small>
+            <strong>나의 진로</strong>
+          </span>
+          <span class="subject-point subject-korean"><i></i>언어·인문</span>
+          <span class="subject-point subject-math"><i></i>수학·정보</span>
+          <span class="subject-point subject-science"><i></i>과학·기술</span>
+          <span class="subject-point subject-social"><i></i>사회·문화</span>
+          <span class="subject-point subject-art"><i></i>예술·체육</span>
+          <span class="constellation-number number-one">01</span>
+          <span class="constellation-number number-two">02</span>
+          <span class="constellation-number number-three">03</span>
+        </div>
+      </div>
+
+      <p class="hero-side-note" aria-hidden="true">EXPLORE · RECOMMEND · SIMULATE</p>
+    </section>
+  </main>
+
+  <nav class="bottom-nav landing-bottom-nav" aria-label="주요 메뉴">
+    <button class="nav-item" type="button" data-nav-href="index.html" aria-current="page"><svg class="icon" aria-hidden="true"><use href="icons.svg#home"></use></svg><span>메인</span></button>
+    <button class="nav-item" type="button" data-nav-href="section.html?tab=subjects&amp;v=20260905-3"><svg class="icon" aria-hidden="true"><use href="icons.svg#book"></use></svg><span>과목 안내</span></button>
+    <button class="nav-item" type="button" data-nav-href="section.html?tab=departments&amp;v=20260905-3"><svg class="icon" aria-hidden="true"><use href="icons.svg#graduation"></use></svg><span>학과 안내</span></button>
+    <button class="nav-item" type="button" data-nav-href="section.html?tab=recommend&amp;v=20260905-3"><svg class="icon" aria-hidden="true"><use href="icons.svg#sparkles"></use></svg><span>과목 추천</span></button>
     <button class="nav-item" type="button" data-nav-href="section.html?tab=simulation&amp;v=20260905-3"><svg class="icon" aria-hidden="true"><use href="icons.svg#checklist"></use></svg><span>모의 수강신청</span></button>
     <button class="nav-item" type="button" data-nav-href="section.html?tab=admin&amp;v=20260905-3"><svg class="icon" aria-hidden="true"><use href="icons.svg#settings"></use></svg><span>데이터 연동</span></button>
   </nav>
