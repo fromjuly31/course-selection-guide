@@ -412,7 +412,7 @@ async function main() {
   assert.match(sectionHtml, /school-data\.js\?v=20260908-1/);
   assert.match(sectionHtml, /app-data\.js\?v=20260906-1/);
   assert.match(sectionHtml, /app\.css\?v=20260909-14/);
-  assert.match(sectionHtml, /app\.js\?v=20260909-10/);
+  assert.match(sectionHtml, /app\.js\?v=20260910-1/);
   assert.match(sectionHtml, /chatbot\.js\?v=20260907-3/);
   assert.match(sectionHtml, /data-nav-href="section\.html\?tab=recommend&amp;v=20260905-3"/);
   assert.doesNotMatch(sectionHtml, /DATA IMPORT NOTICE/);

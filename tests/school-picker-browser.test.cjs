@@ -160,6 +160,14 @@ async function main() {
     assert.equal(freshUi.hasSchoolParam, false);
     assert.equal(freshUi.hasYearParam, false);
 
+    await waitFor(async () => evaluate("Boolean(document.querySelector('[data-school-course-toggle]'))"));
+    assert.equal(await evaluate("document.querySelector('[data-school-course-toggle]').disabled"), false);
+    await evaluate("document.querySelector('[data-school-course-toggle]').click()");
+    await waitFor(async () => evaluate("document.querySelector('.header-school-picker [data-school-menu]').open"));
+    assert.equal(await evaluate("document.querySelector('.header-school-picker [data-school-trigger]').getAttribute('aria-expanded')"), "true");
+    await evaluate("document.querySelector('.header-school-picker [data-school-menu-close]').click()");
+    await waitFor(async () => evaluate("!document.querySelector('.header-school-picker [data-school-menu]').open"));
+
     await connectHeaderSchool();
     const connectedUi = await evaluate(`(() => {
       const picker = document.querySelector('.header-school-picker');
@@ -318,53 +326,15 @@ async function main() {
     await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 820, deviceScaleFactor: 1, mobile: false });
     await client.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/index.html?school=wonju-girls&admissionYear=2026` });
     await waitFor(async () => evaluate("document.readyState === 'complete' && window.SchoolStore?.getSnapshot().schools.length === 1 && window.SchoolStore.getSnapshot().selectedSchool === null"));
-    assert.equal(await evaluate("document.querySelector('.landing-school-picker [data-school-picker-label]').textContent"), "미선택");
+    assert.equal(await evaluate("document.querySelector('.landing-school-picker')"), null);
     assert.equal(await evaluate("new URL(location.href).searchParams.has('school')"), false);
     assert.equal(await evaluate("new URL(location.href).searchParams.has('admissionYear')"), false);
-    await evaluate("window.SchoolStore.selectSchoolAdmissionYear('wonju-girls', 2026)", true);
-    await waitFor(async () => evaluate("document.querySelector('.landing-school-picker')?.classList.contains('has-selection')"));
     const landingUi = await evaluate(`(() => ({
-      badge: document.querySelector('.landing-school-picker .school-cohort-badge')?.textContent,
-      disconnectHidden: document.querySelector('.landing-school-picker [data-school-disconnect]')?.hidden,
-      disconnectText: document.querySelector('.landing-school-picker [data-school-disconnect]')?.textContent.trim(),
-      sameCard: document.querySelector('.landing-school-picker [data-school-trigger]').parentElement === document.querySelector('.landing-school-picker [data-school-disconnect]').parentElement,
       leadBreakDisplay: getComputedStyle(document.querySelector('.landing-lead .desktop-break')).display,
       brandFontSize: Number.parseFloat(getComputedStyle(document.querySelector('.landing-brand strong')).fontSize)
     }))()`);
-    assert.equal(landingUi.badge, "2026년 입학생");
-    assert.equal(landingUi.disconnectHidden, false);
-    assert.equal(landingUi.disconnectText, "연동 해제");
-    assert.equal(landingUi.sameCard, true);
     assert.notEqual(landingUi.leadBreakDisplay, "none");
     assert.ok(landingUi.brandFontSize >= 16);
-    await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
-    const landingCardBeforeHover = await evaluate("getComputedStyle(document.querySelector('.landing-school-picker')).backgroundColor");
-    const disconnectCenter = await evaluate(`(() => {
-      const bounds = document.querySelector('.landing-school-picker > [data-school-disconnect]').getBoundingClientRect();
-      return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 };
-    })()`);
-    await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: disconnectCenter.x, y: disconnectCenter.y });
-    await wait(100);
-    const landingCardHover = await evaluate(`(() => {
-      const picker = document.querySelector('.landing-school-picker');
-      const pickerBounds = picker.getBoundingClientRect();
-      const disconnectBounds = picker.querySelector(':scope > [data-school-disconnect]').getBoundingClientRect();
-      return {
-        hovered: picker.matches(':hover'),
-        background: getComputedStyle(picker).backgroundColor,
-        triggerBackground: getComputedStyle(picker.querySelector(':scope > [data-school-trigger]')).backgroundColor,
-        disconnectFontSize: Number.parseFloat(getComputedStyle(picker.querySelector(':scope > [data-school-disconnect]')).fontSize),
-        disconnectInside: disconnectBounds.left >= pickerBounds.left && disconnectBounds.right <= pickerBounds.right
-      };
-    })()`);
-    assert.equal(landingCardHover.hovered, true);
-    assert.notEqual(landingCardHover.background, landingCardBeforeHover);
-    assert.equal(landingCardHover.triggerBackground, "rgba(0, 0, 0, 0)");
-    assert.ok(landingCardHover.disconnectFontSize >= 10);
-    assert.equal(landingCardHover.disconnectInside, true);
-    await wait(500);
-    const landingScreenshot = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
-    fs.writeFileSync(path.join(projectRoot, "previews", "landing-school-card.png"), Buffer.from(landingScreenshot.data, "base64"));
     await client.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 760, deviceScaleFactor: 1, mobile: true });
     await wait(150);
     const landingMobileUi = await evaluate(`(() => ({
@@ -378,23 +348,6 @@ async function main() {
     assert.notEqual(landingMobileUi.leadBreakDisplay, "none");
     assert.equal(landingMobileUi.makerTextVisible, true);
     assert.ok(landingMobileUi.makerButtonRight <= landingMobileUi.viewportWidth + 1, JSON.stringify(landingMobileUi));
-    await evaluate("document.querySelector('.landing-school-picker [data-school-trigger]').click()");
-    await waitFor(async () => evaluate("document.querySelector('.landing-school-picker [data-school-menu]').open"));
-    assert.equal(await evaluate("document.activeElement.matches('[data-school-search]')"), false);
-    assert.equal(await evaluate("document.querySelector('.landing-school-picker [data-school-options]').hidden"), false);
-    assert.equal(await evaluate("document.querySelectorAll('.landing-school-picker [data-school-id]').length"), 0);
-    await evaluate(`(() => {
-      const input = document.querySelector('.landing-school-picker [data-school-search]');
-      input.value = '원주여자';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    })()`);
-    await waitFor(async () => evaluate("Boolean(document.querySelector('.landing-school-picker [data-school-id=\"wonju-girls\"]'))"));
-    await evaluate("document.querySelector('.landing-school-picker [data-school-menu-close]').click()");
-    await waitFor(async () => evaluate("!document.querySelector('.landing-school-picker [data-school-menu]').open"));
-    await client.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 820, deviceScaleFactor: 1, mobile: false });
-    await evaluate("document.querySelector('.landing-school-picker [data-school-disconnect]').click()");
-    await waitFor(async () => evaluate("window.SchoolStore.getSnapshot().selectedSchool === null"));
-    assert.equal(await evaluate("document.querySelector('.landing-school-picker [data-school-disconnect]').hidden"), true);
 
     await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await client.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/section.html?tab=subjects` });
